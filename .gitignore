@@ -1,0 +1,8 @@
+release/
+release-fixed/
+release-stable/
+*.exe
+*.asar
+*.log
+node_modules/
+dist/
