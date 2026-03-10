@@ -1,32 +1,35 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import PomodoroTimer from "./components/PomodoroTimer";
 import TaskImportExport from "./components/TaskImportExport";
-import TaskProgressIndicator from "./components/TaskProgressIndicator";
-import EnhancedFocusMode from "./components/EnhancedFocusMode";
-import TaskCompletionCelebration from "./components/TaskCompletionCelebration";
-import DailyProductivityScore from "./components/DailyProductivityScore";
 import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts";
+import {
+  getNotificationPermission,
+  requestNotificationPermission,
+  showAppNotification,
+} from "./services/notifications";
 
 // --- IMPORTS ---
 import './App.css';
-import { GoalItem, LiveTaskPopup, NextTaskAlert } from "./components/SharedUI";
-import DashboardView from "./views/DashboardView";
-import PlannerView from "./views/PlannerView";
-import AnalyticsView from "./views/AnalyticsView";
-import SettingsView from "./views/SettingsView";
-import CareerView from "./views/CareerView";
-import ToolsView from "./views/ToolsView";
-import HabitsView from "./views/HabitsView";
-import JournalView from "./views/JournalView";
-import GoalsView from "./views/GoalsView";
+import { LiveTaskPopup, NextTaskAlert } from "./components/SharedUI";
 import ShortcutsModal from "./components/ShortcutsModal";
 import AchievementBadges from "./components/AchievementBadges";
 import WeeklyPlannerWizard from "./components/WeeklyPlannerWizard";
 import TaskTemplates from "./components/TaskTemplates";
 
+const DashboardView = lazy(() => import("./views/DashboardView"));
+const TasksView = lazy(() => import("./views/TasksView"));
+const PlannerView = lazy(() => import("./views/PlannerView"));
+const AnalyticsView = lazy(() => import("./views/AnalyticsView"));
+const SettingsView = lazy(() => import("./views/SettingsView"));
+const CareerView = lazy(() => import("./views/CareerView"));
+const ToolsView = lazy(() => import("./views/ToolsView"));
+const HabitsView = lazy(() => import("./views/HabitsView"));
+const JournalView = lazy(() => import("./views/JournalView"));
+const GoalsView = lazy(() => import("./views/GoalsView"));
+
 import { REPEAT_OPTIONS, SESSION_OPTIONS, PRIORITY_OPTIONS, FONT_OPTIONS, THEME_OPTIONS, TIME_FILTER_OPTIONS, DAY_NAMES, QUOTES, PRIORITY_RANK, JOURNAL_KEY, HABITS_KEY, GOALS_KEY } from "./utils/constants";
 import {
-  ipc, todayKey, toKey, timeToMinutes, hasSameStartEnd, isTimeLiveNow, formatTimeRange, goalTimeMinutes, matchesTimeFilter,
+  todayKey, toKey, timeToMinutes, hasSameStartEnd, isTimeLiveNow, formatTimeRange, goalTimeMinutes, matchesTimeFilter,
   getWeekDays, normalizeGoal, goalVisibleOn, isDoneOn, readStorage, writeStorage, readPrefs, writePrefs,
   readUiState, writeUiState, AudioPlayer, playSuccessTone, playTaskCompleteTone, weeklyStats, completionStreak,
   parseTaskLine, formatCountdown, getTimeRemainingMs
@@ -77,6 +80,7 @@ export default function DailyGoals() {
   const [timeTracking, setTimeTracking] = useState({}); // { goalId: { startedAt, elapsed } }
   const [habitsData, setHabitsData] = useState([]);
   const [goalsData, setGoalsData] = useState([]);
+  const [tabSwitching, setTabSwitching] = useState(false);
 
   // 🍅 MINI POMODORO STATE
   const [miniPomoActive, setMiniPomoActive] = useState(false);
@@ -213,6 +217,11 @@ export default function DailyGoals() {
   // ============================================
   useEffect(() => { masterTimerRef.current = setInterval(() => setNowTick(Date.now()), 1000); return () => clearInterval(masterTimerRef.current); }, []);
   useEffect(() => { return () => { clearTimeout(pulseTimerRef.current); clearTimeout(celebrateTimerRef.current); clearTimeout(globalCelebrationTimerRef.current); }; }, []);
+  useEffect(() => {
+    setTabSwitching(true);
+    const t = setTimeout(() => setTabSwitching(false), 250);
+    return () => clearTimeout(t);
+  }, [activeView]);
 
   useEffect(() => {
     const loadPrefs = async () => {
@@ -375,7 +384,14 @@ export default function DailyGoals() {
       setLoaded(true);
     };
     load();
-    if ("Notification" in window) setNotifPerm(Notification.permission);
+    setNotifPerm(getNotificationPermission());
+    (async () => {
+      const perm = getNotificationPermission();
+      if (perm === "default") {
+        const next = await requestNotificationPermission();
+        setNotifPerm(next);
+      }
+    })();
   }, []);
 
   useEffect(() => {
@@ -383,27 +399,55 @@ export default function DailyGoals() {
     writeUiState({ activeDate, activeView, searchTerm, priorityFilter, timeFilter, weekBase: weekBase instanceof Date ? weekBase.toISOString() : new Date().toISOString() });
   }, [activeDate, activeView, loaded, priorityFilter, searchTerm, timeFilter, weekBase]);
 
-  const save = useCallback(async (updated) => { await writeStorage(JSON.stringify(updated)); setGoals(updated); }, []);
+  const pendingWriteRef = useRef({ timer: null, last: "" });
+  useEffect(() => {
+    return () => {
+      if (pendingWriteRef.current.timer) clearTimeout(pendingWriteRef.current.timer);
+      if (pendingWriteRef.current.last) {
+        writeStorage(pendingWriteRef.current.last).catch(() => {});
+      }
+    };
+  }, []);
+
+  const save = useCallback((updated) => {
+    setGoals(updated);
+    let serialized = "";
+    try { serialized = JSON.stringify(updated); } catch { serialized = "[]"; }
+    pendingWriteRef.current.last = serialized;
+    if (pendingWriteRef.current.timer) clearTimeout(pendingWriteRef.current.timer);
+    pendingWriteRef.current.timer = setTimeout(() => {
+      const toWrite = pendingWriteRef.current.last;
+      writeStorage(toWrite).catch(() => {});
+    }, 250);
+  }, []);
 
   useEffect(() => {
     if (!loaded) return;
-    if (ipc) { ipc.send("schedule-reminders", goals); return; }
-    if (!("Notification" in window) || Notification.permission !== "granted") return;
+    if (getNotificationPermission() !== "granted") return;
     const now = new Date(); const today = todayKey();
     const timers = goals.filter((g) => g.reminder && goalVisibleOn(g, today) && !isDoneOn(g, today)).map((g) => {
       const [hh, mm] = g.reminder.split(":").map(Number); if (Number.isNaN(hh) || Number.isNaN(mm)) return null;
       const fire = new Date(); fire.setHours(hh, mm, 0, 0); const diff = fire - now;
       if (diff <= 0 || diff >= 86400000) return null;
-      return setTimeout(() => new Notification("Task Reminder", { body: g.text }), diff);
+      return setTimeout(() => {
+        setReminderPopup({ text: g.text || "Pending task reminder", session: g.session || "", reminder: g.reminder || "", startTime: g.startTime || "", endTime: g.endTime || "" });
+        AudioPlayer.playReminder();
+        showAppNotification("Task Reminder", { body: g.text || "You have a task reminder", tag: `reminder-${g.id}` });
+      }, diff);
     }).filter(Boolean);
     return () => timers.forEach(clearTimeout);
   }, [goals, loaded]);
 
   useEffect(() => {
-    if (!ipc?.on) return undefined;
-    const onReminder = (_event, payload) => { setReminderPopup({ text: payload?.text || "Pending task reminder", session: payload?.session || "", reminder: payload?.reminder || "", startTime: payload?.startTime || "", endTime: payload?.endTime || "" }); AudioPlayer.playReminder(); };
-    ipc.on("reminder-fired", onReminder);
-    return () => { try { ipc.removeListener("reminder-fired", onReminder); } catch {} };
+    // Optional: add `?notifyTest=1` to the URL to trigger a sample notification.
+    try {
+      const test = new URLSearchParams(window.location.search).get("notifyTest");
+      if (test === "1") {
+        setTimeout(() => {
+          showAppNotification("Task Planner test", { body: "Notifications are working." });
+        }, 1200);
+      }
+    } catch {}
   }, []);
 
   useEffect(() => {
@@ -519,11 +563,13 @@ export default function DailyGoals() {
     if (liveTaskRef.current === undefined) { liveTaskRef.current = currentId; return; }
     if (currentId && currentId !== liveTaskRef.current) {
       playSuccessTone(); setReminderPopup({ text: `Task Shift Alert: ${liveCurrentGoal.text}`, session: liveCurrentGoal.session || "", reminder: liveCurrentGoal.reminder || "", startTime: liveCurrentGoal.startTime || "", endTime: liveCurrentGoal.endTime || "", priority: "High" });
-      if (ipc?.send) ipc.send("notify-task-shift", { text: liveCurrentGoal.text || "Task switched", session: liveCurrentGoal.session || "", startTime: liveCurrentGoal.startTime || "", endTime: liveCurrentGoal.endTime || "", priority: "High" });
-      else if ("Notification" in window && Notification.permission === "granted") try { new Notification("Task Shift Reminder", { body: `${liveCurrentGoal.text} (${liveCurrentGoal.startTime || "--:--"} - ${liveCurrentGoal.endTime || "--:--"})` }); } catch {}
+      showAppNotification("Task Shift Reminder", {
+        body: `${liveCurrentGoal.text} (${liveCurrentGoal.startTime || "--:--"} - ${liveCurrentGoal.endTime || "--:--"})`,
+        tag: `task-shift-${currentId}`,
+      });
     }
     liveTaskRef.current = currentId;
-  }, [liveCurrentGoal, ipc]);
+  }, [liveCurrentGoal]);
 
   useEffect(() => {
     if (!liveCurrentGoal || !shouldShowNextAlert) return setNextTaskAlert(null);
@@ -533,11 +579,13 @@ export default function DailyGoals() {
     const nextTask = nextUpcomingGoal;
     if (nextTask) {
       setNextTaskAlert(nextTask); AudioPlayer.playReminder();
-      if (ipc?.send) ipc.send("notify-next-task", { text: nextTask.text || "Next task", startTime: nextTask.startTime || "", time: nextTask.startTime || "--:--" });
-      else if ("Notification" in window && Notification.permission === "granted") try { new Notification("⚠️ Next Task Alert", { body: `Next: ${nextTask.text} at ${nextTask.startTime || "--:--"}` }); } catch {}
+      showAppNotification("⚠️ Next Task Alert", {
+        body: `Next: ${nextTask.text} at ${nextTask.startTime || "--:--"}`,
+        tag: `next-task-${nextTask.id}`,
+      });
       const timer = setTimeout(() => setNextTaskAlert(null), 10000); return () => clearTimeout(timer);
     }
-  }, [liveCurrentGoal, shouldShowNextAlert, nextUpcomingGoal, activeDate, ipc]);
+  }, [liveCurrentGoal, shouldShowNextAlert, nextUpcomingGoal, activeDate]);
 
   useEffect(() => { setLiveTaskPopup(liveCurrentGoal || null); }, [liveCurrentGoal]);
 
@@ -602,10 +650,114 @@ export default function DailyGoals() {
           </div>
         )}
 
-        {activeView === "insights" && <div key="insights" className="view-transition"><DashboardView quote={quote} setActiveView={setActiveView} done={done} total={total} pct={pct} weekly={weekly} streakDays={streakDays} dueSoon={dueSoon} goals={goals} journalEntries={journalEntries} generateMonthlyReport={generateMonthlyReport} /></div>}
-        
-        {activeView === "tasks" && (
-          <div>
+        <Suspense
+          fallback={
+            <div style={{ display: "grid", placeItems: "center", padding: "40px 16px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px", fontWeight: 800 }}>
+                <span
+                  style={{
+                    width: 18,
+                    height: 18,
+                    borderRadius: "999px",
+                    border: "3px solid rgba(148,163,184,0.35)",
+                    borderTopColor: "rgba(148,163,184,0.95)",
+                    display: "inline-block",
+                    animation: "spin 0.8s linear infinite",
+                  }}
+                />
+                Loading…
+              </div>
+            </div>
+          }
+        >
+          {tabSwitching && (
+            <div style={{ display: "grid", placeItems: "center", padding: "18px 16px", opacity: 0.9 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", fontWeight: 800 }}>
+                <span
+                  style={{
+                    width: 14,
+                    height: 14,
+                    borderRadius: "999px",
+                    border: "3px solid rgba(148,163,184,0.28)",
+                    borderTopColor: "rgba(148,163,184,0.95)",
+                    display: "inline-block",
+                    animation: "spin 0.8s linear infinite",
+                  }}
+                />
+                Switching…
+              </div>
+            </div>
+          )}
+
+          {activeView === "insights" && (
+            <div key="insights" className="view-transition">
+              <DashboardView quote={quote} setActiveView={setActiveView} done={done} total={total} pct={pct} weekly={weekly} streakDays={streakDays} dueSoon={dueSoon} goals={goals} journalEntries={journalEntries} generateMonthlyReport={generateMonthlyReport} />
+            </div>
+          )}
+
+          {activeView === "tasks" && (
+            <div key="tasks" className="view-transition">
+              <TasksView
+                activeDate={activeDate}
+                setActiveDate={setActiveDate}
+                activeDateLabel={activeDateLabel}
+                weekBase={weekBase}
+                setWeekBase={setWeekBase}
+                weekDays={weekDays}
+                liveClockLabel={liveClockLabel}
+                done={done}
+                total={total}
+                setForm={setForm}
+                setEditingGoal={setEditingGoal}
+                setShowForm={setShowForm}
+                liveCurrentGoal={liveCurrentGoal}
+                liveCountdown={liveCountdown}
+                focusMode={focusMode}
+                setFocusMode={setFocusMode}
+                showCelebration={showCelebration}
+                setShowCelebration={setShowCelebration}
+                goals={goals}
+                dotsFor={dotsFor}
+                priorityFilter={priorityFilter}
+                setPriorityFilter={setPriorityFilter}
+                timeFilter={timeFilter}
+                setTimeFilter={setTimeFilter}
+                searchTerm={searchTerm}
+                setSearchTerm={setSearchTerm}
+                searchRef={searchRef}
+                pendingGoals={pendingGoals}
+                completedGoals={completedGoals}
+                visibleGoals={visibleGoals}
+                selectedGoalIds={selectedGoalIds}
+                selectedSet={selectedSet}
+                selectAllVisibleGoals={selectAllVisibleGoals}
+                deleteSelectedGoals={deleteSelectedGoals}
+                clearSelectedGoals={clearSelectedGoals}
+                completedPulseId={completedPulseId}
+                celebratingGoalId={celebratingGoalId}
+                toggleDoneWithCelebration={toggleDoneWithCelebration}
+                removeGoal={removeGoal}
+                toggleSelectGoal={toggleSelectGoal}
+                markAllPendingDone={markAllPendingDone}
+                duplicatePendingToTomorrow={duplicatePendingToTomorrow}
+                reopenAllCompleted={reopenAllCompleted}
+              />
+            </div>
+          )}
+
+          {activeView === "planner" && <div key="planner" className="view-transition"><PlannerView plannerView={plannerView} setPlannerView={setPlannerView} goals={goals} setActiveDate={setActiveDate} setActiveView={setActiveView} /></div>}
+          {activeView === "analytics" && <div key="analytics" className="view-transition"><AnalyticsView setShowPomodoro={setShowPomodoro} setShowImportExport={setShowImportExport} setActiveView={setActiveView} goals={goals} weekly={weekly} /></div>}
+          {activeView === "career" && <div key="career" className="view-transition"><CareerView /></div>}
+          {activeView === "tools" && <div key="tools" className="view-transition"><ToolsView onOpenPomodoro={() => setShowPomodoro(true)} /><div style={{ padding: '0 20px', maxWidth: '900px', margin: '0 auto' }}><TaskTemplates onApplyTemplate={handleApplyTemplate} /></div></div>}
+          {activeView === "settings" && <div key="settings" className="view-transition"><SettingsView setActiveView={setActiveView} themeMode={themeMode} setThemeMode={setThemeMode} taskFontFamily={taskFontFamily} setTaskFontFamily={setTaskFontFamily} taskFontSize={taskFontSize} setTaskFontSize={setTaskFontSize} uiScale={uiScale} setUiScale={setUiScale} overdueEnabled={overdueEnabled} setOverdueEnabled={setOverdueEnabled} fontWeight={fontWeight} setFontWeight={setFontWeight} soundTheme={soundTheme} setSoundTheme={setSoundTheme} autoStartEnabled={autoStartEnabled} setAutoStartEnabled={setAutoStartEnabled} /></div>}
+          {activeView === "habits" && <div key="habits" className="view-transition"><HabitsView /></div>}
+          {activeView === "journal" && <div key="journal" className="view-transition"><JournalView /></div>}
+          {activeView === "goals" && <div key="goals" className="view-transition"><GoalsView /></div>}
+          {activeView === "achievements" && <div key="achievements" className="view-transition"><AchievementBadges stats={badgeStats} /></div>}
+        </Suspense>
+
+        {false && activeView === "tasks" && (
+          <div style={{ display: "none" }}>
             <div className="hero">
               <div className="topbar">
                 <div>
@@ -873,16 +1025,6 @@ export default function DailyGoals() {
             )}
           </div>
         )}
-        
-        {activeView === "planner" && <div key="planner" className="view-transition"><PlannerView plannerView={plannerView} setPlannerView={setPlannerView} goals={goals} setActiveDate={setActiveDate} setActiveView={setActiveView} /></div>}
-        {activeView === "analytics" && <div key="analytics" className="view-transition"><AnalyticsView setShowPomodoro={setShowPomodoro} setShowImportExport={setShowImportExport} setActiveView={setActiveView} goals={goals} weekly={weekly} /></div>}
-        {activeView === "career" && <div key="career" className="view-transition"><CareerView /></div>}
-        {activeView === "tools" && <div key="tools" className="view-transition"><ToolsView onOpenPomodoro={() => setShowPomodoro(true)} /><div style={{ padding: '0 20px', maxWidth: '900px', margin: '0 auto' }}><TaskTemplates onApplyTemplate={handleApplyTemplate} /></div></div>}
-        {activeView === "settings" && <div key="settings" className="view-transition"><SettingsView setActiveView={setActiveView} themeMode={themeMode} setThemeMode={setThemeMode} taskFontFamily={taskFontFamily} setTaskFontFamily={setTaskFontFamily} taskFontSize={taskFontSize} setTaskFontSize={setTaskFontSize} uiScale={uiScale} setUiScale={setUiScale} overdueEnabled={overdueEnabled} setOverdueEnabled={setOverdueEnabled} fontWeight={fontWeight} setFontWeight={setFontWeight} soundTheme={soundTheme} setSoundTheme={setSoundTheme} autoStartEnabled={autoStartEnabled} setAutoStartEnabled={setAutoStartEnabled} /></div>}
-        {activeView === "habits" && <div key="habits" className="view-transition"><HabitsView /></div>}
-        {activeView === "journal" && <div key="journal" className="view-transition"><JournalView /></div>}
-        {activeView === "goals" && <div key="goals" className="view-transition"><GoalsView /></div>}
-        {activeView === "achievements" && <div key="achievements" className="view-transition"><AchievementBadges stats={badgeStats} /></div>}
 
         {/* Focus Mode Overlay */}
         {focusMode && activeView === "tasks" && <div className="focus-overlay" onClick={() => setFocusMode(false)} />}

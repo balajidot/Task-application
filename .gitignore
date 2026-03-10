@@ -6,3 +6,4 @@ release-stable/
 *.log
 node_modules/
 dist/
+.vercel

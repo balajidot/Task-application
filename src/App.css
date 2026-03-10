@@ -3,6 +3,10 @@
    ============================================ */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; font-weight: var(--global-font-weight, 500) !important; }
 body, html {
   font-family: 'Söhne', 'Inter', 'DM Sans', ui-sans-serif, system-ui, sans-serif;

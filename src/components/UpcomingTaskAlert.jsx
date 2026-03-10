@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { showAppNotification } from '../services/notifications';
 
 const UpcomingTaskAlert = ({ upcomingTask, onAlert }) => {
   const [alertShown, setAlertShown] = useState(false);
@@ -17,13 +18,10 @@ const UpcomingTaskAlert = ({ upcomingTask, onAlert }) => {
         onAlert?.(upcomingTask);
         
         // Show browser notification
-        if ('Notification' in window && Notification.permission === 'granted') {
-          new Notification('Upcoming Task Alert', {
-            body: `Next task '${upcomingTask.text}' starts in 5 minutes.`,
-            icon: '/icon.ico',
-            tag: 'upcoming-task'
-          });
-        }
+        showAppNotification('Upcoming Task Alert', {
+          body: `Next task '${upcomingTask.text}' starts in 5 minutes.`,
+          tag: 'upcoming-task'
+        });
 
         // Play alert sound
         const audio = new Audio('/sounds/reminder.mp3');
