@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { GoalItem } from '../components/SharedUI';
 import TaskProgressIndicator from '../components/TaskProgressIndicator';
 import EnhancedFocusMode from '../components/EnhancedFocusMode';
@@ -9,7 +9,7 @@ import { todayKey, toKey } from '../utils/helpers';
 
 export default function TasksView({
   activeDate, setActiveDate, activeDateLabel, weekBase, setWeekBase, weekDays,
-  liveClockLabel, done, total, setForm, setEditingGoal, setShowForm,
+  liveClockLabel, done, total, pct, nextUpcomingGoal, setForm, setEditingGoal, setShowForm,
   liveCurrentGoal, liveCountdown, focusMode, setFocusMode,
   showCelebration, setShowCelebration, goals, dotsFor,
   priorityFilter, setPriorityFilter, timeFilter, setTimeFilter,
@@ -19,6 +19,8 @@ export default function TasksView({
   completedPulseId, celebratingGoalId, toggleDoneWithCelebration, removeGoal, toggleSelectGoal,
   markAllPendingDone, duplicatePendingToTomorrow, reopenAllCompleted
 }) {
+  const [completedTasksCollapsed, setCompletedTasksCollapsed] = useState(false);
+
   return (
     <div>
       <div className="hero">
@@ -51,6 +53,14 @@ export default function TasksView({
                 startTime={liveCurrentGoal.startTime}
                 endTime={liveCurrentGoal.endTime}
                 currentTime={new Date().toTimeString().slice(0, 5)}
+                variant="premium"
+                taskText={liveCurrentGoal.text}
+                timeText={`${liveCurrentGoal.startTime} - ${liveCurrentGoal.endTime || '--:--'}`}
+                upNextText={nextUpcomingGoal?.text || ""}
+                upNextTime={nextUpcomingGoal?.startTime || ""}
+                dayDone={done}
+                dayTotal={total}
+                dayPct={pct}
               />
             )}
           </div>
@@ -164,10 +174,16 @@ export default function TasksView({
           onChange={(e) => setSearchTerm(e.target.value)}
         />
 
-        <div className="goal-list">
-          {pendingGoals.length === 0 && completedGoals.length === 0 ? (
+        {/* PENDING TASKS SECTION */}
+        <div className="pending-tasks-section">
+          <div className="section-head mb-4">
+            <div className="focus-title text-xl">📋 Pending Tasks ({pendingGoals.length})</div>
+            <div className="count">{pendingGoals.length}</div>
+          </div>
+
+          {pendingGoals.length === 0 ? (
             <div className="empty">
-              {searchTerm ? "No tasks found matching your search." : "No tasks for today. Add one above!"}
+              {searchTerm ? "No pending tasks found matching your search." : "No pending tasks for today. Great job!"}
             </div>
           ) : (
             <>
@@ -185,89 +201,140 @@ export default function TasksView({
                 </div>
               )}
 
-              {pendingGoals.map((goal, idx) => (
-                <GoalItem
-                  key={goal.id}
-                  goal={goal}
-                  idx={idx}
-                  doneHere={false}
-                  pulse={completedPulseId === goal.id}
-                  celebrate={celebratingGoalId === goal.id}
-                  liveNow={liveCurrentGoal?.id === goal.id}
-                  countdownText={liveCurrentGoal?.id === goal.id ? liveCountdown : null}
-                  selected={selectedSet.has(goal.id)}
-                  onToggleDone={() => toggleDoneWithCelebration(goal)}
-                  onEdit={() => {
-                    setEditingGoal(goal.id);
-                    setForm({
-                      text: goal.text,
-                      date: goal.date,
-                      reminder: goal.reminder,
-                      startTime: goal.startTime,
-                      endTime: goal.endTime,
-                      repeat: goal.repeat,
-                      session: goal.session,
-                      priority: goal.priority,
-                    });
-                    setShowForm(true);
-                  }}
-                  onDelete={() => removeGoal(goal.id)}
-                  onToggleSelect={() => toggleSelectGoal(goal.id)}
-                />
-              ))}
+              <div className="goal-list">
+                {pendingGoals.map((goal, idx) => (
+                  <GoalItem
+                    key={goal.id}
+                    goal={goal}
+                    idx={idx}
+                    doneHere={false}
+                    pulse={completedPulseId === goal.id}
+                    celebrate={celebratingGoalId === goal.id}
+                    liveNow={liveCurrentGoal?.id === goal.id}
+                    countdownText={liveCurrentGoal?.id === goal.id ? liveCountdown : null}
+                    selected={selectedSet.has(goal.id)}
+                    onToggleDone={() => toggleDoneWithCelebration(goal)}
+                    onEdit={() => {
+                      setEditingGoal(goal.id);
+                      setForm({
+                        text: goal.text,
+                        date: goal.date,
+                        reminder: goal.reminder,
+                        startTime: goal.startTime,
+                        endTime: goal.endTime,
+                        repeat: goal.repeat,
+                        session: goal.session,
+                        priority: goal.priority,
+                      });
+                      setShowForm(true);
+                    }}
+                    onDelete={() => removeGoal(goal.id)}
+                    onToggleSelect={() => toggleSelectGoal(goal.id)}
+                  />
+                ))}
+              </div>
 
-              {completedGoals.map((goal, idx) => (
-                <GoalItem
-                  key={goal.id}
-                  goal={goal}
-                  idx={idx + pendingGoals.length}
-                  doneHere={true}
-                  pulse={false}
-                  celebrate={false}
-                  liveNow={false}
-                  countdownText={null}
-                  selected={selectedSet.has(goal.id)}
-                  onToggleDone={() => toggleDoneWithCelebration(goal)}
-                  onEdit={() => {
-                    setEditingGoal(goal.id);
-                    setForm({
-                      text: goal.text,
-                      date: goal.date,
-                      reminder: goal.reminder,
-                      startTime: goal.startTime,
-                      endTime: goal.endTime,
-                      repeat: goal.repeat,
-                      session: goal.session,
-                      priority: goal.priority,
-                    });
-                    setShowForm(true);
-                  }}
-                  onDelete={() => removeGoal(goal.id)}
-                  onToggleSelect={() => toggleSelectGoal(goal.id)}
-                />
-              ))}
+              <div className="quick-tools" style={{ marginBottom: "20px" }}>
+                <button className="tool-btn" onClick={markAllPendingDone}>
+                  ✅ Mark All Done ({pendingGoals.length})
+                </button>
+                <button className="tool-btn" onClick={duplicatePendingToTomorrow}>
+                  📅 Copy to Tomorrow ({pendingGoals.length})
+                </button>
+              </div>
+            </>
+          )}
+        </div>
 
-              {pendingGoals.length > 0 && (
-                <div className="quick-tools">
-                  <button className="tool-btn" onClick={markAllPendingDone}>
-                    ✅ Mark All Done ({pendingGoals.length})
-                  </button>
-                  <button className="tool-btn" onClick={duplicatePendingToTomorrow}>
-                    📅 Copy to Tomorrow ({pendingGoals.length})
-                  </button>
-                </div>
-              )}
+        {/* COMPLETED TASKS SECTION */}
+        {completedGoals.length > 0 && (
+          <div className="completed-tasks-section" style={{ 
+            background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.08) 0%, rgba(22, 163, 74, 0.05) 100%)', 
+            borderRadius: '12px', 
+            padding: '16px',
+            marginTop: '24px',
+            border: '2px solid rgba(34, 197, 94, 0.2)',
+            boxShadow: '0 4px 12px rgba(34, 197, 94, 0.1)',
+            position: 'relative'
+          }}>
+            {/* Header with border */}
+            <div 
+              className="section-head mb-4 cursor-pointer" 
+              onClick={() => setCompletedTasksCollapsed(!completedTasksCollapsed)}
+              style={{ 
+                cursor: 'pointer', 
+                userSelect: 'none',
+                borderBottom: '1px solid rgba(34, 197, 94, 0.15)',
+                paddingBottom: '12px',
+                marginBottom: '16px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}
+            >
+              <div className="focus-title text-xl" style={{ 
+                color: 'rgba(22, 163, 74, 0.9)',
+                fontWeight: '600',
+                textDecoration: 'none'
+              }}>
+                ✅ Completed Tasks ({completedGoals.length})
+              </div>
+              <div className="collapse-icon" style={{ 
+                fontSize: '14px', 
+                color: 'rgba(22, 163, 74, 0.7)',
+                transition: 'transform 0.2s ease',
+                transform: completedTasksCollapsed ? 'rotate(0deg)' : 'rotate(180deg)'
+              }}>
+                ▼
+              </div>
+            </div>
+            
+            {!completedTasksCollapsed && (
+              <div className="goal-list" style={{ opacity: '0.8' }}>
+                {completedGoals.map((goal, idx) => (
+                  <GoalItem
+                    key={goal.id}
+                    goal={goal}
+                    idx={idx + pendingGoals.length}
+                    doneHere={true}
+                    pulse={false}
+                    celebrate={false}
+                    liveNow={false}
+                    countdownText={null}
+                    selected={selectedSet.has(goal.id)}
+                    onToggleDone={() => toggleDoneWithCelebration(goal)}
+                    onEdit={() => {
+                      setEditingGoal(goal.id);
+                      setForm({
+                        text: goal.text,
+                        date: goal.date,
+                        reminder: goal.reminder,
+                        startTime: goal.startTime,
+                        endTime: goal.endTime,
+                        repeat: goal.repeat,
+                        session: goal.session,
+                        priority: goal.priority,
+                      });
+                      setShowForm(true);
+                    }}
+                    onDelete={() => removeGoal(goal.id)}
+                    onToggleSelect={() => toggleSelectGoal(goal.id)}
+                  />
+                ))}
 
-              {completedGoals.length > 0 && (
-                <div className="quick-tools">
+                <div className="quick-tools" style={{ 
+                  marginTop: '16px',
+                  paddingTop: '12px',
+                  borderTop: '1px solid rgba(34, 197, 94, 0.15)'
+                }}>
                   <button className="tool-btn" onClick={reopenAllCompleted}>
                     🔄 Reopen All ({completedGoals.length})
                   </button>
                 </div>
-              )}
-            </>
-          )}
-        </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

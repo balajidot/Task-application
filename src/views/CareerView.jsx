@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { CAREER_KEY } from '../utils/constants';
 import { readPersist, writePersist } from '../utils/helpers';
 

@@ -47,3 +47,68 @@ export async function showAppNotification(title, options = {}) {
   }
 }
 
+// Schedule task notifications for today's tasks
+export async function scheduleTaskNotifications(tasks) {
+  if (!isNotificationsSupported()) return;
+  if (Notification.permission !== 'granted') return;
+
+  const today = new Date().toDateString();
+  const todayTasks = tasks.filter(task => {
+    const taskDate = new Date(task.date).toDateString();
+    return taskDate === today && task.startTime;
+  });
+
+  for (const task of todayTasks) {
+    if (!task.startTime) continue;
+
+    const [hours, minutes] = task.startTime.split(':').map(Number);
+    const taskTime = new Date();
+    taskTime.setHours(hours, minutes, 0, 0);
+
+    // Only schedule if task is in the future
+    if (taskTime > new Date()) {
+      const delay = taskTime.getTime() - Date.now();
+      
+      setTimeout(() => {
+        showTaskNotification(task);
+      }, delay);
+    }
+  }
+}
+
+// Show individual task notification
+export async function showTaskNotification(task) {
+  const title = `⏰ ${task.text}`;
+  const body = `${task.text} (${task.startTime || "--:--"}-${task.endTime || "--:--"}) Starting!`;
+  
+  await showAppNotification(title, {
+    body,
+    icon: '/pwa-192x192.png',
+    tag: `task-${task.id}`,
+    requireInteraction: true,
+    actions: [
+      {
+        action: 'open',
+        title: 'Open Task'
+      }
+    ],
+    data: {
+      taskId: task.id,
+      taskText: task.text
+    }
+  });
+}
+
+// Request notification permission on app load
+export async function initializeNotifications() {
+  if (!isNotificationsSupported()) return 'unsupported';
+  
+  const permission = getNotificationPermission();
+  if (permission === 'default') {
+    const result = await requestNotificationPermission();
+    return result;
+  }
+  
+  return permission;
+}
+

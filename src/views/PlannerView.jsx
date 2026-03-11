@@ -39,7 +39,7 @@ export default function PlannerView({ plannerView, setPlannerView, goals, setAct
             setActiveDate(dateStr);
             setActiveView('tasks');
           }}
-          onDateChange={(date) => console.log('Date changed:', date)}
+          onDateChange={(date) => {}}
         />
       </div>
     </div>

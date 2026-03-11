@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import ProductivityAnalytics from '../components/ProductivityAnalytics';
 
 export default function AnalyticsView({ setShowPomodoro, setShowImportExport, setActiveView, goals, weekly }) {
@@ -25,7 +25,16 @@ export default function AnalyticsView({ setShowPomodoro, setShowImportExport, se
         </div>
       </div>
 
-      <ProductivityAnalytics goals={goals} weeklyStats={weekly} />
+      <Suspense fallback={
+        <div className="skeleton-card">
+          <div className="skeleton-title"></div>
+          <div className="skeleton-text"></div>
+          <div className="skeleton-text"></div>
+          <div className="skeleton-text"></div>
+        </div>
+      }>
+        <ProductivityAnalytics goals={goals} weeklyStats={weekly} />
+      </Suspense>
 
       <div className="card">
         <div className="section-head">

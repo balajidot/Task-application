@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import { formatTimeRange, timeToMinutes, todayKey } from '../utils/helpers';
 
-const TaskCard = ({ 
+const TaskCard = memo(({ 
   goal, 
   idx, 
   doneHere, 

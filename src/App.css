@@ -7,18 +7,42 @@
   to { transform: rotate(360deg); }
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; font-weight: var(--global-font-weight, 500) !important; }
+* { 
+  box-sizing: border-box; 
+  margin: 0; 
+  padding: 0; 
+  font-weight: var(--global-font-weight, 500) !important;
+  scroll-behavior: smooth;
+}
 body, html {
   font-family: 'Söhne', 'Inter', 'DM Sans', ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: subpixel-antialiased;
   -moz-osx-font-smoothing: auto;
   text-rendering: optimizeLegibility;
   -webkit-text-stroke: 0;
+  scroll-behavior: smooth;
 }
 
-.page { min-height: 100vh; display: flex; justify-content: center; padding: 12px; background: var(--bg); color: var(--text); transition: background-color 0.3s ease, color 0.3s ease; }
+.page { 
+  min-height: 100vh; 
+  display: flex; 
+  justify-content: center; 
+  padding: 12px; 
+  background: var(--bg); 
+  color: var(--text); 
+  transition: background-color 0.2s ease, color 0.2s ease; 
+}
 .page.planner-mode { padding: 0; }
-.app { width: 100%; max-width: 1050px; display: flex; flex-direction: column; gap: 12px; transform: scale(var(--ui-scale)); transform-origin: top center; transition: transform 0.2s ease; }
+.app { 
+  width: 100%; 
+  max-width: 1050px; 
+  display: flex; 
+  flex-direction: column; 
+  gap: 12px; 
+  transform: scale(var(--ui-scale)); 
+  transform-origin: top center; 
+  transition: transform 0.2s ease; 
+}
 
 /* ============================================
    THEMES (DYNAMIC VARIABLES)
@@ -223,7 +247,109 @@ body, html {
 }
 
 /* ============================================
-   🔥 LIVE STRIP WITH PROGRESS & UP NEXT 🔥
+   PERFORMANCE & VIEW TRANSITIONS
+   ============================================ */
+.view-transition {
+  animation: viewFadeIn 0.2s ease-out;
+  will-change: opacity, transform;
+}
+
+@keyframes viewFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Tab switching performance */
+.tab-btn {
+  will-change: transform, box-shadow;
+}
+
+/* Task list performance */
+.goal-item {
+  will-change: transform, box-shadow;
+  contain: layout style paint;
+}
+
+/* Smooth scrolling */
+html, body {
+  scroll-behavior: smooth;
+}
+
+/* Skeleton loader */
+.skeleton {
+  background: linear-gradient(90deg, var(--chip) 25%, var(--card-border) 50%, var(--chip) 75%);
+  background-size: 200% 100%;
+  animation: skeletonLoading 1.5s infinite;
+  border-radius: 8px;
+  height: 20px;
+  margin: 8px 0;
+}
+
+@keyframes skeletonLoading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.skeleton-card {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 16px;
+  margin: 12px 0;
+}
+
+.skeleton-title {
+  height: 24px;
+  width: 60%;
+  margin-bottom: 12px;
+}
+
+.skeleton-text {
+  height: 16px;
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.skeleton-text:last-child {
+  width: 80%;
+}
+
+/* Performance optimizations */
+.goal-item,
+.tab-btn,
+.filter-btn,
+.card {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  .view-transition {
+    animation: none;
+  }
+  
+  html, body {
+    scroll-behavior: auto;
+  }
+}
+
+/* ============================================
+   LIVE STRIP WITH PROGRESS & UP NEXT
    ============================================ */
 .live-strip { display: flex; flex-direction: column; gap: 15px; padding: 18px 22px; border-radius: 16px; margin-bottom: 16px; transition: all 0.3s ease; }
 .enhanced-live-strip { background: linear-gradient(135deg, var(--card) 0%, rgba(16, 185, 129, 0.12) 100%); border: 2px solid #10b981; box-shadow: 0 8px 25px rgba(16, 185, 129, 0.15); position: relative; overflow: hidden; }

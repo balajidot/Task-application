@@ -6,7 +6,11 @@ import {
   getNotificationPermission,
   requestNotificationPermission,
   showAppNotification,
+  initializeNotifications,
+  scheduleTaskNotifications,
+  showTaskNotification,
 } from "./services/notifications";
+import { scheduleTaskNotifications as scheduleOneSignalNotifications } from "./services/oneSignal";
 
 // --- IMPORTS ---
 import './App.css';
@@ -374,17 +378,31 @@ export default function DailyGoals() {
       const [raw, uiState] = await Promise.all([readStorage(), readUiState()]);
       if (raw) { try { const parsed = JSON.parse(raw); if (Array.isArray(parsed)) setGoals(parsed.map(normalizeGoal)); } catch {} }
       if (uiState && typeof uiState === "object") {
-        if (uiState.activeDate) setActiveDate(uiState.activeDate);
+        // Always default to today's date, but preserve other UI state
+        setActiveDate(todayKey());
         if (uiState.activeView) setActiveView(uiState.activeView);
         if (uiState.searchTerm) setSearchTerm(uiState.searchTerm);
         if (uiState.priorityFilter) setPriorityFilter(uiState.priorityFilter);
         if (uiState.timeFilter) setTimeFilter(uiState.timeFilter);
-        if (uiState.weekBase) { const parsedWeekBase = new Date(uiState.weekBase); if (!Number.isNaN(parsedWeekBase.getTime())) setWeekBase(parsedWeekBase); }
+        // Always set week base to today for proper calendar highlighting
+        setWeekBase(new Date());
       }
+      
+      // Handle URL parameters from notification clicks
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('view') === 'tasks') {
+        setActiveView('tasks');
+      }
+      
       setLoaded(true);
     };
     load();
-    setNotifPerm(getNotificationPermission());
+    
+    // Initialize notifications
+    initializeNotifications().then(permission => {
+      setNotifPerm(permission);
+    });
+    
     (async () => {
       const perm = getNotificationPermission();
       if (perm === "default") {
@@ -398,6 +416,36 @@ export default function DailyGoals() {
     if (!loaded) return;
     writeUiState({ activeDate, activeView, searchTerm, priorityFilter, timeFilter, weekBase: weekBase instanceof Date ? weekBase.toISOString() : new Date().toISOString() });
   }, [activeDate, activeView, loaded, priorityFilter, searchTerm, timeFilter, weekBase]);
+
+  // Schedule task notifications when goals are loaded
+  useEffect(() => {
+    if (!loaded) return;
+    // Schedule both local and OneSignal notifications
+    scheduleTaskNotifications(goals);
+    scheduleOneSignalNotifications(goals);
+  }, [goals, loaded]);
+
+  // Handle service worker messages for navigation
+  useEffect(() => {
+    if (!loaded) return;
+    
+    const handleMessage = (event) => {
+      if (event.data?.type === 'NAVIGATE_TO_TASKS') {
+        setActiveView('tasks');
+        // Optionally highlight the specific task if taskId is provided
+        if (event.data.taskId) {
+          // You could add logic to highlight/highlight the specific task
+          // Task highlighting logic can be added here
+        }
+      }
+    };
+
+    navigator.serviceWorker?.addEventListener('message', handleMessage);
+    
+    return () => {
+      navigator.serviceWorker?.removeEventListener('message', handleMessage);
+    };
+  }, [loaded]);
 
   const pendingWriteRef = useRef({ timer: null, last: "" });
   useEffect(() => {
@@ -707,6 +755,8 @@ export default function DailyGoals() {
                 liveClockLabel={liveClockLabel}
                 done={done}
                 total={total}
+                pct={pct}
+                nextUpcomingGoal={nextUpcomingGoal}
                 setForm={setForm}
                 setEditingGoal={setEditingGoal}
                 setShowForm={setShowForm}
@@ -1082,7 +1132,7 @@ export default function DailyGoals() {
           <div className="overlay" onClick={() => setShowPomodoro(false)}>
             <div className="modal" onClick={(e) => e.stopPropagation()}>
               <div className="m-title">🍅 Pomodoro Focus Timer</div>
-              <PomodoroTimer onTaskComplete={(count) => { console.log(`Completed ${count} pomodoros!`); playTaskCompleteTone(); }} onBreakComplete={() => { console.log('Break completed!'); playSuccessTone(); }} />
+              <PomodoroTimer onTaskComplete={(count) => { playTaskCompleteTone(); }} onBreakComplete={() => { playSuccessTone(); }} />
               <div style={{ textAlign: 'center', marginTop: '16px' }}><button className="mini-btn" onClick={() => setShowPomodoro(false)}>Close</button></div>
             </div>
           </div>
