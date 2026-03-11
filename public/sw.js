@@ -4,7 +4,9 @@ const urlsToCache = [
   '/index.html',
   '/manifest.webmanifest',
   '/pwa-192x192.png',
-  '/pwa-512x512.png'
+  '/pwa-512x512.png',
+  '/OneSignalSDKWorker.js',
+  '/OneSignalSDKUpdaterWorker.js'
 ];
 
 // Install Service Worker
@@ -62,6 +64,30 @@ self.addEventListener('fetch', event => {
   );
 });
 
+// Handle OneSignal push events
+self.addEventListener('push', event => {
+  const data = event.data.json();
+  
+  const options = {
+    body: data.contents ? data.contents.en : 'Task notification',
+    icon: '/pwa-192x192.png',
+    badge: '/pwa-192x192.png',
+    vibrate: [100, 50, 100],
+    data: data.data || {},
+    requireInteraction: true,
+    actions: [
+      {
+        action: 'open',
+        title: 'Open Task'
+      }
+    ]
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(data.headings ? data.headings.en : 'Task Planner', options)
+  );
+});
+
 // Notification Click Handler
 self.addEventListener('notificationclick', event => {
   event.notification.close();
@@ -85,38 +111,9 @@ self.addEventListener('notificationclick', event => {
       
       // Open new window with Tasks tab
       if (clients.openWindow) {
-        return clients.openWindow('/?view=tasks');
+        const url = event.notification.data?.url || 'https://task-application-sigma.vercel.app?view=tasks';
+        return clients.openWindow(url);
       }
     })
-  );
-});
-
-// Push Notification Handler (for future use)
-self.addEventListener('push', event => {
-  const options = {
-    body: event.data ? event.data.text() : 'New task notification!',
-    icon: '/pwa-192x192.png',
-    badge: '/pwa-192x192.png',
-    vibrate: [100, 50, 100],
-    data: {
-      dateOfArrival: Date.now(),
-      primaryKey: 1
-    },
-    actions: [
-      {
-        action: 'explore',
-        title: 'Open App',
-        icon: '/pwa-192x192.png'
-      },
-      {
-        action: 'close',
-        title: 'Close',
-        icon: '/pwa-192x192.png'
-      }
-    ]
-  };
-
-  event.waitUntil(
-    self.registration.showNotification('Task Planner', options)
   );
 });

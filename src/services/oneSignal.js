@@ -1,8 +1,9 @@
 // OneSignal Push Notification Service
 const ONE_SIGNAL_APP_ID = 'f98c4786-2104-4f35-936c-7b810f1d13ca';
+const ONE_SIGNAL_REST_API_KEY = 'PASTE_YOUR_REST_API_KEY_HERE'; // Get this from OneSignal dashboard → Settings → Keys & IDs
 const PWA_URL = 'https://task-application-sigma.vercel.app';
 
-// Initialize OneSignal
+// Initialize OneSignal with proper service worker configuration
 export async function initializeOneSignal() {
   if (typeof window === 'undefined' || !window.OneSignal) {
     // OneSignal SDK not loaded
@@ -22,6 +23,11 @@ export async function initializeOneSignal() {
         welcomeNotification: {
           disable: true,
         },
+        serviceWorkerParam: {
+          scope: '/OneSignalSDKWorker.js'
+        },
+        serviceWorkerPath: '/OneSignalSDKWorker.js',
+        serviceWorkerUpdaterPath: '/OneSignalSDKUpdaterWorker.js'
       }
     ]);
 
@@ -82,7 +88,7 @@ export async function scheduleTaskNotifications(tasks) {
   }
 }
 
-// Schedule single task notification
+// Schedule single task notification using OneSignal REST API
 async function scheduleSingleTaskNotification(task) {
   if (!task.startTime) return;
 
@@ -98,10 +104,7 @@ async function scheduleSingleTaskNotification(task) {
       return;
     }
 
-    // Calculate delay in seconds from now
-    const delayInSeconds = Math.floor((taskTime.getTime() - Date.now()) / 1000);
-
-    // Create notification content
+    // Create notification payload for OneSignal REST API
     const notificationData = {
       app_id: ONE_SIGNAL_APP_ID,
       contents: {
@@ -110,7 +113,7 @@ async function scheduleSingleTaskNotification(task) {
       headings: {
         en: "⏰ Task Starting Now!"
       },
-      url: PWA_URL,
+      url: `${PWA_URL}?view=tasks&taskId=${task.id}`,
       send_after: taskTime.toISOString(),
       data: {
         taskId: task.id,
@@ -126,10 +129,25 @@ async function scheduleSingleTaskNotification(task) {
       ]
     };
 
-    // Send notification via OneSignal REST API (using their SDK)
-    await window.OneSignal.push(['createNotification', notificationData]);
+    // Send notification using OneSignal REST API
+    const response = await fetch('https://onesignal.com/api/v1/notifications', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Basic ${btoa(ONE_SIGNAL_REST_API_KEY + ':')}`
+      },
+      body: JSON.stringify(notificationData)
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      // Store notification ID for potential cancellation
+      const scheduledIds = JSON.parse(localStorage.getItem('scheduledNotificationIds') || '[]');
+      scheduledIds.push(result.id);
+      localStorage.setItem('scheduledNotificationIds', JSON.stringify(scheduledIds));
+    }
     
-    // Scheduled notification for "task" at startTime
+    // Scheduled notification for task at startTime
   } catch (error) {
     // Failed to schedule notification for task
   }
