@@ -1,4 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import OneSignal from 'react-onesignal'; // 🔥 EXPERT ADDED: OneSignal Import
 import PomodoroTimer from "./components/PomodoroTimer";
 import TaskImportExport from "./components/TaskImportExport";
 import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts";
@@ -81,15 +82,14 @@ export default function DailyGoals() {
   const [autoStartEnabled, setAutoStartEnabled] = useState(false);
   const [journalEntries, setJournalEntries] = useState({});
   const [showWeeklyWizard, setShowWeeklyWizard] = useState(false);
-  const [timeTracking, setTimeTracking] = useState({}); // { goalId: { startedAt, elapsed } }
+  const [timeTracking, setTimeTracking] = useState({});
   const [habitsData, setHabitsData] = useState([]);
   const [goalsData, setGoalsData] = useState([]);
   const [tabSwitching, setTabSwitching] = useState(false);
 
-  // 🍅 MINI POMODORO STATE
   const [miniPomoActive, setMiniPomoActive] = useState(false);
   const [miniPomoSeconds, setMiniPomoSeconds] = useState(25 * 60);
-  const [miniPomoPhase, setMiniPomoPhase] = useState('work'); // 'work' | 'break'
+  const [miniPomoPhase, setMiniPomoPhase] = useState('work');
   const miniPomoRef = useRef(null);
   
   const pulseTimerRef = useRef(null);
@@ -100,6 +100,22 @@ export default function DailyGoals() {
   const nextAlertShownRef = useRef({});
   const globalCelebrationTimerRef = useRef(null);
   const quote = QUOTES[Math.floor((Date.now() / 86400000) % QUOTES.length)];
+
+  // 🔥 EXPERT ADDED: OneSignal Initialization Effect 🔥
+  useEffect(() => {
+    const initOneSignal = async () => {
+      try {
+        await OneSignal.init({
+          appId: "f98c4786-2104-4f35-936c-7b810f1d13ca",
+          allowLocalhostAsSecureOrigin: true,
+        });
+        OneSignal.Slidedown.promptPush();
+      } catch (error) {
+        console.error("OneSignal Initialization Error:", error);
+      }
+    };
+    initOneSignal();
+  }, []);
 
   // 🍅 MINI POMODORO TIMER EFFECT
   useEffect(() => {
@@ -170,7 +186,6 @@ export default function DailyGoals() {
     [...goals].filter((g) => goalVisibleOn(g, todayKey())).filter((g) => !isDoneOn(g, todayKey())).sort((a, b) => goalTimeMinutes(a) - goalTimeMinutes(b)).find((g) => isTimeLiveNow(g.startTime, g.endTime, nowMinutes)) || null
   ), [goals, nowMinutes]);
   
-  // 🔥 FIND STRICTLY NEXT UPCOMING TASK 🔥
   const nextUpcomingGoal = useMemo(() => {
     const now = new Date(nowTick); 
     const currentMins = now.getHours() * 60 + now.getMinutes();
@@ -188,7 +203,6 @@ export default function DailyGoals() {
     return remaining !== null ? formatCountdown(remaining) : null;
   }, [liveCurrentGoal, nowTick]);
 
-  // 🔥 CALCULATE PROGRESS PERCENTAGE 🔥
   const livePercent = useMemo(() => {
     if (!liveCurrentGoal || !liveCurrentGoal.startTime || !liveCurrentGoal.endTime) return 0;
     const startMins = timeToMinutes(liveCurrentGoal.startTime);
@@ -246,7 +260,6 @@ export default function DailyGoals() {
 
   useEffect(() => { writePrefs({ themeMode, taskFontSize, taskFontFamily, uiScale, overdueEnabled, fontWeight, soundTheme, autoStartEnabled }); }, [themeMode, taskFontSize, taskFontFamily, uiScale, overdueEnabled, fontWeight, soundTheme, autoStartEnabled]);
 
-  // Load journal entries for dashboard mood trend
   useEffect(() => {
     const loadJournal = async () => {
       try {
@@ -257,7 +270,6 @@ export default function DailyGoals() {
     loadJournal();
   }, [activeView]);
 
-  // Load habits/goals data for badges
   useEffect(() => {
     const loadBadgeData = async () => {
       try {
@@ -270,7 +282,6 @@ export default function DailyGoals() {
     loadBadgeData();
   }, [activeView]);
 
-  // Badge stats computation
   const badgeStats = useMemo(() => {
     const allDates = new Set();
     goals.forEach(g => { if (g.date) allDates.add(g.date); });
@@ -289,22 +300,18 @@ export default function DailyGoals() {
     return { totalDone, streak: streakDays, hadPerfectDay, earlyBird: false, journalCount, habitCount, goalCount, goalCompleted };
   }, [goals, streakDays, journalEntries, habitsData, goalsData]);
 
-  // Time tracking toggle
   const toggleTimeTracking = useCallback((goalId) => {
     setTimeTracking(prev => {
       const entry = prev[goalId];
       if (entry?.startedAt) {
-        // Stop tracking
         const elapsed = (entry.elapsed || 0) + (Date.now() - entry.startedAt);
         return { ...prev, [goalId]: { startedAt: null, elapsed } };
       } else {
-        // Start tracking
         return { ...prev, [goalId]: { startedAt: Date.now(), elapsed: entry?.elapsed || 0 } };
       }
     });
   }, []);
 
-  // Monthly PDF Report
   const generateMonthlyReport = useCallback(() => {
     const now = new Date();
     const monthName = now.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
@@ -342,7 +349,6 @@ export default function DailyGoals() {
       <script>setTimeout(()=>window.print(),500)</script></body></html>`);
   }, [goals, streakDays, badgeStats, habitsData, goalsData]);
 
-  // Template apply handler
   const handleApplyTemplate = useCallback((tasks) => {
     const today = todayKey();
     const newGoals = tasks.map(text => ({
@@ -378,17 +384,14 @@ export default function DailyGoals() {
       const [raw, uiState] = await Promise.all([readStorage(), readUiState()]);
       if (raw) { try { const parsed = JSON.parse(raw); if (Array.isArray(parsed)) setGoals(parsed.map(normalizeGoal)); } catch {} }
       if (uiState && typeof uiState === "object") {
-        // Always default to today's date, but preserve other UI state
         setActiveDate(todayKey());
         if (uiState.activeView) setActiveView(uiState.activeView);
         if (uiState.searchTerm) setSearchTerm(uiState.searchTerm);
         if (uiState.priorityFilter) setPriorityFilter(uiState.priorityFilter);
         if (uiState.timeFilter) setTimeFilter(uiState.timeFilter);
-        // Always set week base to today for proper calendar highlighting
         setWeekBase(new Date());
       }
       
-      // Handle URL parameters from notification clicks
       const urlParams = new URLSearchParams(window.location.search);
       if (urlParams.get('view') === 'tasks') {
         setActiveView('tasks');
@@ -398,7 +401,6 @@ export default function DailyGoals() {
     };
     load();
     
-    // Initialize notifications
     initializeNotifications().then(permission => {
       setNotifPerm(permission);
     });
@@ -417,26 +419,18 @@ export default function DailyGoals() {
     writeUiState({ activeDate, activeView, searchTerm, priorityFilter, timeFilter, weekBase: weekBase instanceof Date ? weekBase.toISOString() : new Date().toISOString() });
   }, [activeDate, activeView, loaded, priorityFilter, searchTerm, timeFilter, weekBase]);
 
-  // Schedule task notifications when goals are loaded
   useEffect(() => {
     if (!loaded) return;
-    // Schedule both local and OneSignal notifications
     scheduleTaskNotifications(goals);
     scheduleOneSignalNotifications(goals);
   }, [goals, loaded]);
 
-  // Handle service worker messages for navigation
   useEffect(() => {
     if (!loaded) return;
     
     const handleMessage = (event) => {
       if (event.data?.type === 'NAVIGATE_TO_TASKS') {
         setActiveView('tasks');
-        // Optionally highlight the specific task if taskId is provided
-        if (event.data.taskId) {
-          // You could add logic to highlight/highlight the specific task
-          // Task highlighting logic can be added here
-        }
       }
     };
 
@@ -487,7 +481,6 @@ export default function DailyGoals() {
   }, [goals, loaded]);
 
   useEffect(() => {
-    // Optional: add `?notifyTest=1` to the URL to trigger a sample notification.
     try {
       const test = new URLSearchParams(window.location.search).get("notifyTest");
       if (test === "1") {
