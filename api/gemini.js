@@ -1,103 +1,33 @@
-// 🤖 Gemini AI — Auto Task Generator
-// File location: api/gemini.js (in your project ROOT folder)
-// Vercel serverless function — called from App.jsx
-
+// 🔍 Diagnostic Tool: Find Allowed Models for your API Key
 export default async function handler(req, res) {
-  // Only allow POST requests
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  // Get API key from Vercel environment variable
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: 'GEMINI_API_KEY not set in Vercel environment variables' });
+    return res.status(500).json({ error: 'GEMINI_API_KEY is missing in Vercel.' });
   }
 
-  const { userName, existingTasks = [], date, context = '' } = req.body;
-
-  // Build smart prompt
-  const todayDate = date || new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
-  const existingText = existingTasks.length > 0
-    ? `The user already has these tasks today: ${existingTasks.map(t => t.text).join(', ')}.`
-    : 'The user has no tasks planned yet.';
-
-  const prompt = `You are a world-class productivity coach. Create a realistic, motivating daily schedule for ${userName || 'the user'} for ${todayDate}.
-
-${existingText}
-${context ? `Additional context: ${context}` : ''}
-
-Generate exactly 6 tasks with specific time slots. Follow this EXACT format (one task per line, nothing else):
-HH:MM - HH:MM - [emoji] Task description
-
-Rules:
-- Use 24-hour time format (e.g. 09:00 - 10:30)
-- Start from 08:00 or 09:00
-- Include 1 short break and 1 lunch
-- Make tasks specific and actionable
-- Use relevant emojis
-- End by 18:00
-- NO numbering, NO headers, NO extra text — ONLY the 6 lines
-
-Example output format:
-09:00 - 10:30 - 🧠 Deep work: focus on most important project
-10:30 - 10:45 - ☕ Short break and stretch
-10:45 - 12:00 - 📧 Clear emails and reply to messages
-12:00 - 13:00 - 🥗 Lunch break
-13:00 - 15:00 - 🤝 Team meetings and collaboration
-15:00 - 17:00 - ✅ Complete pending tasks and review progress`;
-
   try {
-    // ULTIMATE FIX: Switched to 'gemini-pro' which bypasses region/API version 404 errors completely.
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ 
-            parts: [{ text: prompt }] 
-          }]
-        })
-      }
-    );
+    // Calling the exact API Google suggested in the error log
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+    const data = await response.json();
 
     if (!response.ok) {
-      const errData = await response.json();
-      console.error('Gemini API status:', response.status);
-      console.error('Gemini API error details:', JSON.stringify(errData));
-      return res.status(500).json({ 
-        error: 'Gemini API request failed', 
-        status: response.status,
-        details: errData 
-      });
+      return res.status(response.status).json({ api_error: data });
     }
 
-    const data = await response.json();
-    
-    // Safety check: Ensure the response format is exactly as expected
-    if (!data.candidates || data.candidates.length === 0) {
-       console.error('No candidates returned. Possible safety block.');
-       return res.status(500).json({ error: 'AI refused to answer or returned empty candidates.' });
-    }
+    // Filter to show only models that can generate text (generateContent)
+    const validModels = data.models
+      ? data.models
+          .filter(m => m.supportedGenerationMethods?.includes('generateContent'))
+          .map(m => m.name.replace('models/', ''))
+      : data;
 
-    const text = data.candidates[0]?.content?.parts?.[0]?.text;
-
-    if (!text) {
-      return res.status(500).json({ error: 'Empty text response from Gemini' });
-    }
-
-    // Clean the output — remove any extra lines that don't match HH:MM format
-    const lines = text
-      .trim()
-      .split('\n')
-      .map(l => l.trim())
-      .filter(l => /^\d{2}:\d{2}/.test(l));  // only lines starting with time
-
-    return res.status(200).json({ schedule: lines.join('\n') });
+    return res.status(200).json({
+      success: true,
+      message: "இந்த API Key-க்கு கீழே உள்ள மாடல்கள் மட்டுமே வேலை செய்யும்:",
+      allowed_models: validModels
+    });
 
   } catch (error) {
-    console.error('Handler error:', error);
     return res.status(500).json({ error: 'Server error: ' + error.message });
   }
 }
