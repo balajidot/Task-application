@@ -1,33 +1,100 @@
-// 🔍 Diagnostic Tool: Find Allowed Models for your API Key
+// 🤖 Gemini AI — Auto Task Generator
+// File location: api/gemini.js (in your project ROOT folder)
+// Vercel serverless function — called from App.jsx
+
 export default async function handler(req, res) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    return res.status(500).json({ error: 'GEMINI_API_KEY is missing in Vercel.' });
+  // Only allow POST requests
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // Get API key from Vercel environment variable
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return res.status(500).json({ error: 'GEMINI_API_KEY not set in Vercel environment variables' });
+  }
+
+  const { userName, existingTasks = [], date, context = '' } = req.body;
+
+  // Build smart prompt
+  const todayDate = date || new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
+  const existingText = existingTasks.length > 0
+    ? `The user already has these tasks today: ${existingTasks.map(t => t.text).join(', ')}.`
+    : 'The user has no tasks planned yet.';
+
+  const prompt = `You are a world-class productivity coach. Create a realistic, motivating daily schedule for ${userName || 'the user'} for ${todayDate}.
+
+${existingText}
+${context ? `Additional context: ${context}` : ''}
+
+Generate exactly 6 tasks with specific time slots. Follow this EXACT format (one task per line, nothing else):
+HH:MM - HH:MM - [emoji] Task description
+
+Rules:
+- Use 24-hour time format (e.g. 09:00 - 10:30)
+- Start from 08:00 or 09:00
+- Include 1 short break and 1 lunch
+- Make tasks specific and actionable
+- Use relevant emojis
+- End by 18:00
+- NO numbering, NO headers, NO extra text — ONLY the 6 lines
+
+Example output format:
+08:30 - 09:30 - 🚗 Drop off Amma at work
+09:30 - 12:00 - 🏦 Banking interview prep and quantitative aptitude
+12:00 - 13:00 - 🥗 Lunch break
+13:00 - 15:30 - 💻 Build web application and test code
+15:30 - 16:00 - ☕ Short break & skill development
+16:00 - 17:30 - 🚗 Pick up Amma from work`;
+
   try {
-    // Calling the exact API Google suggested in the error log
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-    const data = await response.json();
+    // 100% WORKING FIX: Using the exact allowed model from your Vercel logs
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ 
+            parts: [{ text: prompt }] 
+          }]
+        })
+      }
+    );
 
     if (!response.ok) {
-      return res.status(response.status).json({ api_error: data });
+      const errData = await response.json();
+      console.error('Gemini API error details:', JSON.stringify(errData));
+      return res.status(500).json({ 
+        error: 'Gemini API request failed', 
+        details: errData 
+      });
     }
 
-    // Filter to show only models that can generate text (generateContent)
-    const validModels = data.models
-      ? data.models
-          .filter(m => m.supportedGenerationMethods?.includes('generateContent'))
-          .map(m => m.name.replace('models/', ''))
-      : data;
+    const data = await response.json();
+    
+    // Safety check
+    if (!data.candidates || data.candidates.length === 0) {
+       return res.status(500).json({ error: 'AI refused to answer or returned empty candidates.' });
+    }
 
-    return res.status(200).json({
-      success: true,
-      message: "இந்த API Key-க்கு கீழே உள்ள மாடல்கள் மட்டுமே வேலை செய்யும்:",
-      allowed_models: validModels
-    });
+    const text = data.candidates[0]?.content?.parts?.[0]?.text;
+
+    if (!text) {
+      return res.status(500).json({ error: 'Empty text response from Gemini' });
+    }
+
+    // Clean the output and strictly enforce max 6 lines to prevent frontend crashes
+    const lines = text
+      .trim()
+      .split('\n')
+      .map(l => l.trim())
+      .filter(l => /^\d{2}:\d{2}/.test(l));
+
+    return res.status(200).json({ schedule: lines.slice(0, 6).join('\n') });
 
   } catch (error) {
+    console.error('Handler error:', error);
     return res.status(500).json({ error: 'Server error: ' + error.message });
   }
 }
