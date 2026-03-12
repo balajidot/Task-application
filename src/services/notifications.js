@@ -149,17 +149,37 @@ function parseTaskTime(timeStr) {
   }
 }
 
+// ✅ Get today's date key in YYYY-MM-DD (same format as app's todayKey())
+function getTodayKey() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+// ✅ Check if a task is done — handles both one-time (task.done) and repeat (task.doneOn)
+function isTaskDoneToday(task, todayStr) {
+  if (task.repeat && task.repeat !== 'None') {
+    return !!(task.doneOn && task.doneOn[todayStr]);
+  }
+  return !!task.done;
+}
+
 // ✅ Schedule ALL today's task notifications
 export async function scheduleTaskNotifications(tasks) {
   if (!isNotificationsSupported()) return;
 
-  const today = new Date().toDateString();
+  // 🔥 FIX 3: Use local YYYY-MM-DD key (no UTC timezone shift bug)
+  const todayStr = getTodayKey();
+
   const todayTasks = tasks.filter(task => {
-    if (!task.startTime || task.completed) return false;
-    const taskDate = task.date
-      ? new Date(task.date).toDateString()
-      : today;
-    return taskDate === today;
+    if (!task.startTime) return false;
+    // 🔥 FIX 2: Use task.done / task.doneOn — NOT task.completed (wrong field!)
+    if (isTaskDoneToday(task, todayStr)) return false;
+    // 🔥 FIX 3: Compare YYYY-MM-DD directly — no new Date() UTC parse bug
+    const taskDateKey = task.date || todayStr;
+    return taskDateKey === todayStr;
   });
 
   // --- CAPACITOR: Local Notifications ---

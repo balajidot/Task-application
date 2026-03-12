@@ -26,7 +26,7 @@ const SwipeableTaskCard = ({
   const [startX, setStartX] = useState(0);
   
   const cardRef = useRef(null);
-  const longPressTimer = useRef(null);
+  // longPressTimer removed — TasksView handles long press via its own modal
 
   const SWIPE_THRESHOLD = 80;
   const BUTTON_WIDTH = 80; 
@@ -49,49 +49,36 @@ const SwipeableTaskCard = ({
     onToggleDone();
   };
 
+  // 🔥 FIX 1: Long press REMOVED from here — TasksView handles it via its own modal
+  // SwipeableTaskCard only handles swipe gestures (left=delete, right=complete/edit)
+
   const handleTouchStart = (e) => {
     setIsDragging(true);
     setStartX(e.touches[0].clientX);
     setSwipeOffset(0);
-
-    longPressTimer.current = setTimeout(() => {
-      onToggleSelect();
-      if (navigator.vibrate) navigator.vibrate(50);
-    }, 500);
+    // NO long press timer here — parent TasksView handles long press
   };
 
   const handleTouchMove = (e) => {
     if (!isDragging) return;
     const currentX = e.touches[0].clientX;
     const diff = currentX - startX;
-
-    if (Math.abs(diff) > 10 && longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
-
-    const maxSwipe = BUTTON_WIDTH + 20; 
+    const maxSwipe = BUTTON_WIDTH + 20;
     const clampedDiff = Math.max(-maxSwipe, Math.min(maxSwipe, diff));
     setSwipeOffset(clampedDiff);
   };
 
   const handleTouchEnd = () => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
-
     if (!isDragging) return;
     setIsDragging(false);
-
     if (Math.abs(swipeOffset) > SWIPE_THRESHOLD) {
       if (swipeOffset < 0) {
-        onDelete(); 
+        onDelete();
       } else {
         if (doneHere) {
-          onEdit(); 
+          onEdit();
         } else {
-          onToggleDone(); 
+          onToggleDone();
         }
       }
     }
@@ -102,36 +89,21 @@ const SwipeableTaskCard = ({
     setIsDragging(true);
     setStartX(e.clientX);
     setSwipeOffset(0);
-
-    longPressTimer.current = setTimeout(() => {
-      onToggleSelect();
-    }, 500);
+    // NO long press timer here — parent TasksView handles long press
   };
 
   const handleMouseMove = (e) => {
     if (!isDragging) return;
     const currentX = e.clientX;
     const diff = currentX - startX;
-
-    if (Math.abs(diff) > 10 && longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
-
     const maxSwipe = BUTTON_WIDTH + 20;
     const clampedDiff = Math.max(-maxSwipe, Math.min(maxSwipe, diff));
     setSwipeOffset(clampedDiff);
   };
 
   const handleMouseUp = () => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
-
     if (!isDragging) return;
     setIsDragging(false);
-
     if (Math.abs(swipeOffset) > SWIPE_THRESHOLD) {
       if (swipeOffset < 0) {
         onDelete();

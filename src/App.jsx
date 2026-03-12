@@ -3,6 +3,8 @@ import OneSignal from 'react-onesignal';
 import PomodoroTimer from "./components/PomodoroTimer";
 import TaskImportExport from "./components/TaskImportExport";
 import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts";
+import { useMobileFeatures, triggerHaptic } from "./hooks/useMobileFeatures";
+import { generateAISchedule } from "./services/geminiService";
 import {
   getNotificationPermission,
   requestNotificationPermission,
@@ -39,6 +41,10 @@ import {
 } from "./utils/helpers";
 
 export default function DailyGoals() {
+  const [userName, setUserName] = useState("");
+  const [showNameSetup, setShowNameSetup] = useState(false);
+  const [tempName, setTempName] = useState("");
+
   const [goals, setGoals] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -84,7 +90,51 @@ export default function DailyGoals() {
   const [goalsData, setGoalsData] = useState([]);
   const [tabSwitching, setTabSwitching] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
-  
+
+  useMobileFeatures({ themeMode, activeView, setActiveView, setShowForm, setShowMoreMenu });
+
+  // 🔥 100% SAFE GLOBAL SWIPE HANDLER (BUILT-IN) 🔥
+  const touchStartX = useRef(null);
+  const touchStartY = useRef(null);
+
+  const handleGlobalTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleGlobalTouchEnd = (e) => {
+    if (touchStartX.current === null || touchStartY.current === null) return;
+    const touchEndX = e.changedTouches[0].clientX;
+    const touchEndY = e.changedTouches[0].clientY;
+    const deltaX = touchStartX.current - touchEndX;
+    const deltaY = touchStartY.current - touchEndY;
+
+    if (Math.abs(deltaY) > Math.abs(deltaX)) {
+      touchStartX.current = null; touchStartY.current = null;
+      return;
+    }
+
+    const target = e.target;
+    if (target.closest('.goal-item') || target.closest('.week-grid') || target.closest('.filters') || target.closest('.modal') || target.closest('.pomodoro-timer') || target.closest('input') || target.closest('textarea')) {
+      touchStartX.current = null; touchStartY.current = null;
+      return;
+    }
+
+    const tabs = ["insights", "tasks", "planner", "analytics", "settings", "career", "tools", "habits", "journal", "goals"];
+    const currentIndex = tabs.indexOf(activeView);
+
+    if (deltaX > 60 && currentIndex < tabs.length - 1) {
+      if (typeof triggerHaptic === 'function') triggerHaptic('light');
+      setActiveView(tabs[currentIndex + 1]);
+    } else if (deltaX < -60 && currentIndex > 0) {
+      if (typeof triggerHaptic === 'function') triggerHaptic('light');
+      setActiveView(tabs[currentIndex - 1]);
+    }
+
+    touchStartX.current = null;
+    touchStartY.current = null;
+  };
+
   const pulseTimerRef = useRef(null);
   const celebrateTimerRef = useRef(null);
   const masterTimerRef = useRef(null);
@@ -95,6 +145,21 @@ export default function DailyGoals() {
   const pendingWriteRef = useRef({ timer: null, last: "" });
 
   const quote = useMemo(() => QUOTES[Math.floor((Date.now() / 86400000) % QUOTES.length)], []);
+
+  useEffect(() => {
+    const storedName = localStorage.getItem("taskPlanner_userName");
+    if (storedName) setUserName(storedName);
+    else setShowNameSetup(true);
+  }, []);
+
+  const handleSaveName = () => {
+    if (tempName.trim()) {
+      localStorage.setItem("taskPlanner_userName", tempName.trim());
+      setUserName(tempName.trim());
+      setShowNameSetup(false);
+      playSuccessTone();
+    }
+  };
 
   useEffect(() => {
     const initOneSignal = async () => {
@@ -256,7 +321,14 @@ export default function DailyGoals() {
       const nextTask = calculateNextUpcomingTask();
       if (nextTask) { 
         const timeUntilStart = new Date(`${nextTask.date}T${nextTask.startTime}`) - new Date(); 
-        if (timeUntilStart <= 300000 && timeUntilStart > 0) { setUpcomingTaskAlert(nextTask); AudioPlayer.playReminder(); }
+        if (timeUntilStart <= 300000 && timeUntilStart > 0) { 
+          // 🔥 SOUND REPEAT BUG FIX 🔥
+          if (!nextAlertShownRef.current[nextTask.id]) {
+            setUpcomingTaskAlert(nextTask); 
+            AudioPlayer.playReminder(); 
+            nextAlertShownRef.current[nextTask.id] = true; 
+          }
+        }
       }
     }, 30000); 
     return () => clearInterval(interval);
@@ -313,15 +385,34 @@ export default function DailyGoals() {
     setShowForm(false);
   };
 
-  const handleAiAutoSchedule = () => {
-    const suggestions = [
-      "09:00 AM - 10:30 AM - 🧠 Deep Work & Strategy",
-      "10:30 AM - 10:45 AM - 🚶‍♂️ Quick Stretch & Hydrate",
-      "10:45 AM - 12:00 PM - 📧 Clear Inbox & Admin",
-      "12:00 PM - 01:00 PM - 🥗 Healthy Lunch Break",
-      "01:00 PM - 02:30 PM - 🤝 Meetings & Syncs"
-    ].join("\n");
-    onTaskTextChange(suggestions);
+ const handleAiAutoSchedule = async () => {
+
+  try {
+
+    console.log("AI scheduling started...");
+
+    const tasksData = goals.map(g => ({
+      text: g.text,
+      priority: g.priority || "Medium"
+    }));
+
+    const result = await generateAISchedule(tasksData);
+
+    const aiText =
+      result?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+    if (aiText) {
+      onTaskTextChange(aiText);
+    } else {
+      console.warn("AI returned empty response");
+    }
+
+  } catch (error) {
+
+    console.error("AI scheduling failed:", error);
+
+  }
+
   };
 
   const toggleDoneWithCelebration = (goal) => {
@@ -388,7 +479,7 @@ export default function DailyGoals() {
   const tabItems = [...mainTabItems.map(t => ({...t, icon: t.id === 'insights' ? '📊' : t.id === 'analytics' ? '📈' : t.icon})), ...moreTabItems];
 
   return (
-    <div className={`page ${themeClass}${isPlannerIframeView ? " planner-mode" : ""}`} style={{ "--task-font-size": `${taskFontSize}px`, "--task-font-family": taskFontFamily, "--ui-scale": `${uiScale / 100}`, "--global-font-weight": fontWeight }}>
+    <div className={`page ${themeClass}${isPlannerIframeView ? " planner-mode" : ""}`} style={{ "--task-font-size": `${taskFontSize}px`, "--task-font-family": taskFontFamily, "--ui-scale": `${uiScale / 100}`, "--global-font-weight": fontWeight }} onTouchStart={handleGlobalTouchStart} onTouchEnd={handleGlobalTouchEnd}>
       <div className="app">
         <div className="tab-nav">
           {tabItems.map(tab => (
@@ -397,6 +488,128 @@ export default function DailyGoals() {
             </button>
           ))}
         </div>
+
+        {/* 🔥 NEW FEATURE: WELCOME NAME POPUP 🔥 */}
+        {showNameSetup && (
+          <div className="overlay" style={{ zIndex: 99999, backdropFilter: 'blur(8px)', background: 'rgba(0,0,0,0.7)' }}>
+            <div className="modal" style={{ 
+              textAlign: 'center', padding: '30px 20px', background: 'var(--card)', 
+              border: '1px solid rgba(99, 102, 241, 0.4)', boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
+              transform: 'scale(1)', transition: 'all 0.3s ease-out'
+            }}>
+              <div style={{ fontSize: '3.5rem', marginBottom: '10px', animation: 'pulse 2s infinite' }}>👋</div>
+              <h2 style={{ margin: '0 0 10px 0', color: 'var(--text)', fontSize: '1.5rem', fontWeight: '800' }}>Welcome to Task Planner!</h2>
+              <p style={{ color: 'var(--muted)', fontSize: '0.95rem', marginBottom: '24px', lineHeight: '1.4' }}>
+                Let's make today productive. <br/>What should I call you?
+              </p>
+              <input
+                type="text"
+                placeholder="Enter your name..."
+                value={tempName}
+                onChange={(e) => setTempName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleSaveName(); }}
+                autoFocus
+                style={{ 
+                  width: '100%', padding: '14px', borderRadius: '10px', 
+                  border: '2px solid rgba(99, 102, 241, 0.3)', background: 'var(--chip)', 
+                  color: 'var(--text)', fontSize: '1.1rem', marginBottom: '20px', 
+                  textAlign: 'center', outline: 'none', boxSizing: 'border-box'
+                }}
+              />
+              <button
+                onClick={handleSaveName}
+                disabled={!tempName.trim()}
+                style={{ 
+                  width: '100%', padding: '14px', fontSize: '1.1rem', fontWeight: 'bold',
+                  borderRadius: '10px', color: '#fff', border: 'none', cursor: tempName.trim() ? 'pointer' : 'not-allowed',
+                  background: tempName.trim() ? 'linear-gradient(135deg, #a855f7, #6366f1)' : '#475569',
+                  opacity: tempName.trim() ? 1 : 0.5, transition: 'all 0.2s'
+                }}
+              >
+                Start Planning 🚀
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ============================================
+            🔥 TASK CREATE / EDIT FORM MODAL (FIXED)
+            ============================================ */}
+        {showForm && (
+          <div className="overlay" onClick={() => setShowForm(false)}>
+            <div className="modal" onClick={e => e.stopPropagation()} style={{ maxHeight: '90vh', overflowY: 'auto' }}>
+              <div className="m-title">{editingGoal ? '✏️ Edit Task' : '➕ New Task'}</div>
+
+              <div className="fg">
+                <label className="fl">Task Description</label>
+                <textarea
+                  className="fi task-box"
+                  placeholder="What needs to be done? (e.g. Meeting 9am-10am)"
+                  value={form.text}
+                  onChange={e => onTaskTextChange(e.target.value)}
+                  autoFocus
+                />
+                <div className="form-hint">💡 Type "meeting 9am-10am" to auto-fill time fields</div>
+              </div>
+
+              <div className="fg">
+                <label className="fl">Date</label>
+                <input type="date" className="fi" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div className="fg">
+                  <label className="fl">Start Time</label>
+                  <input type="time" className="fi" value={form.startTime} onChange={e => setForm(p => ({ ...p, startTime: e.target.value }))} />
+                </div>
+                <div className="fg">
+                  <label className="fl">End Time</label>
+                  <input type="time" className="fi" value={form.endTime} onChange={e => setForm(p => ({ ...p, endTime: e.target.value }))} />
+                </div>
+              </div>
+
+              <div className="fg">
+                <label className="fl">🔔 Reminder Time</label>
+                <input type="time" className="fi" value={form.reminder} onChange={e => setForm(p => ({ ...p, reminder: e.target.value }))} />
+              </div>
+
+              <div className="fg">
+                <label className="fl">Priority</label>
+                <select className="fs" value={form.priority} onChange={e => setForm(p => ({ ...p, priority: e.target.value }))}>
+                  {PRIORITY_OPTIONS.map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div className="fg">
+                  <label className="fl">Session</label>
+                  <select className="fs" value={form.session} onChange={e => setForm(p => ({ ...p, session: e.target.value }))}>
+                    {SESSION_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div className="fg">
+                  <label className="fl">Repeat</label>
+                  <select className="fs" value={form.repeat} onChange={e => setForm(p => ({ ...p, repeat: e.target.value }))}>
+                    {REPEAT_OPTIONS.map(r => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
+                <button className="new-btn" style={{ flex: 2 }} onClick={submitForm}>
+                  {editingGoal ? '💾 Save Changes' : '✅ Add Task'}
+                </button>
+                <button className="hero-btn" style={{ flex: 1 }} onClick={() => setShowForm(false)}>Cancel</button>
+              </div>
+
+              {!editingGoal && (
+                <button className="tool-btn" style={{ width: '100%', marginTop: '10px' }} onClick={handleAiAutoSchedule}>
+                  🤖 AI Auto-Schedule
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {liveTaskPopup && <LiveTaskPopup task={liveTaskPopup} onClose={() => setLiveTaskPopup(null)} />}
         
@@ -436,7 +649,7 @@ export default function DailyGoals() {
             </div>
           )}
 
-          {activeView === "insights" && <div key="insights" className="view-transition"><DashboardView quote={quote} setActiveView={setActiveView} done={done} total={total} pct={pct} weekly={weekly} streakDays={streakDays} dueSoon={dueSoon} goals={goals} journalEntries={journalEntries} generateMonthlyReport={generateMonthlyReport} /></div>}
+          {activeView === "insights" && <div key="insights" className="view-transition"><DashboardView userName={userName} quote={quote} setActiveView={setActiveView} done={done} total={total} pct={pct} weekly={weekly} streakDays={streakDays} dueSoon={dueSoon} goals={goals} journalEntries={journalEntries} generateMonthlyReport={generateMonthlyReport} /></div>}
           {activeView === "tasks" && (
             <div key="tasks" className="view-transition">
               <TasksView
@@ -461,63 +674,6 @@ export default function DailyGoals() {
           {activeView === "goals" && <div key="goals" className="view-transition"><GoalsView /></div>}
         </Suspense>
 
-        {focusMode && activeView === "tasks" && <div className="focus-overlay" onClick={() => setFocusMode(false)} style={{ backdropFilter: 'blur(4px)' }} />}
-
-        {showWeeklyWizard && <WeeklyPlannerWizard goals={goals} onClose={() => setShowWeeklyWizard(false)} />}
-        {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}
-
-        {showForm && (
-          <div className="overlay" onClick={() => setShowForm(false)}>
-            <div className="modal" onClick={(e) => e.stopPropagation()}>
-              <div className="m-title">{editingGoal ? "✏️ Edit Task" : "➕ Add New Task"}</div>
-              <div className="fg">
-                <div className="fl" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>Task Description</span>
-                  {!editingGoal && <button className="mini-btn" style={{ background: 'linear-gradient(135deg, #a855f7, #6366f1)', color: 'white', border: 'none' }} onClick={handleAiAutoSchedule}>✨ AI Auto-Plan</button>}
-                </div>
-                <textarea className="fi task-box" placeholder="Enter your task..." value={form.text} onChange={(e) => onTaskTextChange(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && document.activeElement?.tagName !== "TEXTAREA") { e.preventDefault(); submitForm(); } }} autoFocus />
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <div className="fg"><div className="fl">Date</div><input type="date" className="fi" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></div>
-                <div className="fg"><div className="fl">Priority</div><select className="fi" value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}>{PRIORITY_OPTIONS.map(p => (<option key={p} value={p}>{p}</option>))}</select></div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <div className="fg"><div className="fl">Start Time</div><input type="time" className="fi" value={form.startTime} onChange={(e) => setForm({ ...form, startTime: e.target.value })} /></div>
-                <div className="fg"><div className="fl">End Time</div><input type="time" className="fi" value={form.endTime} onChange={(e) => setForm({ ...form, endTime: e.target.value })} /></div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <div className="fg"><div className="fl">Reminder</div><input type="time" className="fi" value={form.reminder} onChange={(e) => setForm({ ...form, reminder: e.target.value })} /></div>
-                <div className="fg"><div className="fl">Session</div><select className="fi" value={form.session} onChange={(e) => setForm({ ...form, session: e.target.value })}>{SESSION_OPTIONS.map(s => (<option key={s} value={s}>{s}</option>))}</select></div>
-              </div>
-              <div className="fg"><div className="fl">Repeat</div><select className="fi" value={form.repeat} onChange={(e) => setForm({ ...form, repeat: e.target.value })}>{REPEAT_OPTIONS.map(r => (<option key={r} value={r}>{r}</option>))}</select></div>
-              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '16px' }}>
-                <button className="mini-btn" onClick={() => setShowForm(false)}>Cancel</button>
-                <button className="new-btn" onClick={submitForm}>{editingGoal ? "💾 Update" : "➕ Add Task"}</button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {showPomodoro && (
-          <div className="overlay" onClick={() => setShowPomodoro(false)}>
-            <div className="modal" onClick={(e) => e.stopPropagation()}>
-              <div className="m-title">🍅 Pomodoro Timer</div>
-              <PomodoroTimer onTaskComplete={playTaskCompleteTone} onBreakComplete={playSuccessTone} />
-              <div style={{ textAlign: 'center', marginTop: '16px' }}><button className="mini-btn" onClick={() => setShowPomodoro(false)}>Close</button></div>
-            </div>
-          </div>
-        )}
-
-        {showImportExport && (
-          <div className="overlay" onClick={() => setShowImportExport(false)}>
-            <div className="modal" onClick={(e) => e.stopPropagation()}>
-              <div className="m-title">📥 Import/Export Tasks</div>
-              <TaskImportExport goals={goals} onImport={handleImportTasks} />
-              <div style={{ textAlign: 'center', marginTop: '16px' }}><button className="mini-btn" onClick={() => setShowImportExport(false)}>Close</button></div>
-            </div>
-          </div>
-        )}
-
         {focusMode && liveCurrentGoal && (
           <div className="focus-wall-overlay" style={{ zIndex: 10000 }}>
             <button className="focus-wall-exit" onClick={() => setFocusMode(false)}>Exit Focus Mode</button>
@@ -536,160 +692,13 @@ export default function DailyGoals() {
           </div>
         )}
 
-        {/* 🔥 PERFECT INLINE STATUS BAR 🔥 */}
-        <div className="status-bar custom-mobile-status-bar">
-          <div className="status-bar-left">
-            <span className="status-clock">{liveClockLabel}</span>
-            <span className="status-divider hidden-mobile">•</span>
-            <span className="status-date">{new Date().toLocaleDateString('en-IN', { weekday: 'long', month: 'short', day: 'numeric' })}</span>
-          </div>
-          
-          <div className="status-bar-center">
-            {liveCurrentGoal ? (
-              <div className="live-task-wrapper">
-                <div className="task-title-row">
-                  <span className="status-live-dot"></span>
-                  <span className="status-task-name">{liveCurrentGoal.text}</span>
-                </div>
-                {liveCountdown && <span className="status-countdown">{liveCountdown}</span>}
-              </div>
-            ) : (
-              <span className="status-idle">No active task at the moment</span>
-            )}
-          </div>
-          
-          <div className="status-bar-right">
-            <div className="status-progress-wrap">
-              <div className="status-progress-bar">
-                <div className="status-progress-fill" style={{ width: `${pct}%` }}></div>
-              </div>
-              <span className="status-progress-text">{done}/{total} ({pct}%)</span>
-            </div>
-            
-            {/* 🔥 BUTTON MOVED INSIDE THE BOX 🔥 */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-              <span className="status-streak hidden-mobile" style={{ fontSize: '0.8rem', color: '#f59e0b', fontWeight: 'bold' }}>🔥 {streakDays}d</span>
-              {activeView === "tasks" && (
-                <button className={`status-focus-btn ${focusMode ? 'active' : ''}`} onClick={() => setFocusMode(f => !f)}>
-                  {focusMode ? '🔓 Exit Focus' : '🧊 Focus'}
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* 🔥 CSS FOR PERFECT SPACING (NO OVERLAP, NO GAPS) 🔥 */}
-        <style dangerouslySetInnerHTML={{__html: `
-          /* 🌟 NEW INLINE FOCUS BUTTON 🌟 */
-          .status-focus-btn {
-            background: linear-gradient(135deg, #a855f7, #6366f1);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 8px 14px;
-            font-size: 0.8rem;
-            font-weight: 700;
-            cursor: pointer;
-            white-space: nowrap;
-            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
-            transition: all 0.2s ease;
-            margin: 0 !important; /* Removes floating margins */
-          }
-          .status-focus-btn.active {
-            background: linear-gradient(135deg, #10b981, #059669);
-            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
-          }
-
-          @media (max-width: 768px) {
-            .custom-mobile-status-bar {
-              display: flex !important;
-              flex-direction: column !important;
-              justify-content: center !important;
-              gap: 12px !important;
-              /* 🔥 PERFECT PADDING, NO EXTRA SPACE AT BOTTOM 🔥 */
-              padding: 14px 16px !important; 
-              height: auto !important;
-              min-height: auto !important;
-              border-top: 1px solid rgba(255,255,255,0.1);
-              position: relative !important;
-            }
-            .custom-mobile-status-bar .status-bar-left {
-              width: 100% !important;
-              justify-content: space-between !important;
-              font-size: 0.85rem !important;
-              opacity: 0.8;
-              font-weight: 600;
-            }
-            .custom-mobile-status-bar .status-divider.hidden-mobile { display: none !important; }
-            .custom-mobile-status-bar .status-bar-center {
-              width: 100% !important;
-              justify-content: flex-start !important;
-            }
-            
-            .custom-mobile-status-bar .live-task-wrapper {
-              display: flex !important;
-              flex-direction: column !important;
-              align-items: flex-start !important;
-              gap: 8px !important;
-              width: 100% !important;
-            }
-            .custom-mobile-status-bar .task-title-row {
-              display: flex !important;
-              align-items: flex-start !important;
-              gap: 8px !important;
-              width: 100% !important;
-              box-sizing: border-box !important;
-            }
-            .custom-mobile-status-bar .status-live-dot {
-              margin-top: 6px !important; 
-              flex-shrink: 0 !important;
-            }
-            .custom-mobile-status-bar .status-task-name {
-              flex: 1 !important;
-              white-space: normal !important; /* 🔥 TEXT WRAP ENABLED 🔥 */
-              font-size: 0.95rem !important;
-              font-weight: 700 !important;
-              line-height: 1.3 !important;
-              color: var(--text) !important;
-            }
-            .custom-mobile-status-bar .status-countdown {
-              font-size: 0.75rem !important;
-              padding: 4px 8px !important;
-              background: rgba(16, 185, 129, 0.15) !important;
-              color: #10b981 !important;
-              border-radius: 6px !important;
-              margin-left: 20px !important; 
-            }
-            
-            .custom-mobile-status-bar .status-bar-right {
-              width: 100% !important;
-              display: flex !important;
-              justify-content: space-between !important;
-              align-items: center !important;
-              gap: 8px !important;
-              /* 🔥 NO MORE RIGHT PADDING FOR FLOATING BUTTON 🔥 */
-              padding-right: 0 !important; 
-              padding-top: 4px !important;
-              box-sizing: border-box !important;
-            }
-            .custom-mobile-status-bar .status-progress-wrap {
-              flex: 1 !important;
-              min-width: 100px;
-            }
-            .status-focus-btn {
-              padding: 8px 16px !important;
-              font-size: 0.8rem !important;
-            }
-          }
-        `}} />
-
         <div className="mobile-bottom-nav">
           {mainTabItems.map(tab => (
-            <button key={tab.id} className={`mobile-nav-btn ${activeView === tab.id ? 'active' : ''}`} onClick={() => { setActiveView(tab.id); setShowMoreMenu(false); }}>
+            <button key={tab.id} className={`mobile-nav-btn ${activeView === tab.id ? 'active' : ''}`} onClick={() => { if(typeof triggerHaptic==='function') triggerHaptic('light'); setActiveView(tab.id); setShowMoreMenu(false); }}>
               <span className="mobile-nav-icon">{tab.icon}</span><span className="mobile-nav-label">{tab.label}</span>
             </button>
           ))}
-          <button className={`mobile-nav-btn ${showMoreMenu ? 'active' : ''}`} onClick={() => setShowMoreMenu(!showMoreMenu)}>
+          <button className={`mobile-nav-btn ${showMoreMenu ? 'active' : ''}`} onClick={() => { if(typeof triggerHaptic==='function') triggerHaptic('light'); setShowMoreMenu(!showMoreMenu); }}>
             <span className="mobile-nav-icon">⋯</span><span className="mobile-nav-label">More</span>
           </button>
         </div>

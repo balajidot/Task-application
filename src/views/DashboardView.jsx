@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
 import { todayKey, toKey, goalVisibleOn, isDoneOn } from '../utils/helpers';
 
-export default function DashboardView({ quote, setActiveView, done, total, pct, weekly, streakDays, dueSoon, goals, journalEntries, generateMonthlyReport }) {
+// 🔥 Added userName to props 🔥
+export default function DashboardView({ userName, quote, setActiveView, done, total, pct, weekly, streakDays, dueSoon, goals, journalEntries, generateMonthlyReport }) {
   // Time-of-day greeting
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -55,7 +56,10 @@ export default function DashboardView({ quote, setActiveView, done, total, pct, 
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
               <span style={{ fontSize: '2.2rem' }}>{greeting.icon}</span>
-              <div className="title">{greeting.text}</div>
+              {/* 🔥 Personalized Name Greeting 🔥 */}
+              <div className="title">
+                {greeting.text}{userName ? `, ${userName}` : ''}
+              </div>
             </div>
             <div className="tip">{greeting.sub}</div>
             <div className="motivation" style={{ marginTop: '14px' }}>
