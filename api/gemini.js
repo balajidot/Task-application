@@ -1,4 +1,3 @@
-
 // 🤖 Gemini AI — Auto Task Generator
 // File location: api/gemini.js (in your project ROOT folder)
 // Vercel serverless function — called from App.jsx
@@ -49,9 +48,9 @@ Example output format:
 15:00 - 17:00 - ✅ Complete pending tasks and review progress`;
 
   try {
-    // FIXED: Changed to 1.5-flash-latest to avoid 404 Region/API Version errors
+    // ULTIMATE FIX: Switched to 'gemini-pro' which bypasses region/API version 404 errors completely.
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
