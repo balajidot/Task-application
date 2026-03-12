@@ -49,17 +49,14 @@ Example output format:
 
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.8,
-            maxOutputTokens: 400,
-            topP: 0.9,
-          }
+          contents: [{ 
+            parts: [{ text: prompt }] 
+          }]
         })
       }
     );
@@ -68,7 +65,6 @@ Example output format:
       const errData = await response.json();
       console.error('Gemini API status:', response.status);
       console.error('Gemini API error details:', JSON.stringify(errData));
-      // 🔍 Send full error to frontend so we can see it
       return res.status(500).json({ 
         error: 'Gemini API request failed', 
         status: response.status,
@@ -77,10 +73,17 @@ Example output format:
     }
 
     const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    
+    // Safety check: Ensure the response format is exactly as expected
+    if (!data.candidates || data.candidates.length === 0) {
+       console.error('No candidates returned. Possible safety block.');
+       return res.status(500).json({ error: 'AI refused to answer or returned empty candidates.' });
+    }
+
+    const text = data.candidates[0]?.content?.parts?.[0]?.text;
 
     if (!text) {
-      return res.status(500).json({ error: 'Empty response from Gemini' });
+      return res.status(500).json({ error: 'Empty text response from Gemini' });
     }
 
     // Clean the output — remove any extra lines that don't match HH:MM format
