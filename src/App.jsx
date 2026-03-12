@@ -4,7 +4,6 @@ import PomodoroTimer from "./components/PomodoroTimer";
 import TaskImportExport from "./components/TaskImportExport";
 import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts";
 import { useMobileFeatures, triggerHaptic } from "./hooks/useMobileFeatures";
-import { generateAISchedule } from "./services/geminiService";
 import {
   getNotificationPermission,
   requestNotificationPermission,
@@ -48,6 +47,7 @@ export default function DailyGoals() {
   const [goals, setGoals] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
   const [editingGoal, setEditingGoal] = useState(null);
   const [activeDate, setActiveDate] = useState(todayKey());
   const [weekBase, setWeekBase] = useState(new Date());
@@ -385,34 +385,44 @@ export default function DailyGoals() {
     setShowForm(false);
   };
 
- const handleAiAutoSchedule = async () => {
+  const handleAiAutoSchedule = async () => {
+    setAiLoading(true);
+    try {
+      const response = await fetch('/api/gemini', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userName: userName || 'Friend',
+          existingTasks: pendingGoals.slice(0, 5),   // send up to 5 current tasks for context
+          date: activeDate,
+        })
+      });
 
-  try {
+      if (!response.ok) throw new Error('API failed');
 
-    console.log("AI scheduling started...");
+      const data = await response.json();
 
-    const tasksData = goals.map(g => ({
-      text: g.text,
-      priority: g.priority || "Medium"
-    }));
-
-    const result = await generateAISchedule(tasksData);
-
-    const aiText =
-      result?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-
-    if (aiText) {
-      onTaskTextChange(aiText);
-    } else {
-      console.warn("AI returned empty response");
+      if (data.schedule) {
+        onTaskTextChange(data.schedule);  // fills the task textarea with AI suggestions
+      } else {
+        throw new Error(data.error || 'No schedule returned');
+      }
+    } catch (err) {
+      console.error('AI schedule error:', err);
+      // Fallback to static suggestions if API fails
+      const fallback = [
+        "09:00 - 10:30 - 🧠 Deep Work & Focus Session",
+        "10:30 - 10:45 - ☕ Short Break & Stretch",
+        "10:45 - 12:00 - 📧 Emails & Admin Tasks",
+        "12:00 - 13:00 - 🥗 Lunch Break",
+        "13:00 - 15:00 - 🤝 Meetings & Collaboration",
+        "15:00 - 17:00 - ✅ Review & Wrap Up"
+      ].join('\n');
+      onTaskTextChange(fallback);
+      window.alert('AI unavailable — showing smart default schedule instead!');
+    } finally {
+      setAiLoading(false);
     }
-
-  } catch (error) {
-
-    console.error("AI scheduling failed:", error);
-
-  }
-
   };
 
   const toggleDoneWithCelebration = (goal) => {
@@ -603,8 +613,8 @@ export default function DailyGoals() {
               </div>
 
               {!editingGoal && (
-                <button className="tool-btn" style={{ width: '100%', marginTop: '10px' }} onClick={handleAiAutoSchedule}>
-                  🤖 AI Auto-Schedule
+                <button className="tool-btn" style={{ width: '100%', marginTop: '10px', opacity: aiLoading ? 0.7 : 1 }} onClick={handleAiAutoSchedule} disabled={aiLoading}>
+                  {aiLoading ? '⏳ AI is thinking...' : '🤖 AI Auto-Schedule'}
                 </button>
               )}
             </div>
