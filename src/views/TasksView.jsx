@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { GoalItem } from '../components/SharedUI';
+import SwipeableTaskCard from '../components/SwipeableTaskCard';
 import TaskProgressIndicator from '../components/TaskProgressIndicator';
 import EnhancedFocusMode from '../components/EnhancedFocusMode';
 import TaskCompletionCelebration from '../components/TaskCompletionCelebration';
@@ -20,6 +21,21 @@ export default function TasksView({
   markAllPendingDone, duplicatePendingToTomorrow, reopenAllCompleted
 }) {
   const [completedTasksCollapsed, setCompletedTasksCollapsed] = useState(false);
+  
+  const [liveStripVisible, setLiveStripVisible] = useState(true);
+  const [stripSwipeX, setStripSwipeX] = useState(0);
+  const stripStartX = useRef(0);
+
+  useEffect(() => {
+    setLiveStripVisible(true);
+  }, [liveCurrentGoal?.id]);
+
+  const handleStripTouchStart = (e) => { stripStartX.current = e.touches[0].clientX; };
+  const handleStripTouchMove = (e) => { setStripSwipeX(e.touches[0].clientX - stripStartX.current); };
+  const handleStripTouchEnd = () => {
+    if (Math.abs(stripSwipeX) > 80) setLiveStripVisible(false); 
+    else setStripSwipeX(0); 
+  };
 
   return (
     <div>
@@ -43,8 +59,25 @@ export default function TasksView({
         </div>
       </div>
 
-      {liveCurrentGoal && (
-        <div className="live-strip enhanced-live-strip">
+      {liveCurrentGoal && liveStripVisible && (
+        <div 
+          className="live-strip enhanced-live-strip"
+          style={{
+            transform: `translateX(${stripSwipeX}px)`,
+            opacity: 1 - (Math.abs(stripSwipeX) / 150),
+            transition: stripSwipeX === 0 ? 'transform 0.3s ease, opacity 0.3s ease' : 'none',
+            position: 'relative',
+            touchAction: 'pan-y'
+          }}
+          onTouchStart={handleStripTouchStart}
+          onTouchMove={handleStripTouchMove}
+          onTouchEnd={handleStripTouchEnd}
+        >
+          <button 
+            onClick={() => setLiveStripVisible(false)}
+            style={{ position: 'absolute', top: '8px', right: '12px', background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: '16px', padding: '4px', cursor: 'pointer', zIndex: 10 }}
+          >✕</button>
+
           <div>
             <div className="tag">CURRENT TASK</div>
             <div className="task">{liveCurrentGoal.text}</div>
@@ -106,26 +139,64 @@ export default function TasksView({
             }}>▶</button>
           </div>
         </div>
-        <div className="week-grid">
+        
+        {/* 🔥 STRICT 7-DAYS CSS INJECTED 🔥 */}
+        <style dangerouslySetInnerHTML={{__html: `
+          .force-7-days {
+            display: grid !important;
+            grid-template-columns: repeat(7, 1fr) !important;
+            gap: 2px !important;
+            width: 100% !important;
+            overflow-x: hidden !important; 
+            padding-bottom: 8px !important;
+            box-sizing: border-box !important;
+          }
+          .force-day-cell {
+            min-width: 0 !important;
+            width: 100% !important;
+            padding: 6px 0 !important;
+            border-radius: 8px !important;
+            cursor: pointer !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: center !important;
+          }
+        `}} />
+
+        <div className="force-7-days">
           {weekDays.map((day) => {
             const dots = dotsFor(toKey(day));
             const isToday = toKey(day) === todayKey();
             const isSelected = toKey(day) === activeDate;
             return (
-              <div key={day.toISOString()} className="day-cell" onClick={() => setActiveDate(toKey(day))}>
-                <div className="day-box">
-                  <div className="d-name">{DAY_NAMES[day.getDay()]}</div>
-                  <div className={`d-num ${isToday ? 'is-today' : ''} ${isSelected ? 'is-sel' : ''}`}>
-                    {day.getDate()}
-                  </div>
-                  <div className="d-dots">
-                    {dots.total > 0 && (
-                      <>
-                        {dots.done > 0 && <div className="dot done"></div>}
-                        {dots.pending > 0 && <div className="dot pending"></div>}
-                      </>
-                    )}
-                  </div>
+              <div 
+                key={day.toISOString()} 
+                className="force-day-cell" 
+                onClick={() => setActiveDate(toKey(day))}
+                style={{ 
+                  backgroundColor: isSelected ? 'var(--primary-glow)' : 'transparent',
+                }}
+              >
+                <div style={{ fontSize: '10px', opacity: 0.7, marginBottom: '4px' }}>
+                  {DAY_NAMES[day.getDay()].substring(0, 3).toUpperCase()}
+                </div>
+                <div 
+                  className={`d-num ${isToday ? 'is-today' : ''} ${isSelected ? 'is-sel' : ''}`}
+                  style={{ 
+                    width: '28px', height: '28px', fontSize: '13px', display: 'flex', 
+                    alignItems: 'center', justifyContent: 'center', borderRadius: '50%', margin: '0'
+                  }}
+                >
+                  {day.getDate()}
+                </div>
+                <div className="d-dots" style={{ marginTop: '4px', display: 'flex', gap: '2px', height: '4px' }}>
+                  {dots.total > 0 && (
+                    <>
+                      {dots.done > 0 && <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#10b981' }}></div>}
+                      {dots.pending > 0 && <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#f59e0b' }}></div>}
+                    </>
+                  )}
                 </div>
               </div>
             );
@@ -162,7 +233,24 @@ export default function TasksView({
               </button>
             ))}
           </div>
-          <div className="count">{total}</div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px', marginTop: '8px' }}>
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.2) 100%)',
+            border: '1px solid rgba(59, 130, 246, 0.4)',
+            padding: '6px 16px',
+            borderRadius: '20px',
+            color: '#60a5fa',
+            fontSize: '13px',
+            fontWeight: 'bold',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            boxShadow: '0 2px 10px rgba(59, 130, 246, 0.1)'
+          }}>
+            <span style={{ fontSize: '16px' }}>🎯</span> Total Tasks Today: <span style={{ color: 'white', fontSize: '15px' }}>{total}</span>
+          </div>
         </div>
 
         <input
@@ -174,11 +262,9 @@ export default function TasksView({
           onChange={(e) => setSearchTerm(e.target.value)}
         />
 
-        {/* PENDING TASKS SECTION */}
         <div className="pending-tasks-section">
           <div className="section-head mb-4">
             <div className="focus-title text-xl">📋 Pending Tasks ({pendingGoals.length})</div>
-            <div className="count">{pendingGoals.length}</div>
           </div>
 
           {pendingGoals.length === 0 ? (
@@ -203,7 +289,7 @@ export default function TasksView({
 
               <div className="goal-list">
                 {pendingGoals.map((goal, idx) => (
-                  <GoalItem
+                  <SwipeableTaskCard
                     key={goal.id}
                     goal={goal}
                     idx={idx}
@@ -213,6 +299,7 @@ export default function TasksView({
                     liveNow={liveCurrentGoal?.id === goal.id}
                     countdownText={liveCurrentGoal?.id === goal.id ? liveCountdown : null}
                     selected={selectedSet.has(goal.id)}
+                    activeDate={activeDate}
                     onToggleDone={() => toggleDoneWithCelebration(goal)}
                     onEdit={() => {
                       setEditingGoal(goal.id);
@@ -246,45 +333,20 @@ export default function TasksView({
           )}
         </div>
 
-        {/* COMPLETED TASKS SECTION */}
         {completedGoals.length > 0 && (
           <div className="completed-tasks-section" style={{ 
             background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.08) 0%, rgba(22, 163, 74, 0.05) 100%)', 
-            borderRadius: '12px', 
-            padding: '16px',
-            marginTop: '24px',
-            border: '2px solid rgba(34, 197, 94, 0.2)',
-            boxShadow: '0 4px 12px rgba(34, 197, 94, 0.1)',
-            position: 'relative'
+            borderRadius: '12px', padding: '16px', marginTop: '24px', border: '2px solid rgba(34, 197, 94, 0.2)', boxShadow: '0 4px 12px rgba(34, 197, 94, 0.1)', position: 'relative'
           }}>
-            {/* Header with border */}
             <div 
               className="section-head mb-4 cursor-pointer" 
               onClick={() => setCompletedTasksCollapsed(!completedTasksCollapsed)}
-              style={{ 
-                cursor: 'pointer', 
-                userSelect: 'none',
-                borderBottom: '1px solid rgba(34, 197, 94, 0.15)',
-                paddingBottom: '12px',
-                marginBottom: '16px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}
+              style={{ userSelect: 'none', borderBottom: '1px solid rgba(34, 197, 94, 0.15)', paddingBottom: '12px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
             >
-              <div className="focus-title text-xl" style={{ 
-                color: 'rgba(22, 163, 74, 0.9)',
-                fontWeight: '600',
-                textDecoration: 'none'
-              }}>
+              <div className="focus-title text-xl" style={{ color: 'rgba(22, 163, 74, 0.9)', fontWeight: '600', textDecoration: 'none' }}>
                 ✅ Completed Tasks ({completedGoals.length})
               </div>
-              <div className="collapse-icon" style={{ 
-                fontSize: '14px', 
-                color: 'rgba(22, 163, 74, 0.7)',
-                transition: 'transform 0.2s ease',
-                transform: completedTasksCollapsed ? 'rotate(0deg)' : 'rotate(180deg)'
-              }}>
+              <div className="collapse-icon" style={{ fontSize: '14px', color: 'rgba(22, 163, 74, 0.7)', transition: 'transform 0.2s ease', transform: completedTasksCollapsed ? 'rotate(0deg)' : 'rotate(180deg)' }}>
                 ▼
               </div>
             </div>
@@ -292,7 +354,7 @@ export default function TasksView({
             {!completedTasksCollapsed && (
               <div className="goal-list" style={{ opacity: '0.8' }}>
                 {completedGoals.map((goal, idx) => (
-                  <GoalItem
+                  <SwipeableTaskCard
                     key={goal.id}
                     goal={goal}
                     idx={idx + pendingGoals.length}
@@ -302,6 +364,7 @@ export default function TasksView({
                     liveNow={false}
                     countdownText={null}
                     selected={selectedSet.has(goal.id)}
+                    activeDate={activeDate}
                     onToggleDone={() => toggleDoneWithCelebration(goal)}
                     onEdit={() => {
                       setEditingGoal(goal.id);
@@ -322,11 +385,7 @@ export default function TasksView({
                   />
                 ))}
 
-                <div className="quick-tools" style={{ 
-                  marginTop: '16px',
-                  paddingTop: '12px',
-                  borderTop: '1px solid rgba(34, 197, 94, 0.15)'
-                }}>
+                <div className="quick-tools" style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid rgba(34, 197, 94, 0.15)' }}>
                   <button className="tool-btn" onClick={reopenAllCompleted}>
                     🔄 Reopen All ({completedGoals.length})
                   </button>

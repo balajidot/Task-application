@@ -4,84 +4,100 @@ const TaskCompletionCelebration = ({ isActive, onComplete }) => {
   useEffect(() => {
     if (!isActive) return;
 
-    // Create confetti effect
-    const createConfetti = () => {
-      const colors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'];
-      const confettiCount = 50;
+    // 1. Inject Safe CSS
+    if (!document.getElementById('confetti-safe-style')) {
+      const style = document.createElement('style');
+      style.id = 'confetti-safe-style';
+      style.textContent = `
+        .confetti-wrapper-safe {
+          position: fixed !important;
+          top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
+          pointer-events: none !important;
+          z-index: 999999 !important;
+          overflow: hidden !important;
+          background: transparent !important;
+        }
+        .confetti-dot-safe {
+          position: absolute !important; 
+          border-radius: 2px !important;
+          pointer-events: none !important;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    // 2. Create Wrapper
+    const wrapper = document.createElement('div');
+    wrapper.className = 'confetti-wrapper-safe';
+    document.body.appendChild(wrapper);
+
+    // 3. Generate ULTRA-FAST Confetti
+    const colors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'];
+    const confettiCount = 35; // Kuraintha alavu, aanaal vegamaaga irukkum
+
+    for (let i = 0; i < confettiCount; i++) {
+      // Delay illamal udanadiyaga vedikka seigirom (No setTimeout delay)
+      const confetti = document.createElement('div');
+      confetti.className = 'confetti-dot-safe';
       
-      for (let i = 0; i < confettiCount; i++) {
-        setTimeout(() => {
-          const confetti = document.createElement('div');
-          confetti.className = 'confetti-piece';
-          confetti.style.cssText = `
-            position: fixed;
-            width: 8px;
-            height: 8px;
-            background: ${colors[Math.floor(Math.random() * colors.length)]};
-            left: ${Math.random() * 100}%;
-            top: -10px;
-            opacity: 1;
-            transform: rotate(${Math.random() * 360}deg);
-            z-index: 9999;
-            pointer-events: none;
-          `;
-          
-          document.body.appendChild(confetti);
-          
-          // Animate confetti falling
-          const animation = confetti.animate([
-            { 
-              transform: `translateY(0) rotate(0deg)`,
-              opacity: 1 
-            },
-            { 
-              transform: `translateY(${window.innerHeight + 20}px) rotate(${Math.random() * 720}deg)`,
-              opacity: 0 
-            }
-          ], {
-            duration: 2000 + Math.random() * 1000,
-            easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)'
-          });
-          
-          animation.onfinish = () => {
-            confetti.remove();
-          };
-        }, i * 30);
+      const size = Math.random() * 6 + 5; 
+      confetti.style.width = `${size}px`;
+      confetti.style.height = `${size * 1.2}px`;
+      confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+      confetti.style.left = `${Math.random() * 100}vw`;
+      confetti.style.top = '-10px';
+      confetti.style.transform = `rotate(${Math.random() * 360}deg)`;
+      
+      wrapper.appendChild(confetti);
+      
+      // Fast Animation (0.4 to 0.7 seconds ONLY)
+      const animation = confetti.animate([
+        { transform: `translate3d(0, 0, 0) rotate(0deg)`, opacity: 1 },
+        { transform: `translate3d(${Math.random() * 100 - 50}px, ${window.innerHeight}px, 0) rotate(${Math.random() * 720}deg)`, opacity: 0 }
+      ], {
+        duration: 400 + Math.random() * 300, // Max 700ms
+        easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+        fill: 'forwards'
+      });
+      
+      animation.onfinish = () => confetti.remove();
+    }
+
+    // 4. Play Sound Safely (Very quick beep)
+    try {
+      const audio = new Audio('/sounds/complete.mp3');
+      audio.volume = 0.5;
+      audio.play().catch(() => {
+        try {
+          const context = new (window.AudioContext || window.webkitAudioContext)();
+          const oscillator = context.createOscillator();
+          const gainNode = context.createGain();
+          oscillator.connect(gainNode);
+          gainNode.connect(context.destination);
+          oscillator.frequency.setValueAtTime(800, context.currentTime);
+          oscillator.frequency.exponentialRampToValueAtTime(1200, context.currentTime + 0.05);
+          gainNode.gain.setValueAtTime(0.1, context.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.1);
+          oscillator.start(context.currentTime);
+          oscillator.stop(context.currentTime + 0.1);
+        } catch(e) {}
+      });
+    } catch(e) {}
+    
+    // 5. Auto-Complete in just 0.5 Seconds! (Minnal vegam ⚡)
+    const timer = setTimeout(() => {
+      if (wrapper && wrapper.parentNode) {
+        wrapper.remove();
+      }
+      onComplete?.();
+    }, 500); // 500ms thaan! Udanadiyaga tick aagividum.
+
+    return () => {
+      clearTimeout(timer);
+      if (wrapper && wrapper.parentNode) {
+        wrapper.remove();
       }
     };
-
-    // Play success sound
-    const playSuccessSound = () => {
-      const audio = new Audio('/sounds/complete.mp3');
-      audio.play().catch(() => {
-        // Fallback to system beep if audio fails
-        const context = new (window.AudioContext || window.webkitAudioContext)();
-        const oscillator = context.createOscillator();
-        const gainNode = context.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(context.destination);
-        
-        oscillator.frequency.setValueAtTime(800, context.currentTime);
-        oscillator.frequency.setValueAtTime(1000, context.currentTime + 0.1);
-        
-        gainNode.gain.setValueAtTime(0.3, context.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.2);
-        
-        oscillator.start(context.currentTime);
-        oscillator.stop(context.currentTime + 0.2);
-      });
-    };
-
-    createConfetti();
-    playSuccessSound();
-    
-    // Auto-complete after animation
-    const timer = setTimeout(() => {
-      onComplete?.();
-    }, 3000);
-
-    return () => clearTimeout(timer);
   }, [isActive, onComplete]);
 
   return null;

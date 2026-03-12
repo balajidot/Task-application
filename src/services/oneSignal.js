@@ -1,208 +1,163 @@
-// OneSignal Push Notification Service
+// ✅ OneSignal Push Notification Service
+// No REST API Key needed - Client side only!
+
 const ONE_SIGNAL_APP_ID = 'f98c4786-2104-4f35-936c-7b810f1d13ca';
-const ONE_SIGNAL_REST_API_KEY = 'PASTE_YOUR_REST_API_KEY_HERE'; // Get this from OneSignal dashboard → Settings → Keys & IDs
 const PWA_URL = 'https://task-application-sigma.vercel.app';
 
-// Initialize OneSignal with proper service worker configuration
+// ✅ Initialize OneSignal v16
 export async function initializeOneSignal() {
-  if (typeof window === 'undefined' || !window.OneSignal) {
-    // OneSignal SDK not loaded
-    return false;
-  }
+  if (typeof window === 'undefined') return false;
 
   try {
-    await window.OneSignal.push([
-      'init',
-      {
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    window.OneSignalDeferred.push(async function(OneSignal) {
+      await OneSignal.init({
         appId: ONE_SIGNAL_APP_ID,
-        autoRegister: true,
-        notifyButton: {
-          enable: false,
-        },
+        serviceWorkerParam: { scope: '/' },
+        serviceWorkerPath: 'OneSignalSDKWorker.js',
+        welcomeNotification: { disable: true },
+        notifyButton: { enable: false },
         allowLocalhostAsSecureOrigin: true,
-        welcomeNotification: {
-          disable: true,
-        },
-        serviceWorkerParam: {
-          scope: '/OneSignalSDKWorker.js'
-        },
-        serviceWorkerPath: '/OneSignalSDKWorker.js',
-        serviceWorkerUpdaterPath: '/OneSignalSDKUpdaterWorker.js'
-      }
-    ]);
+      });
 
-    // Register for push notifications
-    await window.OneSignal.push(['registerForPushNotifications']);
-    
-    // OneSignal initialized successfully
+      // Auto request permission
+      await OneSignal.Notifications.requestPermission();
+      console.log('✅ OneSignal initialized!');
+    });
+
     return true;
   } catch (error) {
-    // OneSignal initialization failed
+    console.error('OneSignal init failed:', error);
     return false;
   }
 }
 
-// Get OneSignal player ID (user identifier)
-export async function getOneSignalPlayerId() {
-  if (!window.OneSignal) return null;
-  
+// ✅ Schedule task notifications using setTimeout
+export async function scheduleTaskNotifications(tasks) {
+  if (typeof window === 'undefined') return false;
+
   try {
-    const playerId = await window.OneSignal.push(['getUserId']);
-    return playerId;
+    const today = new Date().toDateString();
+
+    const todayTasks = tasks.filter(task => {
+      if (!task.startTime || task.completed) return false;
+      const taskDate = task.date
+        ? new Date(task.date).toDateString()
+        : today;
+      return taskDate === today;
+    });
+
+    let scheduled = 0;
+    for (const task of todayTasks) {
+      const taskTime = parseTaskTime(task.startTime);
+      if (!taskTime || taskTime <= new Date()) continue;
+
+      const delay = taskTime.getTime() - Date.now();
+      setTimeout(() => {
+        showOneSignalNotification(task);
+      }, delay);
+
+      scheduled++;
+    }
+
+    console.log(`✅ Scheduled ${scheduled} notifications`);
+    return true;
   } catch (error) {
-    // Failed to get OneSignal player ID
+    console.error('Schedule failed:', error);
+    return false;
+  }
+}
+
+// ✅ Show notification via Service Worker
+async function showOneSignalNotification(task) {
+  try {
+    if ('serviceWorker' in navigator) {
+      const reg = await navigator.serviceWorker.ready;
+      if (reg?.showNotification) {
+        await reg.showNotification(`⏰ ${task.text}`, {
+          body: `${task.startTime} - ${task.endTime || ''} | Starting Now!`,
+          icon: '/pwa-192x192.png',
+          badge: '/pwa-192x192.png',
+          tag: `task-${task.id}`,
+          requireInteraction: true,
+          data: {
+            taskId: task.id,
+            url: `${PWA_URL}?taskId=${task.id}`
+          },
+          actions: [
+            { action: 'open', title: '✅ Open Task' }
+          ]
+        });
+      }
+    }
+  } catch (error) {
+    console.error('Show notification failed:', error);
+  }
+}
+
+// ✅ Parse time - supports "08:30" and "08:30 AM"
+function parseTaskTime(timeStr) {
+  if (!timeStr) return null;
+  try {
+    let hours, minutes;
+    const str = timeStr.trim();
+
+    if (str.includes('AM') || str.includes('PM')) {
+      const [time, period] = str.split(' ');
+      [hours, minutes] = time.split(':').map(Number);
+      if (period === 'PM' && hours !== 12) hours += 12;
+      if (period === 'AM' && hours === 12) hours = 0;
+    } else {
+      [hours, minutes] = str.split(':').map(Number);
+    }
+
+    const taskTime = new Date();
+    taskTime.setHours(hours, minutes, 0, 0);
+    return taskTime;
+  } catch {
     return null;
   }
 }
 
-// Schedule task notifications on OneSignal server
-export async function scheduleTaskNotifications(tasks) {
-  if (!window.OneSignal) {
-    // OneSignal not available
-    return false;
-  }
-
-  try {
-    // Get today's date
-    const today = new Date().toDateString();
-    
-    // Filter today's tasks with start times
-    const todayTasks = tasks.filter(task => {
-      const taskDate = new Date(task.date).toDateString();
-      return taskDate === today && task.startTime;
-    });
-
-    // Cancel all existing scheduled notifications for this user
-    await cancelAllScheduledNotifications();
-
-    // Schedule each task
-    for (const task of todayTasks) {
-      await scheduleSingleTaskNotification(task);
-    }
-
-    // Scheduled X task notifications
-    return true;
-  } catch (error) {
-    // Failed to schedule task notifications
-    return false;
-  }
-}
-
-// Schedule single task notification using OneSignal REST API
-async function scheduleSingleTaskNotification(task) {
-  if (!task.startTime) return;
-
-  try {
-    // Parse task start time
-    const [hours, minutes] = task.startTime.split(':').map(Number);
-    const taskTime = new Date();
-    taskTime.setHours(hours, minutes, 0, 0);
-
-    // Only schedule if task is in the future
-    if (taskTime <= new Date()) {
-      // Task is in the past, skipping notification
-      return;
-    }
-
-    // Create notification payload for OneSignal REST API
-    const notificationData = {
-      app_id: ONE_SIGNAL_APP_ID,
-      contents: {
-        en: `${task.text} (${task.startTime || "--:--"}-${task.endTime || "--:--"})`
-      },
-      headings: {
-        en: "⏰ Task Starting Now!"
-      },
-      url: `${PWA_URL}?view=tasks&taskId=${task.id}`,
-      send_after: taskTime.toISOString(),
-      data: {
-        taskId: task.id,
-        taskText: task.text,
-        startTime: task.startTime,
-        endTime: task.endTime
-      },
-      buttons: [
-        {
-          text: "Open Task",
-          url: `${PWA_URL}?view=tasks&taskId=${task.id}`
-        }
-      ]
-    };
-
-    // Send notification using OneSignal REST API
-    const response = await fetch('https://onesignal.com/api/v1/notifications', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Basic ${btoa(ONE_SIGNAL_REST_API_KEY + ':')}`
-      },
-      body: JSON.stringify(notificationData)
-    });
-
-    if (response.ok) {
-      const result = await response.json();
-      // Store notification ID for potential cancellation
-      const scheduledIds = JSON.parse(localStorage.getItem('scheduledNotificationIds') || '[]');
-      scheduledIds.push(result.id);
-      localStorage.setItem('scheduledNotificationIds', JSON.stringify(scheduledIds));
-    }
-    
-    // Scheduled notification for task at startTime
-  } catch (error) {
-    // Failed to schedule notification for task
-  }
-}
-
-// Cancel all scheduled notifications
-async function cancelAllScheduledNotifications() {
-  try {
-    // OneSignal doesn't have a direct way to cancel all scheduled notifications
-    // We'll store scheduled notification IDs and cancel them individually
-    const scheduledIds = localStorage.getItem('scheduledNotificationIds');
-    if (scheduledIds) {
-      const ids = JSON.parse(scheduledIds);
-      for (const id of ids) {
-        await window.OneSignal.push(['cancelNotification', id]);
-      }
-      localStorage.removeItem('scheduledNotificationIds');
-    }
-  } catch (error) {
-    // Failed to cancel scheduled notifications
-  }
-}
-
-// Handle notification click event
+// ✅ Handle notification click → navigate to task
 export function setupNotificationClickHandler() {
-  if (!window.OneSignal) return;
-
-  window.OneSignal.push([
-    'addListenerForNotificationOpened',
-    function (data) {
-      // Notification clicked
-      
-      // Navigate to tasks tab if URL contains task info
-      if (data.url && data.url.includes('view=tasks')) {
-        // The URL will automatically open in the browser
-        // The app will handle the navigation based on URL parameters
-        window.location.href = data.url;
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  window.OneSignalDeferred.push(function(OneSignal) {
+    OneSignal.Notifications.addEventListener('click', function(event) {
+      const data = event.notification.additionalData;
+      if (data?.taskId) {
+        window.location.href = `${PWA_URL}?taskId=${data.taskId}`;
       }
-    }
-  ]);
+    });
+  });
 }
 
-// Request notification permission
-export async function requestOneSignalPermission() {
-  if (!window.OneSignal) return 'unsupported';
+// ✅ Check if user subscribed
+export async function isUserSubscribed() {
+  return new Promise((resolve) => {
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    window.OneSignalDeferred.push(async function(OneSignal) {
+      try {
+        const isSubscribed = OneSignal.User.PushSubscription.optedIn;
+        resolve(!!isSubscribed);
+      } catch {
+        resolve(false);
+      }
+    });
+  });
+}
 
-  try {
-    const permission = await window.OneSignal.push(['getNotificationPermission']);
-    if (permission === 'default') {
-      const result = await window.OneSignal.push(['requestPermission']);
-      return result;
-    }
-    return permission;
-  } catch (error) {
-    // Failed to request OneSignal permission
-    return 'denied';
-  }
+// ✅ Request permission manually
+export async function requestOneSignalPermission() {
+  return new Promise((resolve) => {
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    window.OneSignalDeferred.push(async function(OneSignal) {
+      try {
+        await OneSignal.Notifications.requestPermission();
+        resolve('granted');
+      } catch {
+        resolve('denied');
+      }
+    });
+  });
 }

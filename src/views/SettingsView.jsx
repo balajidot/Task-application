@@ -192,33 +192,6 @@ export default function SettingsView({
           </div>
         </div>
 
-        {/* 🚀 AUTO-START */}
-        <div className="fg" style={{ marginTop: '16px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: 'var(--chip)', borderRadius: '10px', border: '1px solid var(--card-border)' }}>
-            <div>
-              <div style={{ fontWeight: 800, fontSize: '.95rem', color: 'var(--text)' }}>🚀 Auto-Start with Windows</div>
-              <div style={{ fontSize: '.78rem', color: 'var(--muted)', marginTop: '4px', fontWeight: 600 }}>Launch on system startup</div>
-            </div>
-            <button
-              onClick={() => handleAutoStart(!autoStartEnabled)}
-              style={{
-                width: '52px', height: '28px', borderRadius: '999px', border: 'none', cursor: 'pointer',
-                background: autoStartEnabled ? 'linear-gradient(135deg, #10b981, #059669)' : 'var(--card-border)',
-                position: 'relative', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                boxShadow: autoStartEnabled ? '0 2px 8px rgba(16, 185, 129, 0.3)' : 'inset 0 1px 3px rgba(0,0,0,0.1)',
-                flexShrink: 0,
-              }}
-            >
-              <div style={{
-                width: '22px', height: '22px', borderRadius: '50%', background: '#fff',
-                position: 'absolute', top: '3px',
-                left: autoStartEnabled ? '27px' : '3px',
-                transition: 'left 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                boxShadow: '0 1px 4px rgba(0,0,0,0.15)',
-              }} />
-            </button>
-          </div>
-        </div>
       </div>
 
       <div className="card">
