@@ -49,7 +49,7 @@ Example output format:
 
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -68,7 +68,12 @@ Example output format:
       const errData = await response.json();
       console.error('Gemini API status:', response.status);
       console.error('Gemini API error details:', JSON.stringify(errData));
-      return res.status(500).json({ error: 'Gemini API request failed', details: errData });
+      // 🔍 Send full error to frontend so we can see it
+      return res.status(500).json({ 
+        error: 'Gemini API request failed', 
+        status: response.status,
+        details: errData 
+      });
     }
 
     const data = await response.json();
