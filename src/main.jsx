@@ -1,6 +1,9 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
+import { registerPlugin } from '@capacitor/core'
 import App from './App.jsx'
+
+registerPlugin('DeviceSettings')
 
 // ✅ 1. Service Worker Registration (Keeping this for PWA functionality)
 if ('serviceWorker' in navigator) {

@@ -103,16 +103,35 @@ export default function ToolsView({ onOpenPomodoro, appLanguage, copy }) {
   const handleExportNotes = async () => {
     const exportText = savedNotes.map((note) => `${note.pinned ? '[PINNED] ' : ''}${note.title}\n${note.body}\n${new Date(note.createdAt).toLocaleString('en-IN')}\n`).join('\n---\n');
     try {
+      const isMobileLike = typeof window !== 'undefined' && ('ontouchstart' in window || window.innerWidth < 900);
+      if (isMobileLike && navigator.share) {
+        const file = new File([exportText], 'task-planner-notes.txt', { type: 'text/plain' });
+        await navigator.share({ title: 'Task Planner Notes', text: exportText, files: [file] });
+        return;
+      }
+
+      if (isMobileLike && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(exportText);
+        window.alert('Notes copied to clipboard.');
+        return;
+      }
+
       const blob = new Blob([exportText], { type: 'text/plain;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
       anchor.href = url;
       anchor.download = 'task-planner-notes.txt';
+      document.body.appendChild(anchor);
       anchor.click();
+      document.body.removeChild(anchor);
       URL.revokeObjectURL(url);
     } catch {
-      await navigator.clipboard?.writeText(exportText);
-      window.alert('Notes copied to clipboard.');
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(exportText);
+        window.alert('Notes copied to clipboard.');
+      } else {
+        window.alert(exportText);
+      }
     }
   };
 

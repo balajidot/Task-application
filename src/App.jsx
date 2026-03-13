@@ -17,6 +17,7 @@ import ShortcutsModal from "./components/ShortcutsModal";
 import AchievementBadges from "./components/AchievementBadges";
 import WeeklyPlannerWizard from "./components/WeeklyPlannerWizard";
 import TaskTemplates from "./components/TaskTemplates";
+import { DeviceSettings } from "./plugins/deviceSettings";
 
 const DashboardView = lazy(() => import("./views/DashboardView"));
 const TasksView = lazy(() => import("./views/TasksView"));
@@ -29,7 +30,7 @@ const HabitsView = lazy(() => import("./views/HabitsView"));
 const JournalView = lazy(() => import("./views/JournalView"));
 const GoalsView = lazy(() => import("./views/GoalsView"));
 
-import { REPEAT_OPTIONS, SESSION_OPTIONS, PRIORITY_OPTIONS, FONT_OPTIONS, TIME_FILTER_OPTIONS, DAY_NAMES, QUOTES, PRIORITY_RANK, JOURNAL_KEY, HABITS_KEY, GOALS_KEY, APP_COPY } from "./utils/constants";
+import { REPEAT_OPTIONS, SESSION_OPTIONS, PRIORITY_OPTIONS, FONT_OPTIONS, TIME_FILTER_OPTIONS, DAY_NAMES, QUOTES, PRIORITY_RANK, JOURNAL_KEY, HABITS_KEY, GOALS_KEY, TOOLS_KEY, CAREER_KEY, APP_COPY } from "./utils/constants";
 import {
   todayKey, toKey, timeToMinutes, hasSameStartEnd, isTimeLiveNow, formatTimeRange, goalTimeMinutes, matchesTimeFilter,
   getWeekDays, normalizeGoal, goalVisibleOn, isDoneOn, readStorage, writeStorage, readPrefs, writePrefs,
@@ -651,9 +652,8 @@ export default function DailyGoals() {
 
   const openAndroidBatterySettings = useCallback(async () => {
     try {
-      const plugin = window.Capacitor?.Plugins?.DeviceSettings;
-      if (plugin?.openBatteryOptimizationSettings) {
-        await plugin.openBatteryOptimizationSettings();
+      if (DeviceSettings?.openBatteryOptimizationSettings) {
+        await DeviceSettings.openBatteryOptimizationSettings();
         return;
       }
       window.alert("Battery optimization settings shortcut is available in Android build.");
@@ -664,9 +664,8 @@ export default function DailyGoals() {
 
   const openAndroidAppSettings = useCallback(async () => {
     try {
-      const plugin = window.Capacitor?.Plugins?.DeviceSettings;
-      if (plugin?.openAppSettings) {
-        await plugin.openAppSettings();
+      if (DeviceSettings?.openAppSettings) {
+        await DeviceSettings.openAppSettings();
         return;
       }
       window.alert("App settings shortcut is available in Android build.");
@@ -680,6 +679,8 @@ export default function DailyGoals() {
       writeStorage("[]"),
       writePrefs({}),
       writeUiState({}),
+      writePersist(TOOLS_KEY, JSON.stringify({})),
+      writePersist(CAREER_KEY, JSON.stringify({})),
       writePersist(JOURNAL_KEY, "{}"),
       writePersist(HABITS_KEY, "[]"),
       writePersist(GOALS_KEY, "[]"),
@@ -746,6 +747,9 @@ export default function DailyGoals() {
     { id: "goals", label: "Goals", icon: "🎯" },
   ];
   const tabItems = [...mainTabItems.map(t => ({...t, icon: t.id === 'insights' ? '📊' : t.id === 'analytics' ? '📈' : t.icon})), ...moreTabItems];
+
+  const localizedMainTabItems = mainTabItems.map((tab) => ({ ...tab, label: copy.tabs[tab.id] || tab.label }));
+  const localizedMoreTabItems = moreTabItems.map((tab) => ({ ...tab, label: copy.tabs[tab.id] || tab.label }));
 
   return (
     <div className={`page ${themeClass}${isPlannerIframeView ? " planner-mode" : ""}`} style={{ "--task-font-size": `${taskFontSize}px`, "--task-font-family": taskFontFamily, "--ui-scale": `${uiScale / 100}`, "--global-font-weight": fontWeight }} onTouchStart={handleGlobalTouchStart} onTouchEnd={handleGlobalTouchEnd}>
@@ -1021,7 +1025,7 @@ export default function DailyGoals() {
         )}
 
         <div className="mobile-bottom-nav">
-          {mainTabItems.map(tab => (
+          {localizedMainTabItems.map(tab => (
             <button key={tab.id} className={`mobile-nav-btn ${activeView === tab.id ? 'active' : ''}`} onClick={() => { if(typeof triggerHaptic==='function') triggerHaptic('light'); setActiveView(tab.id); setShowMoreMenu(false); }}>
               <span className="mobile-nav-icon">{tab.icon}</span><span className="mobile-nav-label">{tab.label}</span>
             </button>
@@ -1036,7 +1040,7 @@ export default function DailyGoals() {
             <div className="more-menu" onClick={(e) => e.stopPropagation()}>
               <div className="more-menu-header"><h3>{copy.tabs.more}</h3><button className="more-menu-close" onClick={() => setShowMoreMenu(false)}>✕</button></div>
               <div className="more-menu-items">
-                {moreTabItems.map(tab => (
+                {localizedMoreTabItems.map(tab => (
                   <button key={tab.id} className={`more-menu-item ${activeView === tab.id ? 'active' : ''}`} onClick={() => { setActiveView(tab.id); setShowMoreMenu(false); }}>
                     <span className="more-menu-icon">{tab.icon}</span><span className="more-menu-label">{tab.label}</span>
                   </button>

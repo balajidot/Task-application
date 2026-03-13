@@ -72,7 +72,7 @@ export default function WeeklyPlannerWizard({ goals, onClose, onAddGoals }) {
                 onClick={() => toggleTask(g.text)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '10px',
-                  padding: '12px 14px', borderRadius: '10px', border: 'none', cursor: 'pointer',
+                  padding: '12px 14px', borderRadius: '10px', cursor: 'pointer',
                   background: selectedTasks.includes(g.text) ? 'rgba(16,185,129,0.1)' : 'var(--chip)',
                   border: `2px solid ${selectedTasks.includes(g.text) ? '#10b981' : 'transparent'}`,
                   textAlign: 'left', transition: 'all 0.2s', width: '100%',
@@ -196,3 +196,4 @@ export default function WeeklyPlannerWizard({ goals, onClose, onAddGoals }) {
     </div>
   );
 }
+
