@@ -118,7 +118,7 @@ export default function JournalView() {
                 key={mood.label}
                 onClick={() => updateEntry('mood', mood.label)}
                 style={{
-                  padding: '10px 18px', borderRadius: '12px', border: 'none', cursor: 'pointer',
+                  padding: '10px 18px', borderRadius: '12px', cursor: 'pointer',
                   background: isActive ? `linear-gradient(135deg, ${mood.color}22, ${mood.color}11)` : 'var(--chip)',
                   border: `2px solid ${isActive ? mood.color : 'transparent'}`,
                   color: isActive ? mood.color : 'var(--muted)',

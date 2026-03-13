@@ -1,17 +1,14 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import OneSignal from 'react-onesignal'; 
 import PomodoroTimer from "./components/PomodoroTimer";
 import TaskImportExport from "./components/TaskImportExport";
 import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts";
 import { useMobileFeatures, triggerHaptic } from "./hooks/useMobileFeatures";
 import {
   getNotificationPermission,
-  requestNotificationPermission,
   showAppNotification,
   initializeNotifications,
   scheduleTaskNotifications,
 } from "./services/notifications";
-import { scheduleTaskNotifications as scheduleOneSignalNotifications } from "./services/oneSignal";
 
 import './App.css';
 import { LiveTaskPopup } from "./components/SharedUI";
@@ -165,16 +162,6 @@ export default function DailyGoals() {
     }
   };
 
-  useEffect(() => {
-    const initOneSignal = async () => {
-      try {
-        await OneSignal.init({ appId: "f98c4786-2104-4f35-936c-7b810f1d13ca", allowLocalhostAsSecureOrigin: true });
-        OneSignal.Slidedown.promptPush();
-      } catch (error) { console.error("OneSignal Initialization Error:", error); }
-    };
-    initOneSignal();
-  }, []);
-
   // ✅ PERF FIX: isEOD uses 60-second tick
   const isEOD = useMemo(() => {
     const now = new Date(nowMinuteTick);
@@ -279,7 +266,6 @@ export default function DailyGoals() {
       setLoaded(true);
       
       initializeNotifications().then(setNotifPerm);
-      if (getNotificationPermission() === "default") requestNotificationPermission().then(setNotifPerm);
     };
     loadInitData();
   }, []);
@@ -289,20 +275,21 @@ export default function DailyGoals() {
     writeUiState({ activeDate, activeView, searchTerm, priorityFilter, timeFilter, weekBase: weekBase instanceof Date ? weekBase.toISOString() : new Date().toISOString() });
     writePrefs({ themeMode, taskFontSize, taskFontFamily, uiScale, overdueEnabled, fontWeight, soundTheme, autoStartEnabled });
     scheduleTaskNotifications(goals);
-    scheduleOneSignalNotifications(goals);
   }, [activeDate, activeView, loaded, priorityFilter, searchTerm, timeFilter, weekBase, themeMode, taskFontSize, taskFontFamily, uiScale, overdueEnabled, fontWeight, soundTheme, autoStartEnabled, goals]);
 
   const save = useCallback((updated) => {
-    setGoals(updated);
+    const resolved = typeof updated === "function" ? updated(goals) : updated;
+    setGoals(resolved);
     let serialized = "[]";
-    try { serialized = JSON.stringify(updated); } catch {}
+    try { serialized = JSON.stringify(resolved); } catch {}
     pendingWriteRef.current.last = serialized;
     if (pendingWriteRef.current.timer) clearTimeout(pendingWriteRef.current.timer);
     pendingWriteRef.current.timer = setTimeout(() => { writeStorage(pendingWriteRef.current.last).catch(() => {}); }, 300);
-  }, []);
+  }, [goals]);
 
   useEffect(() => {
-    if (!loaded || getNotificationPermission() !== "granted") return;
+    const permission = notifPerm || getNotificationPermission();
+    if (!loaded || !["granted", "capacitor"].includes(permission)) return;
     const now = new Date(); const today = todayKey();
     const timers = goals.filter((g) => g.reminder && goalVisibleOn(g, today) && !isDoneOn(g, today)).map((g) => {
       const [hh, mm] = g.reminder.split(":").map(Number); 
@@ -316,7 +303,7 @@ export default function DailyGoals() {
       }, diff);
     }).filter(Boolean);
     return () => timers.forEach(clearTimeout);
-  }, [goals, loaded]);
+  }, [goals, loaded, notifPerm]);
 
   useEffect(() => {
     if (!reminderPopup) return;
@@ -361,14 +348,16 @@ export default function DailyGoals() {
     window.addEventListener("keydown", onKey); return () => window.removeEventListener("keydown", onKey);
   }, [showForm, activeDate, form, editingGoal, goals]);
 
-  useKeyboardShortcuts([
+  const keyboardShortcuts = useMemo(() => ([
     { key: '1', ctrl: true, action: () => setActiveView('insights') },
     { key: '2', ctrl: true, action: () => setActiveView('tasks') },
     { key: '3', ctrl: true, action: () => setActiveView('planner') },
     { key: '4', ctrl: true, action: () => setActiveView('settings') },
     { key: 'w', ctrl: true, action: () => setPlannerView(prev => prev === 'monthly' ? 'weekly' : 'monthly') },
     { key: '?', action: () => setShowShortcuts(s => !s) },
-  ]);
+  ]), []);
+
+  useKeyboardShortcuts(keyboardShortcuts);
 
   // ✅ PERF FIX: Wrapped in useCallback to prevent recreation on every render
   const onTaskTextChange = useCallback((value) => {
