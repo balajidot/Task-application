@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { THEME_OPTIONS, FONT_OPTIONS } from '../utils/constants';
+import { THEME_OPTIONS, FONT_OPTIONS, LANGUAGE_OPTIONS } from '../utils/constants';
 
 function Toggle({ value, onChange, color = '#10b981' }) {
   return (
@@ -48,7 +48,6 @@ function SettingRow({ icon, title, subtitle, right, onClick, danger = false }) {
         borderRadius: 12,
         border: `1px solid ${danger ? 'rgba(239,68,68,0.25)' : 'var(--card-border)'}`,
         cursor: onClick ? 'pointer' : 'default',
-        transition: 'opacity 0.15s',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
@@ -88,12 +87,16 @@ export default function SettingsView({
   hapticEnabled, setHapticEnabled,
   autoThemeMode, setAutoThemeMode,
   liveHighlightEnabled, setLiveHighlightEnabled,
+  appLanguage, setAppLanguage,
+  copy,
   userName, setUserName,
   notifPerm, requestNotifPerm,
   goals, onReplaceGoals,
   onClearCache,
   onClearLocalData,
   onRefreshNotifications,
+  onOpenBatterySettings,
+  onOpenAppSettings,
 }) {
   const [editingName, setEditingName] = useState(false);
   const [tempName, setTempName] = useState(userName || '');
@@ -123,12 +126,7 @@ export default function SettingsView({
     setTimeout(() => setJustSaved(false), 2000);
   };
 
-  const notifLabel = notifPerm === 'granted'
-    ? 'Enabled'
-    : notifPerm === 'denied'
-      ? 'Blocked in device settings'
-      : 'Not enabled yet';
-
+  const notifLabel = notifPerm === 'granted' ? 'Enabled' : notifPerm === 'denied' ? 'Blocked in device settings' : 'Not enabled yet';
   const notifColor = notifPerm === 'granted' ? '#10b981' : notifPerm === 'denied' ? '#ef4444' : '#f59e0b';
 
   const clearCompleted = useCallback(() => {
@@ -148,6 +146,7 @@ export default function SettingsView({
   const resetSettings = () => {
     setThemeMode('dark');
     setAutoThemeMode('off');
+    setAppLanguage('en');
     setTaskFontSize(18);
     setTaskFontFamily(FONT_OPTIONS[0].value);
     setUiScale(96);
@@ -163,17 +162,53 @@ export default function SettingsView({
       <div className="hero">
         <div className="topbar">
           <div>
-            <div className="title">Settings</div>
-            <div className="tip">Personalize, clean up, and keep the app healthy</div>
+            <div className="title">{copy.settings.title}</div>
+            <div className="tip">{copy.settings.subtitle}</div>
           </div>
           <button className="hero-btn" onClick={() => setActiveView('tasks')}>
-            Tasks
+            {copy.common.tasks}
           </button>
         </div>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '0 4px' }}>
-        <Section title="Profile">
+        <Section title={copy.settings.language}>
+          <div style={{ padding: '12px 14px', background: 'var(--chip)', borderRadius: 12, border: '1px solid var(--card-border)' }}>
+            <div style={{ fontWeight: 800, fontSize: '.88rem', color: 'var(--muted)', marginBottom: 8 }}>{copy.settings.languageSubtitle}</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+              {LANGUAGE_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => setAppLanguage(option.value)}
+                  style={{
+                    padding: '12px 10px',
+                    borderRadius: 10,
+                    border: appLanguage === option.value ? '2px solid #10b981' : '1px solid var(--card-border)',
+                    background: appLanguage === option.value ? 'linear-gradient(135deg, rgba(16,185,129,0.18), rgba(59,130,246,0.10))' : 'var(--card)',
+                    color: 'var(--text)',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </Section>
+
+        <Section title={copy.settings.battery}>
+          <div style={{ padding: '14px', background: 'var(--chip)', borderRadius: 12, border: '1px solid var(--card-border)' }}>
+            <div style={{ fontWeight: 800, color: 'var(--text)', marginBottom: 6 }}>{copy.settings.batterySubtitle}</div>
+            <div style={{ color: 'var(--muted)', fontSize: '.82rem', lineHeight: 1.5 }}>{copy.settings.batteryGuide}</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 14 }}>
+              <button className="new-btn" onClick={onOpenBatterySettings}>{copy.settings.openBattery}</button>
+              <button className="hero-btn" onClick={onOpenAppSettings}>{copy.settings.openApp}</button>
+            </div>
+          </div>
+        </Section>
+
+        <Section title={copy.settings.profile}>
           <div style={{ padding: '16px 14px', background: 'var(--chip)', borderRadius: 12, border: '1px solid var(--card-border)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: editingName ? 14 : 0 }}>
               <div style={{ width: 52, height: 52, borderRadius: '50%', flexShrink: 0, background: 'linear-gradient(135deg, #10b981, #3b82f6)', display: 'grid', placeItems: 'center', fontSize: '1.4rem', fontWeight: 900, color: '#fff' }}>
@@ -183,150 +218,73 @@ export default function SettingsView({
                 <div style={{ fontWeight: 900, fontSize: '1rem', color: 'var(--text)' }}>{userName || 'Set your name'}</div>
                 <div style={{ fontSize: '.75rem', color: 'var(--muted)', fontWeight: 600, marginTop: 2 }}>Task Planner profile</div>
               </div>
-              <button
-                onClick={() => { setEditingName(!editingName); setTempName(userName || ''); }}
-                style={{ padding: '7px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', background: editingName ? 'var(--card-border)' : 'linear-gradient(135deg, #10b981, #3b82f6)', color: '#fff', fontWeight: 800, fontSize: '.8rem' }}
-              >
-                {editingName ? 'Cancel' : 'Edit'}
+              <button onClick={() => { setEditingName(!editingName); setTempName(userName || ''); }} style={{ padding: '7px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', background: editingName ? 'var(--card-border)' : 'linear-gradient(135deg, #10b981, #3b82f6)', color: '#fff', fontWeight: 800, fontSize: '.8rem' }}>
+                {editingName ? copy.common.cancel : 'Edit'}
               </button>
             </div>
-
             {editingName && (
               <div style={{ display: 'flex', gap: 8 }}>
-                <input
-                  type="text"
-                  value={tempName}
-                  onChange={(e) => setTempName(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && saveName()}
-                  autoFocus
-                  placeholder="Enter your name..."
-                  maxLength={30}
-                  style={{ flex: 1, padding: '11px 14px', borderRadius: 10, border: '2px solid rgba(59,130,246,0.35)', background: 'var(--card)', color: 'var(--text)', fontSize: '1rem', outline: 'none' }}
-                />
-                <button
-                  onClick={saveName}
-                  disabled={!tempName.trim()}
-                  style={{ padding: '11px 18px', borderRadius: 10, border: 'none', cursor: tempName.trim() ? 'pointer' : 'not-allowed', background: tempName.trim() ? 'linear-gradient(135deg, #10b981, #059669)' : 'var(--card-border)', color: '#fff', fontWeight: 800, fontSize: '.9rem', opacity: tempName.trim() ? 1 : 0.5 }}
-                >
-                  Save
+                <input type="text" value={tempName} onChange={(e) => setTempName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && saveName()} autoFocus placeholder="Enter your name..." maxLength={30} style={{ flex: 1, padding: '11px 14px', borderRadius: 10, border: '2px solid rgba(59,130,246,0.35)', background: 'var(--card)', color: 'var(--text)', fontSize: '1rem', outline: 'none' }} />
+                <button onClick={saveName} disabled={!tempName.trim()} style={{ padding: '11px 18px', borderRadius: 10, border: 'none', cursor: tempName.trim() ? 'pointer' : 'not-allowed', background: tempName.trim() ? 'linear-gradient(135deg, #10b981, #059669)' : 'var(--card-border)', color: '#fff', fontWeight: 800, fontSize: '.9rem', opacity: tempName.trim() ? 1 : 0.5 }}>
+                  {copy.common.save}
                 </button>
               </div>
             )}
-
-            {justSaved && <div style={{ textAlign: 'center', color: '#10b981', fontWeight: 800, fontSize: '.85rem', marginTop: 8 }}>Name saved</div>}
+            {justSaved && <div style={{ textAlign: 'center', color: '#10b981', fontWeight: 800, fontSize: '.85rem', marginTop: 8 }}>Saved</div>}
           </div>
         </Section>
 
-        <Section title="Notifications">
+        <Section title={copy.settings.notifications}>
           <div style={{ padding: '13px 14px', background: 'var(--chip)', borderRadius: 12, border: '1px solid var(--card-border)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
               <div>
                 <div style={{ fontWeight: 800, fontSize: '.92rem', color: 'var(--text)' }}>Reminder Notifications</div>
                 <div style={{ fontSize: '.75rem', fontWeight: 700, marginTop: 3, color: notifColor }}>{notifLabel}</div>
               </div>
-              {notifPerm !== 'granted' ? (
-                <button
-                  onClick={() => requestNotifPerm?.()}
-                  style={{ padding: '8px 16px', borderRadius: 10, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#fff', fontWeight: 800, fontSize: '.82rem' }}
-                >
-                  Enable
-                </button>
-              ) : (
-                <button className="mini-btn" onClick={onRefreshNotifications}>Refresh</button>
-              )}
+              {notifPerm !== 'granted' ? <button onClick={() => requestNotifPerm?.()} className="new-btn">{copy.common.enable}</button> : <button className="mini-btn" onClick={onRefreshNotifications}>{copy.common.refresh}</button>}
             </div>
           </div>
-
-          <SettingRow
-            icon="V"
-            title="Haptic Feedback"
-            subtitle="Vibration on key task actions"
-            right={<Toggle value={hapticEnabled ?? true} onChange={(value) => setHapticEnabled?.(value)} color="#6366f1" />}
-          />
-
-          <SettingRow
-            icon="L"
-            title="Live Task Highlight"
-            subtitle="Auto-popup and stronger highlight for the current task"
-            right={<Toggle value={liveHighlightEnabled ?? true} onChange={(value) => setLiveHighlightEnabled?.(value)} color="#10b981" />}
-          />
-
+          <SettingRow icon="V" title="Haptic Feedback" subtitle="Vibration on key task actions" right={<Toggle value={hapticEnabled ?? true} onChange={(value) => setHapticEnabled?.(value)} color="#6366f1" />} />
+          <SettingRow icon="L" title="Live Task Highlight" subtitle="Auto-popup and stronger highlight for the current task" right={<Toggle value={liveHighlightEnabled ?? true} onChange={(value) => setLiveHighlightEnabled?.(value)} color="#10b981" />} />
           <SettingRow
             icon="S"
             title="Sound Theme"
             subtitle="Reminder and completion sounds"
             right={
-              <select
-                value={soundTheme}
-                onChange={(e) => setSoundTheme(e.target.value)}
-                onClick={(e) => e.stopPropagation()}
-                style={{ padding: '7px 12px', borderRadius: 10, background: 'var(--card)', color: 'var(--text)', border: '1px solid var(--card-border)', fontWeight: 800, fontSize: '.82rem', cursor: 'pointer' }}
-              >
-                {SOUND_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
+              <select value={soundTheme} onChange={(e) => setSoundTheme(e.target.value)} onClick={(e) => e.stopPropagation()} style={{ padding: '7px 12px', borderRadius: 10, background: 'var(--card)', color: 'var(--text)', border: '1px solid var(--card-border)', fontWeight: 800, fontSize: '.82rem', cursor: 'pointer' }}>
+                {SOUND_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
               </select>
             }
           />
         </Section>
 
-        <Section title="Theme">
+        <Section title={copy.settings.theme}>
           <div style={{ padding: '12px 14px', background: 'var(--chip)', borderRadius: 12, border: '1px solid var(--card-border)' }}>
             <div style={{ fontWeight: 800, fontSize: '.88rem', color: 'var(--muted)', marginBottom: 8 }}>Auto Mode</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
               {AUTO_THEME_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  onClick={() => setAutoThemeMode(option.value)}
-                  style={{
-                    padding: '10px 6px',
-                    borderRadius: 10,
-                    border: autoThemeMode === option.value ? '2px solid #10b981' : '1.5px solid var(--card-border)',
-                    background: autoThemeMode === option.value ? 'linear-gradient(135deg, rgba(16,185,129,0.18), rgba(59,130,246,0.12))' : 'var(--card)',
-                    color: autoThemeMode === option.value ? '#10b981' : 'var(--text)',
-                    fontWeight: autoThemeMode === option.value ? 900 : 700,
-                    fontSize: '.78rem',
-                    cursor: 'pointer',
-                  }}
-                >
+                <button key={option.value} onClick={() => setAutoThemeMode(option.value)} style={{ padding: '10px 6px', borderRadius: 10, border: autoThemeMode === option.value ? '2px solid #10b981' : '1.5px solid var(--card-border)', background: autoThemeMode === option.value ? 'linear-gradient(135deg, rgba(16,185,129,0.18), rgba(59,130,246,0.12))' : 'var(--card)', color: autoThemeMode === option.value ? '#10b981' : 'var(--text)', fontWeight: autoThemeMode === option.value ? 900 : 700, fontSize: '.78rem', cursor: 'pointer' }}>
                   {option.label}
                 </button>
               ))}
             </div>
           </div>
-
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
             {THEME_OPTIONS.map((theme) => (
-              <button
-                key={theme.value}
-                onClick={() => { setAutoThemeMode('off'); setThemeMode(theme.value); }}
-                style={{
-                  padding: '10px 6px',
-                  borderRadius: 10,
-                  border: themeMode === theme.value ? '2px solid #3b82f6' : '1.5px solid var(--card-border)',
-                  background: themeMode === theme.value ? 'linear-gradient(135deg, rgba(59,130,246,0.18), rgba(16,185,129,0.12))' : 'var(--chip)',
-                  color: themeMode === theme.value ? '#3b82f6' : 'var(--text)',
-                  fontWeight: themeMode === theme.value ? 900 : 700,
-                  fontSize: '.78rem',
-                  cursor: 'pointer',
-                  textAlign: 'center',
-                  lineHeight: 1.3,
-                }}
-              >
+              <button key={theme.value} onClick={() => { setAutoThemeMode('off'); setThemeMode(theme.value); }} style={{ padding: '10px 6px', borderRadius: 10, border: themeMode === theme.value ? '2px solid #3b82f6' : '1.5px solid var(--card-border)', background: themeMode === theme.value ? 'linear-gradient(135deg, rgba(59,130,246,0.18), rgba(16,185,129,0.12))' : 'var(--chip)', color: themeMode === theme.value ? '#3b82f6' : 'var(--text)', fontWeight: themeMode === theme.value ? 900 : 700, fontSize: '.78rem', cursor: 'pointer', textAlign: 'center', lineHeight: 1.3 }}>
                 {theme.label}
               </button>
             ))}
           </div>
         </Section>
 
-        <Section title="Display">
+        <Section title={copy.settings.display}>
           <div style={{ padding: '12px 14px', background: 'var(--chip)', borderRadius: 12, border: '1px solid var(--card-border)' }}>
             <div style={{ fontWeight: 800, fontSize: '.88rem', color: 'var(--muted)', marginBottom: 8 }}>Font Style</div>
             <select className="fi" value={taskFontFamily} onChange={(e) => setTaskFontFamily(e.target.value)} style={{ fontSize: '14px', width: '100%' }}>
               {FONT_OPTIONS.map((font) => <option key={font.value} value={font.value}>{font.label}</option>)}
             </select>
           </div>
-
           <div style={{ padding: '12px 14px', background: 'var(--chip)', borderRadius: 12, border: '1px solid var(--card-border)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
               <div style={{ fontWeight: 800, fontSize: '.88rem', color: 'var(--muted)' }}>Task Font Size</div>
@@ -334,7 +292,6 @@ export default function SettingsView({
             </div>
             <input type="range" min="12" max="32" value={taskFontSize} onChange={(e) => setTaskFontSize(Number(e.target.value))} style={{ width: '100%', accentColor: '#10b981' }} />
           </div>
-
           <div style={{ padding: '12px 14px', background: 'var(--chip)', borderRadius: 12, border: '1px solid var(--card-border)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
               <div style={{ fontWeight: 800, fontSize: '.88rem', color: 'var(--muted)' }}>Font Weight</div>
@@ -342,7 +299,6 @@ export default function SettingsView({
             </div>
             <input type="range" min="400" max="900" step="100" value={fontWeight} onChange={(e) => setFontWeight(Number(e.target.value))} style={{ width: '100%', accentColor: '#6366f1' }} />
           </div>
-
           <div style={{ padding: '12px 14px', background: 'var(--chip)', borderRadius: 12, border: '1px solid var(--card-border)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
               <div style={{ fontWeight: 800, fontSize: '.88rem', color: 'var(--muted)' }}>UI Scale</div>
@@ -352,53 +308,22 @@ export default function SettingsView({
           </div>
         </Section>
 
-        <Section title="Behavior">
-          <SettingRow
-            icon="!"
-            title="Overdue Alerts"
-            subtitle="Show warning styling when tasks pass their end time"
-            right={<Toggle value={overdueEnabled} onChange={setOverdueEnabled} color="#f59e0b" />}
-          />
+        <Section title={copy.settings.behavior}>
+          <SettingRow icon="!" title="Overdue Alerts" subtitle="Show warning styling when tasks pass their end time" right={<Toggle value={overdueEnabled} onChange={setOverdueEnabled} color="#f59e0b" />} />
         </Section>
 
-        <Section title="Storage">
-          <SettingRow
-            icon="C"
-            title="Clear Completed Tasks"
-            subtitle="Remove finished tasks but keep pending work"
-            onClick={() => setConfirmClear('completed')}
-            right={<span style={{ color: 'var(--muted)', fontSize: '1rem' }}>{'>'}</span>}
-          />
-          <SettingRow
-            icon="K"
-            title="Clear Cache"
-            subtitle="Remove service worker and cached files"
-            onClick={onClearCache}
-            right={<span style={{ color: 'var(--muted)', fontSize: '1rem' }}>Run</span>}
-          />
-          <SettingRow
-            icon="W"
-            title="Delete All Tasks"
-            subtitle="Wipe the whole task list"
-            onClick={() => setConfirmClear('all')}
-            danger
-            right={<span style={{ color: '#ef4444', fontSize: '1rem' }}>{'>'}</span>}
-          />
-          <SettingRow
-            icon="R"
-            title="Reset Full App Data"
-            subtitle="Clear tasks, prefs, habits, journal, and profile"
-            onClick={onClearLocalData}
-            danger
-            right={<span style={{ color: '#ef4444', fontSize: '1rem' }}>Run</span>}
-          />
+        <Section title={copy.settings.storage}>
+          <SettingRow icon="C" title="Clear Completed Tasks" subtitle="Remove finished tasks but keep pending work" onClick={() => setConfirmClear('completed')} right={<span style={{ color: 'var(--muted)', fontSize: '1rem' }}>{'>'}</span>} />
+          <SettingRow icon="K" title="Clear Cache" subtitle="Remove service worker and cached files" onClick={onClearCache} right={<span style={{ color: 'var(--muted)', fontSize: '1rem' }}>{copy.common.run}</span>} />
+          <SettingRow icon="W" title="Delete All Tasks" subtitle="Wipe the whole task list" onClick={() => setConfirmClear('all')} danger right={<span style={{ color: '#ef4444', fontSize: '1rem' }}>{'>'}</span>} />
+          <SettingRow icon="R" title="Reset Full App Data" subtitle="Clear tasks, prefs, habits, journal, and profile" onClick={onClearLocalData} danger right={<span style={{ color: '#ef4444', fontSize: '1rem' }}>{copy.common.run}</span>} />
 
           {confirmClear === 'completed' && (
             <div style={{ padding: '14px', background: 'rgba(239,68,68,0.08)', borderRadius: 12, border: '1px solid rgba(239,68,68,0.25)' }}>
               <div style={{ fontWeight: 800, color: '#ef4444', marginBottom: 10, fontSize: '.9rem' }}>Remove all completed tasks?</div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={clearCompleted} style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', cursor: 'pointer', background: '#ef4444', color: '#fff', fontWeight: 800, fontSize: '.85rem' }}>Yes, clear</button>
-                <button onClick={() => setConfirmClear(null)} style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', cursor: 'pointer', background: 'var(--card-border)', color: 'var(--text)', fontWeight: 800, fontSize: '.85rem' }}>Cancel</button>
+                <button onClick={clearCompleted} style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', cursor: 'pointer', background: '#ef4444', color: '#fff', fontWeight: 800, fontSize: '.85rem' }}>Yes</button>
+                <button onClick={() => setConfirmClear(null)} style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', cursor: 'pointer', background: 'var(--card-border)', color: 'var(--text)', fontWeight: 800, fontSize: '.85rem' }}>{copy.common.cancel}</button>
               </div>
             </div>
           )}
@@ -408,14 +333,14 @@ export default function SettingsView({
               <div style={{ fontWeight: 900, color: '#ef4444', marginBottom: 6, fontSize: '.95rem' }}>Delete all tasks?</div>
               <div style={{ fontSize: '.8rem', color: 'var(--muted)', fontWeight: 600, marginBottom: 12 }}>This cannot be undone.</div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={clearAllTasks} style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg, #dc2626, #b91c1c)', color: '#fff', fontWeight: 900, fontSize: '.85rem' }}>Delete all</button>
-                <button onClick={() => setConfirmClear(null)} style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', cursor: 'pointer', background: 'var(--card-border)', color: 'var(--text)', fontWeight: 800, fontSize: '.85rem' }}>Cancel</button>
+                <button onClick={clearAllTasks} style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg, #dc2626, #b91c1c)', color: '#fff', fontWeight: 900, fontSize: '.85rem' }}>Delete</button>
+                <button onClick={() => setConfirmClear(null)} style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', cursor: 'pointer', background: 'var(--card-border)', color: 'var(--text)', fontWeight: 800, fontSize: '.85rem' }}>{copy.common.cancel}</button>
               </div>
             </div>
           )}
         </Section>
 
-        <Section title="Preview">
+        <Section title={copy.settings.preview}>
           <div style={{ padding: '16px', background: 'var(--chip)', borderRadius: 12, border: '1px solid var(--card-border)' }}>
             <div style={{ fontSize: '.78rem', fontWeight: 800, color: 'var(--muted)', marginBottom: 10 }}>Sample task with your current settings:</div>
             <div style={{ padding: '12px 14px', background: 'var(--card)', borderRadius: 10, border: '1px solid var(--card-border)', fontFamily: taskFontFamily, fontSize: taskFontSize, fontWeight: fontWeight, color: 'var(--text)', lineHeight: 1.5 }}>
@@ -424,11 +349,8 @@ export default function SettingsView({
           </div>
         </Section>
 
-        <Section title="Reset">
-          <button
-            onClick={resetSettings}
-            style={{ width: '100%', padding: '13px', borderRadius: 12, border: '1px solid var(--card-border)', cursor: 'pointer', background: 'var(--chip)', color: 'var(--text)', fontWeight: 800, fontSize: '.92rem' }}
-          >
+        <Section title={copy.settings.reset}>
+          <button onClick={resetSettings} style={{ width: '100%', padding: '13px', borderRadius: 12, border: '1px solid var(--card-border)', cursor: 'pointer', background: 'var(--chip)', color: 'var(--text)', fontWeight: 800, fontSize: '.92rem' }}>
             Reset settings to default
           </button>
         </Section>

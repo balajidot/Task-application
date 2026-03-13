@@ -57,6 +57,58 @@ function isTaskDone(goal, key) {
   return goal.repeat === 'None' ? !!goal.done : !!goal.doneOn?.[key];
 }
 
+function buildNotificationEntries(task, todayStr, exactAlarmEnabled = true) {
+  const entries = [];
+  const reminderTime = parseTaskTime(task.reminder, task.date || todayStr);
+  const startTime = parseTaskTime(task.startTime, task.date || todayStr);
+
+  if (reminderTime && reminderTime > new Date()) {
+    entries.push({
+      title: 'Task Reminder',
+      body: task.endTime
+        ? `${task.text} | ${task.startTime || task.reminder} - ${task.endTime}`
+        : `${task.text} | ${task.startTime || task.reminder}`,
+      id: toStableNotificationId(`${task.id}-reminder`),
+      schedule: {
+        at: reminderTime,
+        allowWhileIdle: true,
+        exact: exactAlarmEnabled,
+      },
+      sound: 'default',
+      autoCancel: true,
+      extra: {
+        taskId: task.id,
+        taskDate: task.date || todayStr,
+        notificationType: 'reminder',
+      },
+    });
+  }
+
+  if (startTime && startTime > new Date() && (!reminderTime || startTime.getTime() !== reminderTime.getTime())) {
+    entries.push({
+      title: 'Task Starting Now',
+      body: task.endTime
+        ? `${task.text} | ${task.startTime} - ${task.endTime}`
+        : `${task.text} | ${task.startTime}`,
+      id: toStableNotificationId(`${task.id}-start`),
+      schedule: {
+        at: startTime,
+        allowWhileIdle: true,
+        exact: exactAlarmEnabled,
+      },
+      sound: 'default',
+      autoCancel: true,
+      extra: {
+        taskId: task.id,
+        taskDate: task.date || todayStr,
+        notificationType: 'start',
+      },
+    });
+  }
+
+  return entries;
+}
+
 export function isNotificationsSupported() {
   if (isCapacitor()) return true;
   if (electronIpc) return true;
@@ -75,6 +127,9 @@ export async function requestNotificationPermission() {
     try {
       const { LocalNotifications } = await import('@capacitor/local-notifications');
       const access = await ensureCapacitorNotificationAccess(LocalNotifications);
+      if (access.exactAlarm === 'denied' && typeof LocalNotifications.changeExactNotificationSetting === 'function') {
+        await LocalNotifications.changeExactNotificationSetting();
+      }
       return access.display === 'granted' && access.enabled ? 'granted' : 'denied';
     } catch (error) {
       console.error('Local notification permission error:', error);
@@ -178,31 +233,7 @@ export async function scheduleTaskNotifications(tasks) {
         await LocalNotifications.cancel({ notifications: pending.notifications });
       }
 
-      const notifications = todayTasks
-        .map((task) => {
-          const fireTime = parseTaskTime(task.reminder || task.startTime, task.date || todayStr);
-          if (!fireTime || fireTime <= new Date()) return null;
-
-          return {
-            title: 'Task Reminder',
-            body: task.endTime
-              ? `${task.text} | ${task.startTime || task.reminder} - ${task.endTime}`
-              : `${task.text} | ${task.startTime || task.reminder}`,
-            id: toStableNotificationId(task.id),
-            schedule: {
-              at: fireTime,
-              allowWhileIdle: true,
-              exact: access.exactAlarm !== 'denied',
-            },
-            sound: 'default',
-            autoCancel: true,
-            extra: {
-              taskId: task.id,
-              taskDate: task.date || todayStr,
-            },
-          };
-        })
-        .filter(Boolean);
+      const notifications = todayTasks.flatMap((task) => buildNotificationEntries(task, todayStr, access.exactAlarm !== 'denied'));
 
       if (notifications.length > 0) {
         await LocalNotifications.schedule({ notifications });
@@ -217,10 +248,13 @@ export async function scheduleTaskNotifications(tasks) {
   if (electronIpc || Notification.permission !== 'granted') return;
 
   for (const task of todayTasks) {
-    const fireTime = parseTaskTime(task.reminder || task.startTime, task.date || todayStr);
-    if (!fireTime || fireTime <= new Date()) continue;
-    const delay = fireTime.getTime() - Date.now();
-    setTimeout(() => new Notification(`Task Reminder: ${task.text}`, { body: 'Starting now' }), delay);
+    const entries = buildNotificationEntries(task, todayStr, true);
+    entries.forEach((entry) => {
+      const delay = entry.schedule.at.getTime() - Date.now();
+      if (delay > 0) {
+        setTimeout(() => new Notification(entry.title, { body: entry.body }), delay);
+      }
+    });
   }
 }
 

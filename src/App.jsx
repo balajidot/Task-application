@@ -29,7 +29,7 @@ const HabitsView = lazy(() => import("./views/HabitsView"));
 const JournalView = lazy(() => import("./views/JournalView"));
 const GoalsView = lazy(() => import("./views/GoalsView"));
 
-import { REPEAT_OPTIONS, SESSION_OPTIONS, PRIORITY_OPTIONS, FONT_OPTIONS, TIME_FILTER_OPTIONS, DAY_NAMES, QUOTES, PRIORITY_RANK, JOURNAL_KEY, HABITS_KEY, GOALS_KEY } from "./utils/constants";
+import { REPEAT_OPTIONS, SESSION_OPTIONS, PRIORITY_OPTIONS, FONT_OPTIONS, TIME_FILTER_OPTIONS, DAY_NAMES, QUOTES, PRIORITY_RANK, JOURNAL_KEY, HABITS_KEY, GOALS_KEY, APP_COPY } from "./utils/constants";
 import {
   todayKey, toKey, timeToMinutes, hasSameStartEnd, isTimeLiveNow, formatTimeRange, goalTimeMinutes, matchesTimeFilter,
   getWeekDays, normalizeGoal, goalVisibleOn, isDoneOn, readStorage, writeStorage, readPrefs, writePrefs,
@@ -65,6 +65,7 @@ export default function DailyGoals() {
   
   const [themeMode, setThemeMode] = useState("dark");
   const [autoThemeMode, setAutoThemeMode] = useState("off");
+  const [appLanguage, setAppLanguage] = useState("en");
   const [taskFontSize, setTaskFontSize] = useState(18);
   const [taskFontFamily, setTaskFontFamily] = useState(FONT_OPTIONS[0].value);
   const [uiScale, setUiScale] = useState(96);
@@ -101,6 +102,7 @@ export default function DailyGoals() {
   const [tabSwitching, setTabSwitching] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [aiContext, setAiContext] = useState("");
+  const copy = useMemo(() => APP_COPY[appLanguage] || APP_COPY.en, [appLanguage]);
 
   useMobileFeatures({ themeMode, activeView, setActiveView, setShowForm, setShowMoreMenu });
 
@@ -271,6 +273,7 @@ export default function DailyGoals() {
       if (prefs) {
         setThemeMode(prefs.themeMode || (prefs.darkMode ? "dark" : "sunset-light"));
         if (prefs.autoThemeMode) setAutoThemeMode(prefs.autoThemeMode);
+        if (prefs.appLanguage) setAppLanguage(prefs.appLanguage);
         setTaskFontSize(Number(prefs.taskFontSize) || 18);
         setTaskFontFamily(prefs.taskFontFamily || FONT_OPTIONS[0].value);
         setUiScale(Number(prefs.uiScale) || 96);
@@ -297,9 +300,9 @@ export default function DailyGoals() {
   useEffect(() => {
     if (!loaded) return;
     writeUiState({ activeDate, activeView, searchTerm, priorityFilter, timeFilter, weekBase: weekBase instanceof Date ? weekBase.toISOString() : new Date().toISOString() });
-    writePrefs({ themeMode, autoThemeMode, taskFontSize, taskFontFamily, uiScale, overdueEnabled, fontWeight, soundTheme, hapticEnabled, liveHighlightEnabled });
+    writePrefs({ themeMode, autoThemeMode, appLanguage, taskFontSize, taskFontFamily, uiScale, overdueEnabled, fontWeight, soundTheme, hapticEnabled, liveHighlightEnabled });
     scheduleTaskNotifications(goals); // ✅ Now strictly uses clean Local Notifications
-  }, [activeDate, activeView, loaded, priorityFilter, searchTerm, timeFilter, weekBase, themeMode, autoThemeMode, taskFontSize, taskFontFamily, uiScale, overdueEnabled, fontWeight, soundTheme, hapticEnabled, liveHighlightEnabled, goals]);
+  }, [activeDate, activeView, loaded, priorityFilter, searchTerm, timeFilter, weekBase, themeMode, autoThemeMode, appLanguage, taskFontSize, taskFontFamily, uiScale, overdueEnabled, fontWeight, soundTheme, hapticEnabled, liveHighlightEnabled, goals]);
 
   const save = useCallback((updated) => {
     setGoals(updated);
@@ -389,6 +392,38 @@ export default function DailyGoals() {
     };
   }, [autoThemeMode]);
 
+  useEffect(() => {
+    if (!loaded) return undefined;
+
+    const refreshNotifications = () => {
+      scheduleTaskNotifications(goals);
+      electronIpc?.send?.("schedule-reminders", goals);
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") refreshNotifications();
+    };
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    let cleanup = () => {};
+    if (window.Capacitor) {
+      import("@capacitor/app")
+        .then(async ({ App }) => {
+          const listener = await App.addListener("appStateChange", ({ isActive }) => {
+            if (!isActive) refreshNotifications();
+          });
+          cleanup = () => listener.remove();
+        })
+        .catch(() => {});
+    }
+
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      cleanup();
+    };
+  }, [electronIpc, goals, loaded]);
+
   const calculateNextUpcomingTask = useCallback(() => { 
     const currentTime = new Date().toTimeString().slice(0, 5); 
     return pendingGoals.filter(task => task.startTime && task.startTime > currentTime).sort((a, b) => a.startTime.localeCompare(b.startTime))[0] || null; 
@@ -436,6 +471,48 @@ export default function DailyGoals() {
           : "Day looks clear. This is a good moment to plan tomorrow.",
     };
   }, [liveCurrentGoal, nextUpcomingGoal, nowMinutes, pendingGoals]);
+
+  const aiWeeklyAnalysis = useMemo(() => {
+    const bestDay = weekly.bestDay?.name || "N/A";
+    const weakestDay = weekly.days.reduce((lowest, day) => (!lowest || day.pct < lowest.pct ? day : lowest), null)?.name || "N/A";
+    const totalPending = goals.filter((goal) => !isDoneOn(goal, todayKey()) && goalVisibleOn(goal, todayKey())).length;
+    const completionTrend = weekly.days.map((day) => day.pct < 0 ? 0 : day.pct);
+    const trendDelta = completionTrend.length > 1 ? completionTrend[completionTrend.length - 1] - completionTrend[0] : 0;
+    const predictedPct = Math.max(20, Math.min(100, Math.round(weekly.weekPct + trendDelta * 0.35)));
+    const nextWeekPlan = [
+      {
+        title: "Protect your best day",
+        detail: `Use ${bestDay} for deep work or hardest priorities.`,
+      },
+      {
+        title: "Repair the weak slot",
+        detail: `Keep ${weakestDay} lighter with only 2-3 must-do tasks.`,
+      },
+      {
+        title: "Start earlier",
+        detail: totalPending > 3 ? "Move one pending task into a fixed morning block." : "Keep the morning free for your biggest win.",
+      },
+    ];
+
+    return {
+      summary: weekly.weekTotal
+        ? `You finished ${weekly.weekDone} of ${weekly.weekTotal} visible tasks this week, around ${weekly.weekPct}%.`
+        : "This week has very little tracked data. Start logging tasks daily for stronger analysis.",
+      momentum: streakDays >= 3
+        ? `Your streak is ${streakDays} days. Protect it with a light but consistent tomorrow plan.`
+        : "Momentum is still building. Small repeatable wins will help more than heavy one-day pushes.",
+      pattern: `Best day: ${bestDay}. Lowest output day: ${weakestDay}. Pending today: ${totalPending}.`,
+      advice: weekly.weekPct >= 80
+        ? "You can now reduce overload and focus more on deep-work quality."
+        : weekly.weekPct >= 50
+          ? "Completion is decent, but time-blocking your top priorities earlier will help."
+          : "Your board may be overfilled. Cut daily load and assign exact start times to the top 3 tasks.",
+      trend: trendDelta >= 0 ? `Trend is improving by about ${Math.abs(trendDelta)} points from the start of the week.` : `Trend dipped by about ${Math.abs(trendDelta)} points during the week.`,
+      predictedPct,
+      chartPoints: completionTrend,
+      nextWeekPlan,
+    };
+  }, [goals, streakDays, weekly]);
 
   useEffect(() => {
     const onKey = (e) => {
@@ -572,6 +649,32 @@ export default function DailyGoals() {
     }
   }, []);
 
+  const openAndroidBatterySettings = useCallback(async () => {
+    try {
+      const plugin = window.Capacitor?.Plugins?.DeviceSettings;
+      if (plugin?.openBatteryOptimizationSettings) {
+        await plugin.openBatteryOptimizationSettings();
+        return;
+      }
+      window.alert("Battery optimization settings shortcut is available in Android build.");
+    } catch {
+      window.alert("Unable to open battery optimization settings on this device.");
+    }
+  }, []);
+
+  const openAndroidAppSettings = useCallback(async () => {
+    try {
+      const plugin = window.Capacitor?.Plugins?.DeviceSettings;
+      if (plugin?.openAppSettings) {
+        await plugin.openAppSettings();
+        return;
+      }
+      window.alert("App settings shortcut is available in Android build.");
+    } catch {
+      window.alert("Unable to open app settings on this device.");
+    }
+  }, []);
+
   const clearLocalAppData = useCallback(async () => {
     await Promise.all([
       writeStorage("[]"),
@@ -592,6 +695,7 @@ export default function DailyGoals() {
     setTimeFilter("All Times");
     setThemeMode("dark");
     setAutoThemeMode("off");
+    setAppLanguage("en");
     setTaskFontSize(18);
     setTaskFontFamily(FONT_OPTIONS[0].value);
     setUiScale(96);
@@ -625,7 +729,7 @@ export default function DailyGoals() {
 
   const themeClass = `theme-${themeMode}`;
   const isPlannerIframeView = activeView === "tasks";
-  const activeDateLabel = activeDate === todayKey() ? "Today's Focus" : new Date(`${activeDate}T00:00:00`).toLocaleDateString("en-IN", { weekday: "long", month: "long", day: "numeric" });
+  const activeDateLabel = activeDate === todayKey() ? copy.common.todayFocus : new Date(`${activeDate}T00:00:00`).toLocaleDateString(appLanguage === "ta" ? "ta-IN" : "en-IN", { weekday: "long", month: "long", day: "numeric" });
 
   const mainTabItems = [
     { id: "insights", label: "Dashboard", icon: "🏠" },
@@ -838,11 +942,11 @@ export default function DailyGoals() {
             </div>
           )}
           {activeView === "planner" && <div key="planner" className="view-transition"><PlannerView plannerView={plannerView} setPlannerView={setPlannerView} goals={goals} setActiveDate={setActiveDate} setActiveView={setActiveView} /></div>}
-          {activeView === "analytics" && <div key="analytics" className="view-transition"><AnalyticsView setShowPomodoro={setShowPomodoro} setShowImportExport={setShowImportExport} setActiveView={setActiveView} goals={goals} weekly={weekly} /></div>}
+          {activeView === "analytics" && <div key="analytics" className="view-transition"><AnalyticsView setShowPomodoro={setShowPomodoro} setShowImportExport={setShowImportExport} setActiveView={setActiveView} goals={goals} weekly={weekly} aiWeeklyAnalysis={aiWeeklyAnalysis} appLanguage={appLanguage} copy={copy} /></div>}
           {activeView === "career" && <div key="career" className="view-transition"><CareerView /></div>}
           {activeView === "tools" && (
             <div key="tools" className="view-transition">
-              <ToolsView onOpenPomodoro={() => setShowPomodoro(true)} />
+              <ToolsView onOpenPomodoro={() => setShowPomodoro(true)} appLanguage={appLanguage} copy={copy} />
               <div style={{ padding: '0 16px 20px', maxWidth: '600px', margin: '0 auto' }}>
                 <TaskTemplates onApplyTemplate={handleApplyTemplate} />
               </div>
@@ -862,6 +966,8 @@ export default function DailyGoals() {
                 hapticEnabled={hapticEnabled} setHapticEnabled={setHapticEnabled}
                 autoThemeMode={autoThemeMode} setAutoThemeMode={setAutoThemeMode}
                 liveHighlightEnabled={liveHighlightEnabled} setLiveHighlightEnabled={setLiveHighlightEnabled}
+                appLanguage={appLanguage} setAppLanguage={setAppLanguage}
+                copy={copy}
                 userName={userName} setUserName={setUserName}
                 notifPerm={notifPerm}
                 requestNotifPerm={() => requestNotificationPermission().then(setNotifPerm)}
@@ -869,6 +975,8 @@ export default function DailyGoals() {
                 onClearCache={clearAppCache}
                 onClearLocalData={clearLocalAppData}
                 onRefreshNotifications={() => scheduleTaskNotifications(goals)}
+                onOpenBatterySettings={openAndroidBatterySettings}
+                onOpenAppSettings={openAndroidAppSettings}
               />
             </div>
           )}
@@ -919,14 +1027,14 @@ export default function DailyGoals() {
             </button>
           ))}
           <button className={`mobile-nav-btn ${showMoreMenu ? 'active' : ''}`} onClick={() => { if(typeof triggerHaptic==='function') triggerHaptic('light'); setShowMoreMenu(!showMoreMenu); }}>
-            <span className="mobile-nav-icon">⋯</span><span className="mobile-nav-label">More</span>
+            <span className="mobile-nav-icon">⋯</span><span className="mobile-nav-label">{copy.tabs.more}</span>
           </button>
         </div>
 
         {showMoreMenu && (
           <div className="more-menu-overlay" onClick={() => setShowMoreMenu(false)}>
             <div className="more-menu" onClick={(e) => e.stopPropagation()}>
-              <div className="more-menu-header"><h3>More Options</h3><button className="more-menu-close" onClick={() => setShowMoreMenu(false)}>✕</button></div>
+              <div className="more-menu-header"><h3>{copy.tabs.more}</h3><button className="more-menu-close" onClick={() => setShowMoreMenu(false)}>✕</button></div>
               <div className="more-menu-items">
                 {moreTabItems.map(tab => (
                   <button key={tab.id} className={`more-menu-item ${activeView === tab.id ? 'active' : ''}`} onClick={() => { setActiveView(tab.id); setShowMoreMenu(false); }}>

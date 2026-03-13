@@ -119,7 +119,16 @@ const clearReminderTimers = () => {
   reminderTimers = [];
 };
 
-const showReminder = (goal) => {
+const parseClockTime = (timeStr) => {
+  if (!timeStr) return null;
+  const [hh, mm] = String(timeStr).split(":").map(Number);
+  if (Number.isNaN(hh) || Number.isNaN(mm)) return null;
+  const fireAt = new Date();
+  fireAt.setHours(hh, mm, 0, 0);
+  return fireAt;
+};
+
+const showReminder = (goal, notificationType = "reminder") => {
   try {
     const iconPath = app.isPackaged
       ? path.join(process.resourcesPath, "icon.ico")
@@ -130,7 +139,7 @@ const showReminder = (goal) => {
 
     if (Notification.isSupported()) {
       const n = new Notification({
-        title: "TASK REMINDER",
+        title: notificationType === "start" ? "TASK STARTING NOW" : "TASK REMINDER",
         subtitle: goal.session ? `${goal.session} Session` : "Task Alert",
         body: `${goal.text || "You have a pending task reminder."}${goal.startTime || goal.endTime ? `\nTime: ${goal.startTime || "--:--"} - ${goal.endTime || "--:--"}` : ""}${goal.reminder ? `\nReminder: ${goal.reminder}` : ""}`,
         icon: iconPath,
@@ -152,6 +161,7 @@ const showReminder = (goal) => {
         reminder: goal.reminder || "",
         startTime: goal.startTime || "",
         endTime: goal.endTime || "",
+        notificationType,
       });
     }
   } catch {}
@@ -200,17 +210,20 @@ const scheduleReminders = (goals) => {
   lastScheduleDateKey = today;
 
   goals.forEach((goal) => {
-    if (!goal?.reminder || !goalVisibleOn(goal, today) || isDoneOn(goal, today)) return;
-    const [hh, mm] = String(goal.reminder).split(":").map(Number);
-    if (Number.isNaN(hh) || Number.isNaN(mm)) return;
+    if (!goalVisibleOn(goal, today) || isDoneOn(goal, today)) return;
 
-    const fireAt = new Date();
-    fireAt.setHours(hh, mm, 0, 0);
-    const diff = fireAt.getTime() - now.getTime();
-    if (diff <= 0 || diff >= 86400000) return;
-
-    const timer = setTimeout(() => showReminder(goal), diff);
-    reminderTimers.push(timer);
+    [
+      { time: goal.reminder, type: "reminder" },
+      { time: goal.startTime, type: "start" },
+    ].forEach(({ time, type }) => {
+      const fireAt = parseClockTime(time);
+      if (!fireAt) return;
+      if (type === "start" && goal.reminder && goal.reminder === goal.startTime) return;
+      const diff = fireAt.getTime() - now.getTime();
+      if (diff <= 0 || diff >= 86400000) return;
+      const timer = setTimeout(() => showReminder(goal, type), diff);
+      reminderTimers.push(timer);
+    });
   });
 };
 
