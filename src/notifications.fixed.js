@@ -2,6 +2,9 @@ const isCapacitor = () =>
   typeof window !== 'undefined' && window.Capacitor !== undefined;
 
 const MAX_NOTIFICATION_ID = 2147483647;
+const NOTIFICATION_LOOKAHEAD_DAYS = 14;
+const TASK_CHANNEL_ID = 'task-planner-reminders';
+const TASK_CHANNEL_NAME = 'Task Planner Reminders';
 const electronIpc = (() => {
   try {
     return window.require?.('electron')?.ipcRenderer ?? null;
@@ -25,8 +28,14 @@ function toStableNotificationId(taskId) {
   return Math.abs(hash) % MAX_NOTIFICATION_ID || 1;
 }
 
-async function ensureCapacitorNotificationAccess(LocalNotifications) {
-  const permissionState = await LocalNotifications.requestPermissions();
+async function ensureCapacitorNotificationAccess(LocalNotifications, options = {}) {
+  const shouldPrompt = options.prompt === true;
+  let permissionState = await LocalNotifications.checkPermissions();
+
+  if (shouldPrompt && permissionState?.display === 'prompt') {
+    permissionState = await LocalNotifications.requestPermissions();
+  }
+
   const enabledState = await LocalNotifications.areEnabled();
 
   let exactAlarm = 'granted';
@@ -40,6 +49,22 @@ async function ensureCapacitorNotificationAccess(LocalNotifications) {
     enabled: enabledState?.value ?? false,
     exactAlarm,
   };
+}
+
+async function ensureNotificationChannel(LocalNotifications) {
+  if (typeof LocalNotifications.createChannel !== 'function') return;
+
+  try {
+    await LocalNotifications.createChannel({
+      id: TASK_CHANNEL_ID,
+      name: TASK_CHANNEL_NAME,
+      description: 'Task start and reminder alerts',
+      importance: 5,
+      visibility: 1,
+    });
+  } catch (error) {
+    console.warn('Notification channel setup skipped:', error);
+  }
 }
 
 function goalVisibleOn(goal, key) {
@@ -57,10 +82,10 @@ function isTaskDone(goal, key) {
   return goal.repeat === 'None' ? !!goal.done : !!goal.doneOn?.[key];
 }
 
-function buildNotificationEntries(task, todayStr, exactAlarmEnabled = true) {
+function buildNotificationEntries(task, dateKey, exactAlarmEnabled = true) {
   const entries = [];
-  const reminderTime = parseTaskTime(task.reminder, task.date || todayStr);
-  const startTime = parseTaskTime(task.startTime, task.date || todayStr);
+  const reminderTime = parseTaskTime(task.reminder, dateKey);
+  const startTime = parseTaskTime(task.startTime, dateKey);
 
   if (reminderTime && reminderTime > new Date()) {
     entries.push({
@@ -68,17 +93,18 @@ function buildNotificationEntries(task, todayStr, exactAlarmEnabled = true) {
       body: task.endTime
         ? `${task.text} | ${task.startTime || task.reminder} - ${task.endTime}`
         : `${task.text} | ${task.startTime || task.reminder}`,
-      id: toStableNotificationId(`${task.id}-reminder`),
+      id: toStableNotificationId(`${task.id}-${dateKey}-reminder`),
       schedule: {
         at: reminderTime,
         allowWhileIdle: true,
         exact: exactAlarmEnabled,
       },
+      channelId: TASK_CHANNEL_ID,
       sound: 'default',
       autoCancel: true,
       extra: {
         taskId: task.id,
-        taskDate: task.date || todayStr,
+        taskDate: dateKey,
         notificationType: 'reminder',
       },
     });
@@ -90,17 +116,18 @@ function buildNotificationEntries(task, todayStr, exactAlarmEnabled = true) {
       body: task.endTime
         ? `${task.text} | ${task.startTime} - ${task.endTime}`
         : `${task.text} | ${task.startTime}`,
-      id: toStableNotificationId(`${task.id}-start`),
+      id: toStableNotificationId(`${task.id}-${dateKey}-start`),
       schedule: {
         at: startTime,
         allowWhileIdle: true,
         exact: exactAlarmEnabled,
       },
+      channelId: TASK_CHANNEL_ID,
       sound: 'default',
       autoCancel: true,
       extra: {
         taskId: task.id,
-        taskDate: task.date || todayStr,
+        taskDate: dateKey,
         notificationType: 'start',
       },
     });
@@ -126,11 +153,13 @@ export async function requestNotificationPermission() {
   if (isCapacitor()) {
     try {
       const { LocalNotifications } = await import('@capacitor/local-notifications');
-      const access = await ensureCapacitorNotificationAccess(LocalNotifications);
+      const access = await ensureCapacitorNotificationAccess(LocalNotifications, { prompt: true });
       if (access.exactAlarm === 'denied' && typeof LocalNotifications.changeExactNotificationSetting === 'function') {
         await LocalNotifications.changeExactNotificationSetting();
       }
-      return access.display === 'granted' && access.enabled ? 'granted' : 'denied';
+      await ensureNotificationChannel(LocalNotifications);
+      const refreshedAccess = await ensureCapacitorNotificationAccess(LocalNotifications);
+      return refreshedAccess.display === 'granted' && refreshedAccess.enabled ? 'granted' : 'denied';
     } catch (error) {
       console.error('Local notification permission error:', error);
       return 'denied';
@@ -153,6 +182,7 @@ export async function initializeNotifications() {
 
   try {
     const { LocalNotifications } = await import('@capacitor/local-notifications');
+    await ensureNotificationChannel(LocalNotifications);
     const access = await ensureCapacitorNotificationAccess(LocalNotifications);
 
     if (access.exactAlarm === 'denied') {
@@ -170,12 +200,14 @@ export async function showAppNotification(title, options = {}) {
   if (isCapacitor()) {
     try {
       const { LocalNotifications } = await import('@capacitor/local-notifications');
+      await ensureNotificationChannel(LocalNotifications);
       await LocalNotifications.schedule({
         notifications: [
           {
             title,
             body: options.body || '',
             id: toStableNotificationId(options.id ?? Date.now()),
+            channelId: TASK_CHANNEL_ID,
             sound: 'default',
             extra: options.data || {},
             schedule: {
@@ -209,14 +241,10 @@ export async function showAppNotification(title, options = {}) {
 export async function scheduleTaskNotifications(tasks) {
   if (!isNotificationsSupported()) return;
 
-  const todayStr = getTodayKey();
-  const todayTasks = tasks.filter((task) => {
-    if (!task || isTaskDone(task, todayStr)) return false;
-    if (!goalVisibleOn(task, todayStr)) return false;
-    return Boolean(task.reminder || task.startTime);
-  });
+  const scheduleDates = getFutureDateKeys(NOTIFICATION_LOOKAHEAD_DAYS);
+  const scheduledTaskEntries = buildUpcomingTaskEntries(tasks, scheduleDates);
 
-  electronIpc?.send?.('schedule-reminders', todayTasks);
+  electronIpc?.send?.('schedule-reminders', tasks);
 
   if (isCapacitor()) {
     try {
@@ -228,12 +256,16 @@ export async function scheduleTaskNotifications(tasks) {
         return;
       }
 
+      await ensureNotificationChannel(LocalNotifications);
+
       const pending = await LocalNotifications.getPending();
       if (pending.notifications.length > 0) {
         await LocalNotifications.cancel({ notifications: pending.notifications });
       }
 
-      const notifications = todayTasks.flatMap((task) => buildNotificationEntries(task, todayStr, access.exactAlarm !== 'denied'));
+      const notifications = scheduledTaskEntries.flatMap(({ task, dateKey }) =>
+        buildNotificationEntries(task, dateKey, access.exactAlarm !== 'denied')
+      );
 
       if (notifications.length > 0) {
         await LocalNotifications.schedule({ notifications });
@@ -247,8 +279,8 @@ export async function scheduleTaskNotifications(tasks) {
 
   if (electronIpc || Notification.permission !== 'granted') return;
 
-  for (const task of todayTasks) {
-    const entries = buildNotificationEntries(task, todayStr, true);
+  for (const { task, dateKey } of scheduledTaskEntries) {
+    const entries = buildNotificationEntries(task, dateKey, true);
     entries.forEach((entry) => {
       const delay = entry.schedule.at.getTime() - Date.now();
       if (delay > 0) {
@@ -256,6 +288,20 @@ export async function scheduleTaskNotifications(tasks) {
       }
     });
   }
+}
+
+function buildUpcomingTaskEntries(tasks, dateKeys) {
+  const entries = [];
+
+  for (const dateKey of dateKeys) {
+    for (const task of tasks) {
+      if (!task || !goalVisibleOn(task, dateKey) || isTaskDone(task, dateKey)) continue;
+      if (!task.reminder && !task.startTime) continue;
+      entries.push({ task, dateKey });
+    }
+  }
+
+  return entries;
 }
 
 function parseTaskTime(timeStr, dateKey = getTodayKey()) {
@@ -290,4 +336,22 @@ function parseTaskTime(timeStr, dateKey = getTodayKey()) {
 function getTodayKey() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
+function getFutureDateKeys(days) {
+  const keys = [];
+  const base = new Date();
+  base.setHours(0, 0, 0, 0);
+
+  for (let offset = 0; offset < days; offset += 1) {
+    const next = new Date(base);
+    next.setDate(base.getDate() + offset);
+    keys.push(toDateKey(next));
+  }
+
+  return keys;
+}
+
+function toDateKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }

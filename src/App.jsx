@@ -402,7 +402,9 @@ export default function DailyGoals() {
     };
 
     const onVisibilityChange = () => {
-      if (document.visibilityState === "hidden") refreshNotifications();
+      if (document.visibilityState === "hidden" || document.visibilityState === "visible") {
+        refreshNotifications();
+      }
     };
 
     document.addEventListener("visibilitychange", onVisibilityChange);
@@ -412,7 +414,8 @@ export default function DailyGoals() {
       import("@capacitor/app")
         .then(async ({ App }) => {
           const listener = await App.addListener("appStateChange", ({ isActive }) => {
-            if (!isActive) refreshNotifications();
+            refreshNotifications();
+            if (isActive) initializeNotifications().then(setNotifPerm);
           });
           cleanup = () => listener.remove();
         })
