@@ -1,14 +1,34 @@
-// 🤖 Gemini AI — Auto Task Generator
-// File location: api/gemini.js (in your project ROOT folder)
-// Vercel serverless function — called from App.jsx
+// 🤖 Gemini AI — Smart Task Generator
+// File location: api/gemini.js (project ROOT folder)
+// Updated: No repetition + Keyword-based + Fixed Routine Protection
+
+// 🔒 BALAJI'S FIXED DAILY ROUTINE — AI இதை NEVER மாத்தாது!
+const FIXED_ROUTINE = [
+  { start: '08:30', end: '09:15', emoji: '🚗', task: 'Drop Amma at work' },
+  { start: '12:30', end: '13:15', emoji: '🥗', task: 'Lunch break' },
+  { start: '17:30', end: '18:15', emoji: '🚗', task: 'Pick up Amma from work' },
+];
+
+// 🎯 BALAJI'S FLEXIBLE GOAL BLOCKS — AI இந்த areas-ல suggest பண்ணும்
+const FLEX_GOALS = [
+  'Banking aptitude & quantitative practice',
+  'English grammar & vocabulary study',
+  'Banking interview preparation',
+  'Web app coding & development',
+  'English communication practice',
+  'Current affairs & banking awareness',
+  'Mock test & exam practice',
+  'React & JavaScript skill building',
+];
+
+// 🗓️ Recent schedules cache — repetition avoid பண்ண
+const recentSchedules = [];
 
 export default async function handler(req, res) {
-  // Only allow POST requests
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Get API key from Vercel environment variable
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return res.status(500).json({ error: 'GEMINI_API_KEY not set in Vercel environment variables' });
@@ -16,82 +36,115 @@ export default async function handler(req, res) {
 
   const { userName, existingTasks = [], date, context = '' } = req.body;
 
-  // Build smart prompt
-  const todayDate = date || new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
+  const todayDate = date || new Date().toLocaleDateString('en-IN', {
+    weekday: 'long', day: 'numeric', month: 'long'
+  });
+
+  // 🔒 Build fixed routine text for prompt
+  const fixedRoutineText = FIXED_ROUTINE
+    .map(r => `${r.start} - ${r.end} - ${r.emoji} ${r.task}`)
+    .join('\n');
+
+  // 🎯 Build flexible goals text
+  const flexGoalsText = FLEX_GOALS.join(', ');
+
+  // 📋 Existing tasks context
   const existingText = existingTasks.length > 0
-    ? `The user already has these tasks today: ${existingTasks.map(t => t.text).join(', ')}.`
-    : 'The user has no tasks planned yet.';
+    ? `User already has these tasks: ${existingTasks.map(t => t.text).join(', ')}. Do NOT duplicate these.`
+    : 'No existing tasks yet.';
 
-  const prompt = `You are a world-class productivity coach. Create a realistic, motivating daily schedule for ${userName || 'the user'} for ${todayDate}.
+  // 🔑 Keyword context — user typed something specific
+  const keywordText = context
+    ? `IMPORTANT: User wants to focus on "${context}" today. Generate ALL flexible tasks related to this keyword/topic.`
+    : `Fill flexible time blocks with tasks from these goal areas: ${flexGoalsText}`;
 
-${existingText}
-${context ? `Additional context: ${context}` : ''}
+  // 🚫 Recent schedules — avoid repeating
+  const recentText = recentSchedules.length > 0
+    ? `AVOID repeating these recently suggested tasks: ${recentSchedules.slice(-3).join(' | ')}`
+    : '';
 
-Generate exactly 6 tasks with specific time slots. Follow this EXACT format (one task per line, nothing else):
-HH:MM - HH:MM - [emoji] Task description
+  // 🧠 MASTER PROMPT — all 3 requirements included
+  const prompt = `You are a smart productivity coach for ${userName || 'Balaji'} on ${todayDate}.
 
-Rules:
-- Use 24-hour time format (e.g. 09:00 - 10:30)
-- Start from 08:00 or 09:00
-- Include 1 short break and 1 lunch
-- Make tasks specific and actionable
-- Use relevant emojis
-- End by 18:00
-- NO numbering, NO headers, NO extra text — ONLY the 6 lines
+STRICT RULES — Follow exactly:
 
-Example output format:
-08:30 - 09:30 - 🚗 Drop off Amma at work
-09:30 - 12:00 - 🏦 Banking interview prep and quantitative aptitude
-12:00 - 13:00 - 🥗 Lunch break
-13:00 - 15:30 - 💻 Build web application and test code
-15:30 - 16:00 - ☕ Short break & skill development
-16:00 - 17:30 - 🚗 Pick up Amma from work`;
+1. FIXED ROUTINE (DO NOT CHANGE THESE — always include exactly as shown):
+${fixedRoutineText}
+
+2. FLEXIBLE BLOCKS — Fill the free time between fixed tasks with 3-4 new tasks:
+- Before 08:30 (morning slot available: 06:00 - 08:30)
+- Between 09:15 - 12:30 (main productive block)
+- Between 13:15 - 17:30 (afternoon block)
+
+3. KEYWORD FOCUS:
+${keywordText}
+
+4. NO REPETITION:
+${recentText}
+Every task must be UNIQUE and SPECIFIC — not generic like "deep work".
+
+5. OUTPUT FORMAT (strict — no headers, no numbers, nothing extra):
+HH:MM - HH:MM - [emoji] Specific task description
+
+6. RULES:
+- Use 24-hour time (09:00 not 9:00 AM)
+- Total 6-7 tasks including fixed routine
+- Tasks must NOT overlap
+- Be specific: "Solve 20 banking aptitude questions" not just "Study"
+- ${existingText}
+
+Generate the schedule now:`;
 
   try {
-    // 100% WORKING FIX: Using the exact allowed model from your Vercel logs
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [{ 
-            parts: [{ text: prompt }] 
-          }]
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.85,      // 🔥 High creativity — no repetition!
+            maxOutputTokens: 500,
+          }
         })
       }
     );
 
     if (!response.ok) {
       const errData = await response.json();
-      console.error('Gemini API error details:', JSON.stringify(errData));
-      return res.status(500).json({ 
-        error: 'Gemini API request failed', 
-        details: errData 
-      });
+      console.error('Gemini API error:', JSON.stringify(errData));
+      return res.status(500).json({ error: 'Gemini API request failed', details: errData });
     }
 
     const data = await response.json();
-    
-    // Safety check
+
     if (!data.candidates || data.candidates.length === 0) {
-       return res.status(500).json({ error: 'AI refused to answer or returned empty candidates.' });
+      return res.status(500).json({ error: 'AI returned empty response.' });
     }
 
     const text = data.candidates[0]?.content?.parts?.[0]?.text;
-
     if (!text) {
-      return res.status(500).json({ error: 'Empty text response from Gemini' });
+      return res.status(500).json({ error: 'Empty text from Gemini' });
     }
 
-    // Clean the output and strictly enforce max 6 lines to prevent frontend crashes
+    // Clean output — only valid HH:MM lines
     const lines = text
       .trim()
       .split('\n')
       .map(l => l.trim())
-      .filter(l => /^\d{2}:\d{2}/.test(l));
+      .filter(l => /^\d{2}:\d{2}/.test(l))
+      .slice(0, 7);
 
-    return res.status(200).json({ schedule: lines.slice(0, 6).join('\n') });
+    // 🚫 Save to recent cache — avoid repeating next time
+    const flexLines = lines
+      .filter(l => !FIXED_ROUTINE.some(r => l.includes(r.task)))
+      .map(l => l.split(' - ').slice(2).join(' - '))
+      .join(' | ');
+    if (flexLines) recentSchedules.push(flexLines);
+    if (recentSchedules.length > 5) recentSchedules.shift(); // keep last 5 only
+
+    return res.status(200).json({ schedule: lines.join('\n') });
 
   } catch (error) {
     console.error('Handler error:', error);
