@@ -1,11 +1,23 @@
 // ✅ Unified Notification Service (Cleaned: Local Notifications Only)
-const isCapacitor = () => typeof window !== 'undefined' && window.Capacitor !== undefined;
+// Works for: PWA Browser + Capacitor Android APK
 
+const isCapacitor = () => 
+  typeof window !== 'undefined' && window.Capacitor !== undefined;
+
+// ✅ 1. Check if notifications are supported
 export function isNotificationsSupported() {
   if (isCapacitor()) return true;
   return typeof window !== 'undefined' && 'Notification' in window;
 }
 
+// ✅ 2. Get current permission state (FIXED: Missing function added)
+export function getNotificationPermission() {
+  if (isCapacitor()) return 'capacitor';
+  if (!isNotificationsSupported()) return 'unsupported';
+  return typeof Notification !== 'undefined' ? Notification.permission : 'default';
+}
+
+// ✅ 3. Request permission
 export async function requestNotificationPermission() {
   if (isCapacitor()) {
     try {
@@ -19,9 +31,49 @@ export async function requestNotificationPermission() {
   }
   
   if (!isNotificationsSupported()) return 'unsupported';
-  return await Notification.requestPermission();
+  try {
+    return await Notification.requestPermission();
+  } catch {
+    return 'default';
+  }
 }
 
+// ✅ 4. Initialize on app load
+export async function initializeNotifications() {
+  const perm = await requestNotificationPermission();
+  return perm;
+}
+
+// ✅ 5. Show immediate notification (FIXED: Missing function added)
+export async function showAppNotification(title, options = {}) {
+  if (isCapacitor()) {
+    try {
+      const { LocalNotifications } = await import('@capacitor/local-notifications');
+      await LocalNotifications.schedule({
+        notifications: [{
+          title,
+          body: options.body || '',
+          id: Math.floor(Math.random() * 100000),
+          sound: 'default',
+          extra: options.data || {},
+          schedule: { allowWhileIdle: true }
+        }]
+      });
+      return true;
+    } catch (error) {
+      console.error('Capacitor notification failed:', error);
+      return false;
+    }
+  }
+
+  if (Notification.permission === 'granted') {
+    new Notification(title, options);
+    return true;
+  }
+  return false;
+}
+
+// ✅ 6. Schedule daily task reminders
 export async function scheduleTaskNotifications(tasks) {
   if (!isNotificationsSupported()) return;
 
@@ -36,7 +88,6 @@ export async function scheduleTaskNotifications(tasks) {
     try {
       const { LocalNotifications } = await import('@capacitor/local-notifications');
       
-      // பழைய Notifications-ஐ நீக்குதல் (Clear pending)
       const pending = await LocalNotifications.getPending();
       if (pending.notifications.length > 0) {
         await LocalNotifications.cancel({ notifications: pending.notifications });
@@ -50,8 +101,8 @@ export async function scheduleTaskNotifications(tasks) {
         notifications.push({
           title: `⏰ ${task.text}`,
           body: `${task.startTime} - ${task.endTime || ''} | Starting Now!`,
-          id: Math.floor(Math.random() * 100000), // Random ID
-          schedule: { at: taskTime, allowWhileIdle: true }, // allowWhileIdle: true என்பது Doze mode-ஐத் தாண்டி அலாரம் அடிக்க வைக்கும்
+          id: Math.floor(Math.random() * 100000),
+          schedule: { at: taskTime, allowWhileIdle: true },
           sound: 'default',
           extra: { taskId: task.id }
         });
@@ -62,10 +113,10 @@ export async function scheduleTaskNotifications(tasks) {
         console.log(`✅ Scheduled ${notifications.length} exact local notifications`);
       }
     } catch (error) {
-      console.error('Capacitor exact schedule failed:', error);
+      console.error('Capacitor schedule failed:', error);
     }
   } else {
-    // PWA Browser Fallback Logic
+    // PWA Fallback
     if (Notification.permission !== 'granted') return;
     for (const task of todayTasks) {
       const taskTime = parseTaskTime(task.startTime);
@@ -76,6 +127,7 @@ export async function scheduleTaskNotifications(tasks) {
   }
 }
 
+// Helpers
 function parseTaskTime(timeStr) {
   if (!timeStr) return null;
   try {
@@ -89,8 +141,4 @@ function parseTaskTime(timeStr) {
 function getTodayKey() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-}
-
-export async function initializeNotifications() {
-  return await requestNotificationPermission();
 }
