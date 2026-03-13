@@ -10,7 +10,21 @@ export default function ToolsView({ onOpenPomodoro }) {
   const [breathingActive, setBreathingActive] = useState(false);
   const [breathingPhase, setBreathingPhase] = useState("inhale");
   const [breathingCount, setBreathingCount] = useState(4);
+  const [dumpRelaxing, setDumpRelaxing] = useState(false);
+  const [dumpRelaxed, setDumpRelaxed] = useState(false);
   const [loaded, setLoaded] = useState(false);
+
+  const handleDumpAndRelax = () => {
+    if (!brainDump.trim() || dumpRelaxing) return;
+    setDumpRelaxing(true);
+    setDumpRelaxed(false);
+    setTimeout(() => {
+      updateField('brainDump', '');
+      setDumpRelaxing(false);
+      setDumpRelaxed(true);
+      setTimeout(() => setDumpRelaxed(false), 4000);
+    }, 700);
+  };
   const saveTimerRef = useRef(null);
 
   // Load saved data
@@ -114,8 +128,45 @@ export default function ToolsView({ onOpenPomodoro }) {
           placeholder="Dump all your distracting or random ideas here to free up mental RAM..."
           value={brainDump}
           onChange={(e) => updateField('brainDump', e.target.value)}
-          style={{ minHeight: '120px', borderColor: 'rgba(245,158,11,0.3)', fontSize: '0.9rem', lineHeight: 1.5 }}
+          style={{
+            minHeight: '120px', borderColor: 'rgba(245,158,11,0.3)', fontSize: '0.9rem', lineHeight: 1.5,
+            transition: dumpRelaxing ? 'opacity 0.6s ease, transform 0.5s ease' : 'none',
+            opacity: dumpRelaxing ? 0 : 1,
+            transform: dumpRelaxing ? 'translateY(-8px) scale(0.98)' : 'none',
+          }}
         />
+
+        {/* ✅ NEW: Dump & Relax button */}
+        <button
+          onClick={handleDumpAndRelax}
+          disabled={!brainDump.trim() || dumpRelaxing}
+          style={{
+            marginTop: 10, width: '100%', padding: '12px', borderRadius: 12, border: 'none',
+            cursor: brainDump.trim() && !dumpRelaxing ? 'pointer' : 'not-allowed',
+            background: brainDump.trim() && !dumpRelaxing
+              ? 'linear-gradient(135deg,#f59e0b,#d97706)'
+              : 'var(--card-border)',
+            color: brainDump.trim() ? '#fff' : 'var(--muted)',
+            fontWeight: 900, fontSize: '0.92rem',
+            opacity: !brainDump.trim() ? 0.45 : 1,
+            transition: 'all 0.2s ease',
+            boxShadow: brainDump.trim() ? '0 4px 14px rgba(245,158,11,0.28)' : 'none',
+          }}
+        >
+          {dumpRelaxing ? '🧹 Clearing thoughts...' : dumpRelaxed ? "🧘 Mind cleared! You're free!" : '🗑️ Dump & Relax'}
+        </button>
+
+        {dumpRelaxed && !dumpRelaxing && (
+          <div style={{
+            textAlign: 'center', marginTop: 10, padding: '10px 14px',
+            background: 'rgba(16,185,129,0.1)', borderRadius: 10,
+            border: '1px solid rgba(16,185,129,0.2)',
+            fontSize: '0.85rem', color: '#10b981', fontWeight: 800,
+            animation: 'smoothFadeIn 0.4s ease',
+          }}>
+            ✨ Negative thoughts released. Take a deep breath! 🌬️
+          </div>
+        )}
       </div>
 
       {/* ── Box Breathing ── */}

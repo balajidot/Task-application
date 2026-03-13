@@ -223,34 +223,39 @@ export default function TasksView({
           </div>
         </div>
 
-        {/* 🔥 BUG 3 FIXED: 7-DAY CALENDAR 🔥 */}
-        <div style={{ display: 'flex', overflowX: 'auto', gap: '8px', paddingBottom: '12px', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' }} className="hide-scroll">
-          <style>{`.hide-scroll::-webkit-scrollbar { display: none; }`}</style>
+        {/* ✅ FIX: 7-day grid — all days fit screen, no scroll, today highlighted */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', paddingBottom: '4px' }}>
           {sevenDays.map((day) => {
             const dots = dotsFor(toKey(day));
-            const isToday = toKey(day) === todayKey();
+            const isToday    = toKey(day) === todayKey();
             const isSelected = toKey(day) === activeDate;
             return (
-              <div 
-                key={day.toISOString()} 
+              <div
+                key={day.toISOString()}
                 onClick={() => setActiveDate(toKey(day))}
-                style={{ 
-                  flex: '0 0 62px', 
-                  backgroundColor: isSelected ? 'var(--primary-glow, rgba(37,99,235,0.15))' : 'transparent',
-                  border: isSelected ? '1px solid var(--accent, #3b82f6)' : '1px solid transparent',
-                  borderRadius: '10px', 
-                  padding: '10px 4px', 
-                  cursor: 'pointer',
-                  display: 'flex', 
-                  flexDirection: 'column', 
-                  alignItems: 'center',
-                  transition: 'all 0.2s ease'
+                style={{
+                  backgroundColor: isSelected ? 'var(--accent,#3b82f6)' : isToday ? 'rgba(59,130,246,0.1)' : 'var(--chip)',
+                  border: isSelected ? '2px solid var(--accent,#3b82f6)' : isToday ? '1.5px solid rgba(59,130,246,0.45)' : '1.5px solid var(--card-border)',
+                  borderRadius: '10px', padding: '7px 2px', cursor: 'pointer',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
+                  transition: 'all 0.18s ease', minWidth: 0,
                 }}
               >
-                <div style={{ fontSize: '10px', opacity: 0.7, marginBottom: '6px', fontWeight: 800 }}>{DAY_NAMES[day.getDay()].substring(0, 3).toUpperCase()}</div>
-                <div className={`d-num ${isToday ? 'is-today' : ''} ${isSelected ? 'is-sel' : ''}`} style={{ width: '28px', height: '28px', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', margin: '0' }}>{day.getDate()}</div>
-                <div className="d-dots" style={{ marginTop: '6px', display: 'flex', gap: '3px', height: '4px' }}>
-                  {dots.total > 0 && (<>{dots.done > 0 && <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#10b981' }}></div>}{dots.pending > 0 && <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#f59e0b' }}></div>}</>)}
+                <div style={{ fontSize: '9px', fontWeight: 900, letterSpacing: '0.03em', color: isSelected ? 'rgba(255,255,255,0.85)' : 'var(--muted)' }}>
+                  {DAY_NAMES[day.getDay()].substring(0,3)}
+                </div>
+                <div style={{
+                  width: '26px', height: '26px', fontSize: '13px', fontWeight: isToday || isSelected ? 900 : 700,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  borderRadius: isToday && !isSelected ? '50%' : '6px',
+                  background: isToday && !isSelected ? '#3b82f6' : 'transparent',
+                  color: isSelected ? '#fff' : isToday ? '#fff' : 'var(--text)',
+                }}>
+                  {day.getDate()}
+                </div>
+                <div style={{ display: 'flex', gap: '2px', height: '5px', alignItems: 'center' }}>
+                  {dots.done    > 0 && <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: isSelected ? 'rgba(255,255,255,0.8)' : '#10b981' }} />}
+                  {dots.pending > 0 && <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: isSelected ? 'rgba(255,255,255,0.6)' : '#f59e0b' }} />}
                 </div>
               </div>
             );

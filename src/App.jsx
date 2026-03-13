@@ -103,35 +103,49 @@ export default function DailyGoals() {
 
   const handleGlobalTouchEnd = (e) => {
     if (touchStartX.current === null || touchStartY.current === null) return;
-    const touchEndX = e.changedTouches[0].clientX;
-    const touchEndY = e.changedTouches[0].clientY;
-    const deltaX = touchStartX.current - touchEndX;
-    const deltaY = touchStartY.current - touchEndY;
 
-    if (Math.abs(deltaY) > Math.abs(deltaX)) {
-      touchStartX.current = null; touchStartY.current = null;
-      return;
-    }
-
-    const target = e.target;
-    if (target.closest('.goal-item') || target.closest('.week-grid') || target.closest('.filters') || target.closest('.modal') || target.closest('.pomodoro-timer') || target.closest('input') || target.closest('textarea')) {
-      touchStartX.current = null; touchStartY.current = null;
-      return;
-    }
-
-    const tabs = ["insights", "tasks", "planner", "analytics", "settings", "career", "tools", "habits", "journal", "goals"];
-    const currentIndex = tabs.indexOf(activeView);
-
-    if (deltaX > 60 && currentIndex < tabs.length - 1) {
-      if (typeof triggerHaptic === 'function') triggerHaptic('light');
-      setActiveView(tabs[currentIndex + 1]);
-    } else if (deltaX < -60 && currentIndex > 0) {
-      if (typeof triggerHaptic === 'function') triggerHaptic('light');
-      setActiveView(tabs[currentIndex - 1]);
-    }
+    const touchEndX  = e.changedTouches[0].clientX;
+    const touchEndY  = e.changedTouches[0].clientY;
+    const deltaX     = touchStartX.current - touchEndX;   // +ve = swipe left
+    const deltaY     = touchStartY.current - touchEndY;
+    const screenW    = window.innerWidth;
+    const startX     = touchStartX.current;
 
     touchStartX.current = null;
     touchStartY.current = null;
+
+    // ✅ FIX 1 — EDGE ZONE: swipe must START from left/right 22% of screen only.
+    // Middle swipes belong to task cards / scroll — must never switch tabs.
+    const EDGE = screenW * 0.22;
+    if (startX > EDGE && startX < screenW - EDGE) return;
+
+    // ✅ FIX 2 — THRESHOLD: raised from 60 → 120px to prevent accidental switches
+    const THRESHOLD = 120;
+    if (Math.abs(deltaX) < THRESHOLD) return;
+
+    // ✅ FIX 3 — DIRECTION: near-horizontal swipe only (deltaY must be < 35% of deltaX)
+    if (Math.abs(deltaY) > Math.abs(deltaX) * 0.35) return;
+
+    // ✅ FIX 4 — IGNORE interactive targets
+    const t = e.target;
+    if (t.closest('.goal-item') || t.closest('.swipeable-task-container') ||
+        t.closest('.filters')   || t.closest('.modal')   || t.closest('.overlay') ||
+        t.closest('.live-strip')|| t.closest('.tab-nav') ||
+        t.closest('input')      || t.closest('textarea') ||
+        t.closest('select')     || t.closest('button')) return;
+
+    // ✅ SWITCH TAB
+    const tabs = ["insights","tasks","planner","analytics","settings","career","tools","habits","journal","goals"];
+    const idx = tabs.indexOf(activeView);
+    if (idx === -1) return;
+
+    if (deltaX > THRESHOLD && idx < tabs.length - 1) {
+      triggerHaptic('light');
+      setActiveView(tabs[idx + 1]);
+    } else if (deltaX < -THRESHOLD && idx > 0) {
+      triggerHaptic('light');
+      setActiveView(tabs[idx - 1]);
+    }
   };
 
   const pulseTimerRef = useRef(null);

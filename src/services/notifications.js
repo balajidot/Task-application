@@ -53,10 +53,10 @@ export async function showAppNotification(title, options = {}) {
         notifications: [{
           title,
           body: options.body || '',
-          id: Math.floor(Math.random() * 100000),
+          id: Math.floor(Date.now() % 2147483647),
           sound: 'default',
           extra: options.data || {},
-          schedule: { allowWhileIdle: true }
+          schedule: { allowWhileIdle: true, exact: true }
         }]
       });
       return true;
@@ -101,8 +101,12 @@ export async function scheduleTaskNotifications(tasks) {
         notifications.push({
           title: `⏰ ${task.text}`,
           body: `${task.startTime} - ${task.endTime || ''} | Starting Now!`,
-          id: Math.floor(Math.random() * 100000),
-          schedule: { at: taskTime, allowWhileIdle: true },
+          id: Math.abs((task.id||String(idx)).split('').reduce((a,b)=>{a=((a<<5)-a)+b.charCodeAt(0);return a&a},0))%2147483647||(idx+1),
+          schedule: {
+            at: taskTime,
+            allowWhileIdle: true, // ✅ fires in Android Doze mode
+            exact: true,          // ✅ KEY FIX: exact alarm — fires even when app terminated
+          },
           sound: 'default',
           extra: { taskId: task.id }
         });
@@ -127,14 +131,24 @@ export async function scheduleTaskNotifications(tasks) {
   }
 }
 
-// Helpers
+// ✅ FIX: handles "08:30" (24hr) AND "07:43 PM" / "08:00 AM" (12hr)
 function parseTaskTime(timeStr) {
   if (!timeStr) return null;
   try {
-    let [hours, minutes] = timeStr.trim().split(':').map(Number);
-    const taskTime = new Date();
-    taskTime.setHours(hours, minutes, 0, 0);
-    return taskTime;
+    let hours, minutes;
+    const str = timeStr.trim();
+    if (str.includes('AM') || str.includes('PM')) {
+      const [time, period] = str.split(' ');
+      [hours, minutes] = time.split(':').map(Number);
+      if (period === 'PM' && hours !== 12) hours += 12;
+      if (period === 'AM' && hours === 12) hours = 0;
+    } else {
+      [hours, minutes] = str.split(':').map(Number);
+    }
+    if (isNaN(hours) || isNaN(minutes)) return null;
+    const t = new Date();
+    t.setHours(hours, minutes, 0, 0);
+    return t;
   } catch { return null; }
 }
 
