@@ -21,7 +21,7 @@ const FLEX_GOALS = [
   'React & JavaScript skill building',
 ];
 
-// 🗓️ Recent schedules cache — repetition avoid பண்ண
+// 🗓️ Recent schedules cache — repetition avoid பண்ண (per server instance)
 const recentSchedules = [];
 
 export default async function handler(req, res) {
@@ -40,60 +40,54 @@ export default async function handler(req, res) {
     weekday: 'long', day: 'numeric', month: 'long'
   });
 
-  // 🔒 Build fixed routine text for prompt
+  // 🔒 Fixed routine text
   const fixedRoutineText = FIXED_ROUTINE
     .map(r => `${r.start} - ${r.end} - ${r.emoji} ${r.task}`)
     .join('\n');
 
-  // 🎯 Build flexible goals text
-  const flexGoalsText = FLEX_GOALS.join(', ');
-
-  // 📋 Existing tasks context
+  // 📋 Existing tasks
   const existingText = existingTasks.length > 0
-    ? `User already has these tasks: ${existingTasks.map(t => t.text).join(', ')}. Do NOT duplicate these.`
+    ? `User already has: ${existingTasks.map(t => t.text).join(', ')}. Do NOT duplicate.`
     : 'No existing tasks yet.';
 
-  // 🔑 Keyword context — user typed something specific
+  // 🔑 Keyword OR goals
   const keywordText = context
-    ? `IMPORTANT: User wants to focus on "${context}" today. Generate ALL flexible tasks related to this keyword/topic.`
-    : `Fill flexible time blocks with tasks from these goal areas: ${flexGoalsText}`;
+    ? `USER FOCUS KEYWORD: "${context}" — ALL flexible tasks must relate to this topic only.`
+    : `Fill flexible blocks from these goal areas: ${FLEX_GOALS.join(', ')}`;
 
-  // 🚫 Recent schedules — avoid repeating
+  // 🚫 Anti-repetition
   const recentText = recentSchedules.length > 0
-    ? `AVOID repeating these recently suggested tasks: ${recentSchedules.slice(-3).join(' | ')}`
-    : '';
+    ? `AVOID these recently used tasks: ${recentSchedules.slice(-3).join(' | ')}`
+    : 'Make every task fresh and specific.';
 
-  // 🧠 MASTER PROMPT — all 3 requirements included
-  const prompt = `You are a smart productivity coach for ${userName || 'Balaji'} on ${todayDate}.
+  const prompt = `You are a smart daily planner for ${userName || 'Balaji'} on ${todayDate}.
 
-STRICT RULES — Follow exactly:
-
-1. FIXED ROUTINE (DO NOT CHANGE THESE — always include exactly as shown):
+=== FIXED TASKS (include EXACTLY as shown, do not modify) ===
 ${fixedRoutineText}
 
-2. FLEXIBLE BLOCKS — Fill the free time between fixed tasks with 3-4 new tasks:
-- Before 08:30 (morning slot available: 06:00 - 08:30)
-- Between 09:15 - 12:30 (main productive block)
-- Between 13:15 - 17:30 (afternoon block)
+=== YOUR JOB: Fill these free time blocks with 3-4 tasks ===
+Block 1: 06:00 - 08:30 (morning — 1 task)
+Block 2: 09:15 - 12:30 (main block — 2 tasks)
+Block 3: 13:15 - 17:30 (afternoon — 1-2 tasks)
 
-3. KEYWORD FOCUS:
+=== FOCUS ===
 ${keywordText}
 
-4. NO REPETITION:
+=== NO REPETITION ===
 ${recentText}
-Every task must be UNIQUE and SPECIFIC — not generic like "deep work".
 
-5. OUTPUT FORMAT (strict — no headers, no numbers, nothing extra):
-HH:MM - HH:MM - [emoji] Specific task description
+=== EXISTING TASKS ===
+${existingText}
 
-6. RULES:
-- Use 24-hour time (09:00 not 9:00 AM)
-- Total 6-7 tasks including fixed routine
-- Tasks must NOT overlap
-- Be specific: "Solve 20 banking aptitude questions" not just "Study"
-- ${existingText}
+=== OUTPUT FORMAT (STRICT) ===
+- Only lines in this format: HH:MM - HH:MM - emoji Task
+- 24-hour time only
+- No headers, no numbers, no extra text
+- Total 6-7 lines (fixed + flexible combined)
+- Tasks must NOT overlap in time
+- Be SPECIFIC: "Solve 20 SBI PO aptitude questions" not "Study"
 
-Generate the schedule now:`;
+Output the schedule:`;
 
   try {
     const response = await fetch(
@@ -104,7 +98,7 @@ Generate the schedule now:`;
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
-            temperature: 0.85,      // 🔥 High creativity — no repetition!
+            temperature: 0.85,
             maxOutputTokens: 500,
           }
         })
@@ -127,22 +121,32 @@ Generate the schedule now:`;
     if (!text) {
       return res.status(500).json({ error: 'Empty text from Gemini' });
     }
+    console.log('Gemini raw output:', text); // 🔍 debug
 
-    // Clean output — only valid HH:MM lines
+    // 🔥 FIX: Gemini sometimes returns numbered/bold lines — extract all time lines
     const lines = text
       .trim()
       .split('\n')
-      .map(l => l.trim())
-      .filter(l => /^\d{2}:\d{2}/.test(l))
+      .map(l => l
+        .trim()
+        .replace(/^\d+[\.\)]\s*/, '')      // remove "1. " or "1) " prefix
+        .replace(/\*\*/g, '')              // remove **bold** markdown
+        .replace(/^[-•]\s*/, '')           // remove bullet "- " or "• "
+        .trim()
+      )
+      .filter(l => /\d{1,2}:\d{2}/.test(l))  // any line containing time HH:MM
+      .filter(l => l.length > 5)              // skip empty/short lines
       .slice(0, 7);
 
-    // 🚫 Save to recent cache — avoid repeating next time
+    // Cache flexible tasks for anti-repetition
     const flexLines = lines
       .filter(l => !FIXED_ROUTINE.some(r => l.includes(r.task)))
-      .map(l => l.split(' - ').slice(2).join(' - '))
+      .map(l => l.split(' - ').slice(2).join(' '))
       .join(' | ');
-    if (flexLines) recentSchedules.push(flexLines);
-    if (recentSchedules.length > 5) recentSchedules.shift(); // keep last 5 only
+    if (flexLines) {
+      recentSchedules.push(flexLines);
+      if (recentSchedules.length > 5) recentSchedules.shift();
+    }
 
     return res.status(200).json({ schedule: lines.join('\n') });
 
