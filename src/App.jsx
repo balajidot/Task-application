@@ -9,7 +9,7 @@ import {
   showAppNotification,
   initializeNotifications,
   scheduleTaskNotifications,
-} from "./services/notifications";
+} from "./notifications.fixed";
 
 import './App.css';
 import { LiveTaskPopup } from "./components/SharedUI";
@@ -38,6 +38,14 @@ import {
 } from "./utils/helpers";
 
 export default function DailyGoals() {
+  const electronIpc = useMemo(() => {
+    try {
+      return window.require?.("electron")?.ipcRenderer ?? null;
+    } catch {
+      return null;
+    }
+  }, []);
+
   const [userName, setUserName] = useState("");
   const [showNameSetup, setShowNameSetup] = useState(false);
   const [tempName, setTempName] = useState("");
@@ -56,13 +64,15 @@ export default function DailyGoals() {
   const [searchTerm, setSearchTerm] = useState("");
   
   const [themeMode, setThemeMode] = useState("dark");
+  const [autoThemeMode, setAutoThemeMode] = useState("off");
   const [taskFontSize, setTaskFontSize] = useState(18);
   const [taskFontFamily, setTaskFontFamily] = useState(FONT_OPTIONS[0].value);
   const [uiScale, setUiScale] = useState(96);
   const [overdueEnabled, setOverdueEnabled] = useState(true);
   const [fontWeight, setFontWeight] = useState(500);
   const [soundTheme, setSoundTheme] = useState('default');
-  const [hapticEnabled, setHapticEnabled] = useState(true); 
+  const [hapticEnabled, setHapticEnabled] = useState(true);
+  const [liveHighlightEnabled, setLiveHighlightEnabled] = useState(true);
   
   const [reminderPopup, setReminderPopup] = useState(null);
   const [liveTaskPopup, setLiveTaskPopup] = useState(null);
@@ -90,6 +100,7 @@ export default function DailyGoals() {
   const [goalsData, setGoalsData] = useState([]);
   const [tabSwitching, setTabSwitching] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [aiContext, setAiContext] = useState("");
 
   useMobileFeatures({ themeMode, activeView, setActiveView, setShowForm, setShowMoreMenu });
 
@@ -259,6 +270,7 @@ export default function DailyGoals() {
       }
       if (prefs) {
         setThemeMode(prefs.themeMode || (prefs.darkMode ? "dark" : "sunset-light"));
+        if (prefs.autoThemeMode) setAutoThemeMode(prefs.autoThemeMode);
         setTaskFontSize(Number(prefs.taskFontSize) || 18);
         setTaskFontFamily(prefs.taskFontFamily || FONT_OPTIONS[0].value);
         setUiScale(Number(prefs.uiScale) || 96);
@@ -266,6 +278,7 @@ export default function DailyGoals() {
         if (prefs.fontWeight) setFontWeight(Number(prefs.fontWeight) || 500);
         if (prefs.soundTheme) setSoundTheme(prefs.soundTheme);
         if (typeof prefs.hapticEnabled === 'boolean') setHapticEnabled(prefs.hapticEnabled);
+        if (typeof prefs.liveHighlightEnabled === "boolean") setLiveHighlightEnabled(prefs.liveHighlightEnabled);
       }
       if (journalRaw) { try { setJournalEntries(JSON.parse(journalRaw)); } catch{} }
       if (habitsRaw) { try { setHabitsData(JSON.parse(habitsRaw)); } catch{} }
@@ -284,9 +297,9 @@ export default function DailyGoals() {
   useEffect(() => {
     if (!loaded) return;
     writeUiState({ activeDate, activeView, searchTerm, priorityFilter, timeFilter, weekBase: weekBase instanceof Date ? weekBase.toISOString() : new Date().toISOString() });
-    writePrefs({ themeMode, taskFontSize, taskFontFamily, uiScale, overdueEnabled, fontWeight, soundTheme, hapticEnabled });
+    writePrefs({ themeMode, autoThemeMode, taskFontSize, taskFontFamily, uiScale, overdueEnabled, fontWeight, soundTheme, hapticEnabled, liveHighlightEnabled });
     scheduleTaskNotifications(goals); // ✅ Now strictly uses clean Local Notifications
-  }, [activeDate, activeView, loaded, priorityFilter, searchTerm, timeFilter, weekBase, themeMode, taskFontSize, taskFontFamily, uiScale, overdueEnabled, fontWeight, soundTheme, hapticEnabled, goals]);
+  }, [activeDate, activeView, loaded, priorityFilter, searchTerm, timeFilter, weekBase, themeMode, autoThemeMode, taskFontSize, taskFontFamily, uiScale, overdueEnabled, fontWeight, soundTheme, hapticEnabled, liveHighlightEnabled, goals]);
 
   const save = useCallback((updated) => {
     setGoals(updated);
@@ -314,6 +327,68 @@ export default function DailyGoals() {
     return () => timers.forEach(clearTimeout);
   }, [goals, loaded]);
 
+  useEffect(() => {
+    if (!loaded || !electronIpc?.send) return;
+    electronIpc.send("schedule-reminders", goals);
+  }, [electronIpc, goals, loaded]);
+
+  useEffect(() => {
+    if (!electronIpc?.send) return;
+    electronIpc.send("update-tray-task", liveCurrentGoal?.text || "No live task right now");
+  }, [electronIpc, liveCurrentGoal]);
+
+  useEffect(() => {
+    if (!electronIpc?.on) return undefined;
+    const handler = (_event, payload) => setReminderPopup(payload);
+    electronIpc.on("reminder-fired", handler);
+    return () => electronIpc.removeListener?.("reminder-fired", handler);
+  }, [electronIpc]);
+
+  useEffect(() => {
+    if (!liveHighlightEnabled) return;
+    if (!liveCurrentGoal?.id) {
+      liveTaskRef.current = undefined;
+      return;
+    }
+    if (liveTaskRef.current === liveCurrentGoal.id) return;
+    liveTaskRef.current = liveCurrentGoal.id;
+    setLiveTaskPopup(liveCurrentGoal);
+    electronIpc?.send?.("notify-task-shift", {
+      text: liveCurrentGoal.text,
+      startTime: liveCurrentGoal.startTime,
+      endTime: liveCurrentGoal.endTime,
+      session: liveCurrentGoal.session,
+    });
+  }, [electronIpc, liveCurrentGoal, liveHighlightEnabled]);
+
+  useEffect(() => {
+    if (autoThemeMode === "off") return undefined;
+
+    const applyTheme = () => {
+      if (autoThemeMode === "time") {
+        const hour = new Date().getHours();
+        setThemeMode(hour >= 18 || hour < 6 ? "dark" : "sunset-light");
+        return;
+      }
+
+      const media = window.matchMedia?.("(prefers-color-scheme: dark)");
+      setThemeMode(media?.matches ? "dark" : "sunset-light");
+    };
+
+    applyTheme();
+
+    if (autoThemeMode === "system" && window.matchMedia) {
+      const media = window.matchMedia("(prefers-color-scheme: dark)");
+      media.addEventListener?.("change", applyTheme);
+      return () => media.removeEventListener?.("change", applyTheme);
+    }
+
+    const timer = autoThemeMode === "time" ? setInterval(applyTheme, 60000) : null;
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [autoThemeMode]);
+
   const calculateNextUpcomingTask = useCallback(() => { 
     const currentTime = new Date().toTimeString().slice(0, 5); 
     return pendingGoals.filter(task => task.startTime && task.startTime > currentTime).sort((a, b) => a.startTime.localeCompare(b.startTime))[0] || null; 
@@ -337,6 +412,30 @@ export default function DailyGoals() {
   }, [calculateNextUpcomingTask]);
 
   useEffect(() => { setNextUpcomingTask(calculateNextUpcomingTask()); }, [calculateNextUpcomingTask]);
+
+  const aiBriefing = useMemo(() => {
+    const highPriority = pendingGoals.filter((goal) => goal.priority === "High").slice(0, 2);
+    const untimed = pendingGoals.filter((goal) => !goal.startTime).slice(0, 2);
+    const overdue = pendingGoals.filter((goal) => goal.endTime && timeToMinutes(goal.endTime) < nowMinutes);
+
+    return {
+      headline: liveCurrentGoal
+        ? `Stay locked on "${liveCurrentGoal.text}" until ${liveCurrentGoal.endTime || liveCurrentGoal.startTime || "the next block"}.`
+        : nextUpcomingGoal
+          ? `Prep for "${nextUpcomingGoal.text}" before ${nextUpcomingGoal.startTime}.`
+          : "Your board is open. Plan one focused block and keep the rest light.",
+      risk: overdue.length
+        ? `${overdue.length} task${overdue.length > 1 ? "s are" : " is"} overdue right now.`
+        : highPriority.length
+          ? `High priority waiting: ${highPriority.map((goal) => goal.text).join(", ")}.`
+          : "No urgent blockers detected.",
+      suggestion: untimed.length
+        ? `Assign time slots to: ${untimed.map((goal) => goal.text).join(", ")}.`
+        : pendingGoals.length
+          ? "Good structure already. Keep only the next 1 or 2 priorities visible."
+          : "Day looks clear. This is a good moment to plan tomorrow.",
+    };
+  }, [liveCurrentGoal, nextUpcomingGoal, nowMinutes, pendingGoals]);
 
   useEffect(() => {
     const onKey = (e) => {
@@ -400,7 +499,9 @@ export default function DailyGoals() {
         body: JSON.stringify({
           userName: userName || 'Friend',
           existingTasks: pendingGoals.slice(0, 5),
+          recentTasks: goals.slice(-8),
           date: activeDate,
+          context: aiContext.trim(),
         })
       });
 
@@ -453,7 +554,56 @@ export default function DailyGoals() {
   const markAllPendingDone = () => { const pendingIds = new Set(pendingGoals.map((g) => g.id)); save(goals.map((g) => { if (!pendingIds.has(g.id)) return g; if (g.repeat === "None") return { ...g, done: true }; return { ...g, doneOn: { ...(g.doneOn || {}), [activeDate]: true } }; })); };
   const reopenAllCompleted = () => { const completedIds = new Set(completedGoals.map((g) => g.id)); save(goals.map((g) => { if (!completedIds.has(g.id)) return g; if (g.repeat === "None") return { ...g, done: false }; const nextDoneOn = { ...(g.doneOn || {}) }; delete nextDoneOn[activeDate]; return { ...g, doneOn: nextDoneOn }; })); };
   const duplicatePendingToTomorrow = () => { const d = new Date(`${activeDate}T00:00:00`); d.setDate(d.getDate() + 1); const nextKey = toKey(d); const copies = pendingGoals.map((g, idx) => normalizeGoal({ ...g, id: Date.now() + idx, date: nextKey, done: false, doneOn: {}, repeat: "None" })); if (copies.length) save([...goals, ...copies]); };
-  const handleApplyTemplate = useCallback((tasks) => { const today = todayKey(); const newGoals = tasks.map(text => ({ id: Date.now() + Math.random(), text: text.trim(), date: today, reminder: '', startTime: '', endTime: '', repeat: 'None', session: 'Morning', priority: 'Medium', doneOn: {} })); save(prev => [...prev, ...newGoals]); }, [save]);
+  const handleApplyTemplate = useCallback((tasks) => { const today = todayKey(); const newGoals = tasks.map(text => ({ id: Date.now() + Math.random(), text: text.trim(), date: today, reminder: '', startTime: '', endTime: '', repeat: 'None', session: 'Morning', priority: 'Medium', doneOn: {} })); save([...goals, ...newGoals]); }, [goals, save]);
+
+  const clearAppCache = useCallback(async () => {
+    try {
+      if ("caches" in window) {
+        const cacheNames = await caches.keys();
+        await Promise.all(cacheNames.map((cacheName) => caches.delete(cacheName)));
+      }
+      if ("serviceWorker" in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map((registration) => registration.unregister()));
+      }
+      window.alert("App cache cleared successfully.");
+    } catch {
+      window.alert("Unable to clear cache on this device.");
+    }
+  }, []);
+
+  const clearLocalAppData = useCallback(async () => {
+    await Promise.all([
+      writeStorage("[]"),
+      writePrefs({}),
+      writeUiState({}),
+      writePersist(JOURNAL_KEY, "{}"),
+      writePersist(HABITS_KEY, "[]"),
+      writePersist(GOALS_KEY, "[]"),
+    ]);
+    localStorage.removeItem("taskPlanner_userName");
+    setGoals([]);
+    setJournalEntries({});
+    setHabitsData([]);
+    setGoalsData([]);
+    setSelectedGoalIds([]);
+    setSearchTerm("");
+    setPriorityFilter("All");
+    setTimeFilter("All Times");
+    setThemeMode("dark");
+    setAutoThemeMode("off");
+    setTaskFontSize(18);
+    setTaskFontFamily(FONT_OPTIONS[0].value);
+    setUiScale(96);
+    setOverdueEnabled(true);
+    setFontWeight(500);
+    setSoundTheme("default");
+    setHapticEnabled(true);
+    setLiveHighlightEnabled(true);
+    setUserName("");
+    setAiContext("");
+    setShowNameSetup(true);
+  }, []);
 
   const generateMonthlyReport = useCallback(() => {
     const now = new Date(); const monthName = now.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
@@ -564,6 +714,17 @@ export default function DailyGoals() {
               </div>
 
               <div className="fg">
+                <label className="fl">AI Context</label>
+                <textarea
+                  className="fi task-box"
+                  placeholder="Optional: tell AI your focus, energy level, or preferred schedule style"
+                  value={aiContext}
+                  onChange={e => setAiContext(e.target.value)}
+                  style={{ minHeight: '78px' }}
+                />
+              </div>
+
+              <div className="fg">
                 <label className="fl">Date</label>
                 <input type="date" className="fi" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} />
               </div>
@@ -667,6 +828,7 @@ export default function DailyGoals() {
                 activeDate={activeDate} setActiveDate={setActiveDate} activeDateLabel={activeDateLabel} weekBase={weekBase} setWeekBase={setWeekBase} weekDays={weekDays}
                 liveClockLabel={liveClockLabel} done={done} total={total} pct={pct} nextUpcomingGoal={nextUpcomingGoal} setForm={setForm} setEditingGoal={setEditingGoal} setShowForm={setShowForm}
                 liveCurrentGoal={liveCurrentGoal} liveCountdown={liveCountdown} focusMode={focusMode} setFocusMode={setFocusMode} showCelebration={showCelebration} setShowCelebration={setShowCelebration}
+                liveHighlightEnabled={liveHighlightEnabled} aiBriefing={aiBriefing} openAiPlanner={() => { setForm({ text: "", date: activeDate, reminder: "", startTime: "", endTime: "", repeat: "None", session: "Morning", priority: "Medium" }); setEditingGoal(null); setAiContext(""); setShowForm(true); }}
                 goals={goals} dotsFor={dotsFor} priorityFilter={priorityFilter} setPriorityFilter={setPriorityFilter} timeFilter={timeFilter} setTimeFilter={setTimeFilter}
                 searchTerm={searchTerm} setSearchTerm={setSearchTerm} searchRef={searchRef} pendingGoals={pendingGoals} completedGoals={completedGoals} visibleGoals={visibleGoals}
                 selectedGoalIds={selectedGoalIds} selectedSet={selectedSet} selectAllVisibleGoals={selectAllVisibleGoals} deleteSelectedGoals={deleteSelectedGoals} clearSelectedGoals={clearSelectedGoals}
@@ -698,10 +860,15 @@ export default function DailyGoals() {
                 fontWeight={fontWeight} setFontWeight={setFontWeight}
                 soundTheme={soundTheme} setSoundTheme={setSoundTheme}
                 hapticEnabled={hapticEnabled} setHapticEnabled={setHapticEnabled}
+                autoThemeMode={autoThemeMode} setAutoThemeMode={setAutoThemeMode}
+                liveHighlightEnabled={liveHighlightEnabled} setLiveHighlightEnabled={setLiveHighlightEnabled}
                 userName={userName} setUserName={setUserName}
                 notifPerm={notifPerm}
                 requestNotifPerm={() => requestNotificationPermission().then(setNotifPerm)}
-                goals={goals} setGoals={setGoals}
+                goals={goals} onReplaceGoals={save}
+                onClearCache={clearAppCache}
+                onClearLocalData={clearLocalAppData}
+                onRefreshNotifications={() => scheduleTaskNotifications(goals)}
               />
             </div>
           )}

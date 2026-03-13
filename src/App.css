@@ -20,7 +20,9 @@ body, html {
   scroll-behavior: smooth;
   overflow-x: hidden;
   min-height: 100vh;
+  min-height: 100dvh;
   -webkit-overflow-scrolling: touch;
+  background: #020617;
 }
 
 /* ============================================
@@ -36,6 +38,7 @@ body, html {
 
 .page {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   justify-content: center;
   padding: calc(16px + var(--safe-top)) calc(16px + var(--safe-right)) calc(80px + var(--safe-bottom)) calc(16px + var(--safe-left));
@@ -46,7 +49,7 @@ body, html {
   width: 100%;
 }
 .page.planner-mode {
-  padding: 0 0 calc(80px + var(--safe-bottom)) 0;
+  padding: calc(8px + var(--safe-top)) 0 calc(80px + var(--safe-bottom)) 0;
   overflow-x: hidden;
 }
 
@@ -228,6 +231,9 @@ body, html {
   background: radial-gradient(circle, rgba(37,99,235,0.06) 0%, transparent 70%);
   border-radius: 50%; transform: translate(30%, -30%); pointer-events: none;
 }
+.page.planner-mode .hero {
+  margin-top: 0;
+}
 .topbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; flex-direction: column; }
 .kbd { background: var(--chip); color: var(--text); padding: 2px 8px; border-radius: 6px; font-weight: 800; border: 1px solid var(--card-border); }
 .motivation { margin-top: 12px; text-align: center; padding: 8px 10px; border: 1px dashed var(--card-border); border-radius: 10px; background: rgba(255,255,255,.1); }
@@ -317,6 +323,284 @@ body, html {
    ============================================ */
 .goal-list { display: flex; flex-direction: column; gap: 10px; }
 
+.tasks-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tasks-panel {
+  padding: 14px 14px 16px;
+}
+
+.tasks-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tasks-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.tasks-filter-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.task-summary-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  border-radius: 999px;
+  padding: 6px 10px;
+  border: 1px solid rgba(51, 65, 85, 0.9);
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.78), rgba(15, 23, 42, 0.45));
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.task-summary-chip strong {
+  color: #f8fafc;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.tasks-list {
+  gap: 8px;
+}
+
+.quick-tools.compact {
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.completed-tasks-section.compact {
+  margin-top: 8px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(34, 197, 94, 0.18);
+  background: linear-gradient(180deg, rgba(34, 197, 94, 0.08), rgba(15, 23, 42, 0.12));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+}
+
+.completed-tasks-head {
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(34, 197, 94, 0.14);
+}
+
+.section-title-sm {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.swipeable-task-container {
+  position: relative;
+  margin-bottom: 0;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.swipeable-task-actions {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 50%;
+  display: flex;
+  align-items: center;
+  z-index: 1;
+  padding: 0 18px;
+}
+
+.swipeable-task-actions.left {
+  left: 0;
+  justify-content: flex-start;
+  background: linear-gradient(135deg, #059669, #10b981);
+}
+
+.swipeable-task-actions.right {
+  right: 0;
+  justify-content: flex-end;
+  background: linear-gradient(135deg, #dc2626, #ef4444);
+}
+
+.swipeable-task-actions span {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.premium-task-card {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 11px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--card-border);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0)),
+    var(--card);
+  box-shadow: 0 10px 24px rgba(2, 6, 23, 0.14);
+}
+
+.premium-task-card.is-selected {
+  border-color: rgba(96, 165, 250, 0.75);
+  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.16);
+}
+
+.premium-task-card.is-overdue {
+  border-color: rgba(248, 113, 113, 0.65);
+  background:
+    linear-gradient(90deg, rgba(127, 29, 29, 0.22), rgba(127, 29, 29, 0.04)),
+    var(--card);
+}
+
+.premium-task-card-body {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  align-items: flex-start;
+}
+
+.premium-task-check {
+  display: flex;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.premium-task-main {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  flex: 1;
+  min-width: 0;
+}
+
+.premium-task-topline {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.premium-task-title {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.premium-task-meta,
+.premium-task-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.premium-task-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.premium-task-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(51, 65, 85, 0.9);
+  background: rgba(15, 23, 42, 0.5);
+  color: #cbd5e1;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.premium-task-chip.time {
+  color: #e2e8f0;
+}
+
+.premium-task-chip.live {
+  border-color: rgba(52, 211, 153, 0.45);
+  background: rgba(6, 95, 70, 0.26);
+  color: #a7f3d0;
+}
+
+.premium-task-chip.countdown {
+  border-color: rgba(59, 130, 246, 0.32);
+  color: #bfdbfe;
+}
+
+.premium-task-chip.reminder {
+  border-color: rgba(245, 158, 11, 0.24);
+  color: #fbbf24;
+}
+
+.premium-task-chip.repeat {
+  border-color: rgba(96, 165, 250, 0.24);
+  color: #93c5fd;
+}
+
+.swipeable-task-container {
+  box-shadow: 0 8px 18px rgba(2, 6, 23, 0.1);
+}
+
+.swipeable-task-container > .goal-item {
+  padding: 11px 12px !important;
+  border: 1px solid rgba(51, 65, 85, 0.9) !important;
+  border-radius: 14px !important;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0)),
+    var(--card) !important;
+  box-shadow: 0 10px 24px rgba(2, 6, 23, 0.14) !important;
+}
+
+.swipeable-task-container > .goal-item > div {
+  gap: 10px !important;
+}
+
+.swipeable-task-container .goal-text {
+  font-size: 14px !important;
+  line-height: 1.35 !important;
+}
+
+.swipeable-task-container .goal-time-range,
+.swipeable-task-container .live-pill-task,
+.swipeable-task-container .countdown-text,
+.swipeable-task-container .p-badge,
+.swipeable-task-container .badge {
+  min-height: 22px !important;
+  padding: 0 8px !important;
+  border-radius: 999px !important;
+  font-size: 11px !important;
+  line-height: 1 !important;
+}
+
+.swipeable-task-container .desktop-actions {
+  gap: 6px !important;
+}
+
+.swipeable-task-container .mini-btn {
+  padding: 5px 8px !important;
+  font-size: 11px !important;
+}
+
 .goal-item {
   background: var(--chip); border: 1.5px solid var(--card-border); border-radius: 12px;
   padding: 16px; animation: fadeUp .3s ease both; transition: all .2s ease;
@@ -379,6 +663,37 @@ body, html {
 .completed-tasks-container { background: rgba(0,0,0,0.05); border: 1px dashed var(--card-border); border-radius: 14px; padding: 16px; margin-top: 24px; transition: all 0.3s ease; }
 .theme-dark .completed-tasks-container, .theme-ocean-dark .completed-tasks-container,
 .theme-midnight .completed-tasks-container, .theme-graphite-lime .completed-tasks-container { background: rgba(255,255,255,0.02); }
+
+.ai-briefing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.ai-briefing-card {
+  padding: 14px;
+  border-radius: 16px;
+  background:
+    linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(16, 185, 129, 0.08)),
+    var(--chip);
+  border: 1px solid rgba(59, 130, 246, 0.16);
+}
+
+.ai-briefing-label {
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.ai-briefing-text {
+  font-size: 0.94rem;
+  line-height: 1.45;
+  color: var(--text);
+  font-weight: 700;
+}
 .completed-tasks-container .section-head { border-bottom: 1px solid var(--card-border); padding-bottom: 12px; margin-bottom: 16px; }
 .completed-tasks-container .focus-title { font-size: 1.1rem !important; color: var(--muted) !important; }
 
@@ -753,6 +1068,24 @@ body.keyboard-open .page { padding-bottom: calc(var(--keyboard-height) + 16px) !
   .filters { flex-wrap: nowrap !important; overflow-x: auto !important; -webkit-overflow-scrolling: touch; padding-bottom: 8px; scrollbar-width: none; }
   .filters::-webkit-scrollbar { display: none; }
   .filter-btn { white-space: nowrap !important; flex-shrink: 0 !important; min-height: 38px !important; padding: 8px 16px !important; font-size: 13px !important; }
+
+  .tasks-panel {
+    padding: 12px;
+  }
+
+  .tasks-panel-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .task-summary-chip {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .premium-task-actions {
+    display: none;
+  }
 
   .week-grid { display: flex !important; overflow-x: auto !important; -webkit-overflow-scrolling: touch; padding-bottom: 8px; scroll-snap-type: x mandatory; }
   .week-grid::-webkit-scrollbar { display: none; }
