@@ -1057,6 +1057,13 @@ body.keyboard-open .page { padding-bottom: calc(var(--keyboard-height) + 16px) !
 .view-transition { animation: viewFadeIn 0.2s ease-out; }
 .goal-item { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
 .animate-fade-in { animation: viewFadeIn 0.35s cubic-bezier(0.4, 0, 0.2, 1) both; }
+.live-strip,
+.toast-notification,
+.modal,
+.mobile-bottom-nav,
+.more-menu {
+  will-change: transform, opacity;
+}
 
 /* ============================================
    RESPONSIVE — MOBILE

@@ -459,64 +459,185 @@ export default function DailyGoals() {
 
     return {
       headline: liveCurrentGoal
-        ? `Stay locked on "${liveCurrentGoal.text}" until ${liveCurrentGoal.endTime || liveCurrentGoal.startTime || "the next block"}.`
+        ? `${copy.ai.stayLocked} "${liveCurrentGoal.text}" ${copy.ai.until} ${liveCurrentGoal.endTime || liveCurrentGoal.startTime || "the next block"}.`
         : nextUpcomingGoal
-          ? `Prep for "${nextUpcomingGoal.text}" before ${nextUpcomingGoal.startTime}.`
-          : "Your board is open. Plan one focused block and keep the rest light.",
+          ? `${copy.ai.prepFor} "${nextUpcomingGoal.text}" ${copy.ai.before} ${nextUpcomingGoal.startTime}.`
+          : copy.ai.boardOpen,
       risk: overdue.length
-        ? `${overdue.length} task${overdue.length > 1 ? "s are" : " is"} overdue right now.`
+        ? `${overdue.length} ${overdue.length > 1 ? copy.ai.overdueNow : copy.ai.overdueSingle}`
         : highPriority.length
-          ? `High priority waiting: ${highPriority.map((goal) => goal.text).join(", ")}.`
-          : "No urgent blockers detected.",
+          ? `${copy.ai.highPriorityWaiting} ${highPriority.map((goal) => goal.text).join(", ")}.`
+          : copy.ai.noUrgent,
       suggestion: untimed.length
-        ? `Assign time slots to: ${untimed.map((goal) => goal.text).join(", ")}.`
+        ? `${copy.ai.assignSlots} ${untimed.map((goal) => goal.text).join(", ")}.`
         : pendingGoals.length
-          ? "Good structure already. Keep only the next 1 or 2 priorities visible."
-          : "Day looks clear. This is a good moment to plan tomorrow.",
+          ? copy.ai.goodStructure
+          : copy.ai.dayClear,
     };
-  }, [liveCurrentGoal, nextUpcomingGoal, nowMinutes, pendingGoals]);
+  }, [copy.ai, liveCurrentGoal, nextUpcomingGoal, nowMinutes, pendingGoals]);
 
   const aiWeeklyAnalysis = useMemo(() => {
+    const isTamil = appLanguage === "ta";
     const bestDay = weekly.bestDay?.name || "N/A";
     const weakestDay = weekly.days.reduce((lowest, day) => (!lowest || day.pct < lowest.pct ? day : lowest), null)?.name || "N/A";
     const totalPending = goals.filter((goal) => !isDoneOn(goal, todayKey()) && goalVisibleOn(goal, todayKey())).length;
     const completionTrend = weekly.days.map((day) => day.pct < 0 ? 0 : day.pct);
     const trendDelta = completionTrend.length > 1 ? completionTrend[completionTrend.length - 1] - completionTrend[0] : 0;
     const predictedPct = Math.max(20, Math.min(100, Math.round(weekly.weekPct + trendDelta * 0.35)));
+    const overloadedDays = weekly.days.filter((day) => day.total >= 6);
+    const burnoutRisk = overloadedDays.length >= 3 || (weekly.weekPct < 45 && weekly.weekTotal >= 12) ? "high" : overloadedDays.length >= 1 ? "medium" : "low";
+    const overdueTasks = goals.filter((goal) => goalVisibleOn(goal, todayKey()) && !isDoneOn(goal, todayKey()) && goal.endTime && timeToMinutes(goal.endTime) < nowMinutes);
+    const untimedPending = goals.filter((goal) => goalVisibleOn(goal, todayKey()) && !isDoneOn(goal, todayKey()) && !goal.startTime);
+    const pendingPriority = goals
+      .filter((goal) => goalVisibleOn(goal, todayKey()) && !isDoneOn(goal, todayKey()))
+      .sort((a, b) => PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority]);
+    const recurringSource = goals.filter((goal) => goal.repeat !== "None").slice(0, 3);
+    const sourceTitles = [
+      ...pendingPriority.map((goal) => goal.text),
+      ...recurringSource.map((goal) => goal.text),
+      "Deep work block",
+      "Weekly review and planning",
+      "Admin cleanup",
+      "Learning sprint",
+      "Recovery buffer",
+    ].filter(Boolean);
+    const nextWeekDates = buildNextWeekDates();
+    const preferredSlots = [
+      { startTime: "08:30", endTime: "10:00", priority: "High", session: "Morning" },
+      { startTime: "10:30", endTime: "11:30", priority: "Medium", session: "Morning" },
+      { startTime: "13:00", endTime: "14:30", priority: "High", session: "Afternoon" },
+      { startTime: "15:30", endTime: "16:30", priority: "Medium", session: "Afternoon" },
+      { startTime: "17:00", endTime: "17:30", priority: "Low", session: "Evening" },
+    ];
+    const nextWeekTaskDrafts = nextWeekDates.map((dateKey, index) => {
+      const slot = preferredSlots[index % preferredSlots.length];
+      const text = sourceTitles[index % sourceTitles.length];
+      return normalizeGoal({
+        id: Date.now() + index,
+        text: text.includes("block") || text.includes("review") || text.includes("cleanup") || text.includes("sprint") || text.includes("buffer")
+          ? text
+          : `${text} focus block`,
+        date: dateKey,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        reminder: shiftTime(slot.startTime, -15),
+        priority: slot.priority,
+        session: slot.session,
+        repeat: "None",
+      });
+    });
     const nextWeekPlan = [
       {
-        title: "Protect your best day",
-        detail: `Use ${bestDay} for deep work or hardest priorities.`,
+        title: copy.analytics.workloadBalance,
+        detail: isTamil
+          ? `${bestDay} நாளை deep work க்கும், ${weakestDay} நாளை admin, review, recovery மாதிரி லேசான பணிகளுக்கும் வையுங்கள்.`
+          : `Use ${bestDay} for deep work and keep ${weakestDay} lighter with admin, review, or recovery tasks.`,
       },
       {
-        title: "Repair the weak slot",
-        detail: `Keep ${weakestDay} lighter with only 2-3 must-do tasks.`,
+        title: copy.analytics.focusTime,
+        detail: untimedPending.length
+          ? isTamil
+            ? `${Math.min(untimedPending.length, 3)} untimed task-களை அடுத்த வாரம் காலை focus block-ஆக மாற்றுங்கள்.`
+            : `Convert ${Math.min(untimedPending.length, 3)} untimed task${untimedPending.length > 1 ? "s" : ""} into morning focus blocks next week.`
+          : isTamil
+            ? "அடுத்த வாரம் மதியத்திற்கு முன் குறைந்தது மூன்று 90 நிமிட focus blocks பாதுகாக்கவும்."
+            : "Protect at least three 90-minute focus blocks next week before noon.",
       },
       {
-        title: "Start earlier",
-        detail: totalPending > 3 ? "Move one pending task into a fixed morning block." : "Keep the morning free for your biggest win.",
+        title: copy.analytics.burnoutRisk,
+        detail: burnoutRisk === "high"
+          ? isTamil
+            ? "சோர்வு அபாயம் அதிகம். ஒரு buffer evening வையுங்கள், கடின பணிகளை குறையுங்கள், தினமும் 2 heavy blocks க்கு மேல் சேர்க்காதீர்கள்."
+            : "Burnout risk is high. Add one buffer evening, reduce hard tasks, and avoid stacking more than 2 heavy blocks a day."
+          : burnoutRisk === "medium"
+            ? isTamil
+              ? "சோர்வு அபாயம் நடுத்தரமாக உள்ளது. கடின பணிகளுக்கு நடுவில் லேசான review அல்லது admin blocks வையுங்கள்."
+              : "Burnout risk is moderate. Space demanding work with lighter review or admin blocks."
+            : isTamil
+              ? "சோர்வு அபாயம் குறைவாக உள்ளது. நல்ல நாட்களை கூட அதிகமாக நிரப்பாமல் steady pace வைத்திருங்கள்."
+              : "Burnout risk looks low. Keep the pace steady without overfilling strong days.",
+      },
+      {
+        title: copy.analytics.cleanup,
+        detail: overdueTasks.length
+          ? isTamil
+            ? `புதிய வேலை சேர்ப்பதற்கு முன் ${overdueTasks.length} overdue task-களை clear அல்லது reschedule செய்யுங்கள்.`
+            : `Clear or reschedule ${overdueTasks.length} overdue task${overdueTasks.length > 1 ? "s" : ""} before adding new work.`
+          : isTamil
+            ? "இப்போது overdue cleanup அழுத்தம் இல்லை. அடுத்த வாரத்தை clean board உடன் தொடங்கலாம்."
+            : "No overdue cleanup pressure right now. You can start next week with a clean board.",
       },
     ];
 
     return {
       summary: weekly.weekTotal
-        ? `You finished ${weekly.weekDone} of ${weekly.weekTotal} visible tasks this week, around ${weekly.weekPct}%.`
-        : "This week has very little tracked data. Start logging tasks daily for stronger analysis.",
+        ? isTamil
+          ? `இந்த வாரம் ${weekly.weekTotal} visible task-களில் ${weekly.weekDone} முடித்துள்ளீர்கள். சுமார் ${weekly.weekPct}%.`
+          : `You finished ${weekly.weekDone} of ${weekly.weekTotal} visible tasks this week, around ${weekly.weekPct}%.`
+        : isTamil
+          ? "இந்த வாரத்திற்கு tracked data குறைவு. தினசரி task logging செய்தால் analysis இன்னும் நல்லதாகும்."
+          : "This week has very little tracked data. Start logging tasks daily for stronger analysis.",
       momentum: streakDays >= 3
-        ? `Your streak is ${streakDays} days. Protect it with a light but consistent tomorrow plan.`
-        : "Momentum is still building. Small repeatable wins will help more than heavy one-day pushes.",
-      pattern: `Best day: ${bestDay}. Lowest output day: ${weakestDay}. Pending today: ${totalPending}.`,
+        ? isTamil
+          ? `உங்கள் streak ${streakDays} நாட்கள். இதை காப்பாற்ற நாளைக்கு லேசான ஆனால் consistent திட்டம் வையுங்கள்.`
+          : `Your streak is ${streakDays} days. Protect it with a light but consistent tomorrow plan.`
+        : isTamil
+          ? "Momentum இன்னும் build ஆகிறது. ஒரு நாளில் அதிகம் push செய்வதற்குப் பதிலாக சிறிய consistent wins உதவும்."
+          : "Momentum is still building. Small repeatable wins will help more than heavy one-day pushes.",
+      pattern: isTamil
+        ? `சிறந்த நாள்: ${bestDay}. குறைந்த output நாள்: ${weakestDay}. இன்று pending: ${totalPending}.`
+        : `Best day: ${bestDay}. Lowest output day: ${weakestDay}. Pending today: ${totalPending}.`,
       advice: weekly.weekPct >= 80
-        ? "You can now reduce overload and focus more on deep-work quality."
+        ? isTamil
+          ? "இப்போது overload குறைத்து deep-work quality மீது கவனம் செலுத்தலாம்."
+          : "You can now reduce overload and focus more on deep-work quality."
         : weekly.weekPct >= 50
-          ? "Completion is decent, but time-blocking your top priorities earlier will help."
-          : "Your board may be overfilled. Cut daily load and assign exact start times to the top 3 tasks.",
-      trend: trendDelta >= 0 ? `Trend is improving by about ${Math.abs(trendDelta)} points from the start of the week.` : `Trend dipped by about ${Math.abs(trendDelta)} points during the week.`,
+          ? isTamil
+            ? "Completion நல்ல நிலையில் உள்ளது. ஆனால் top priorities-ஐ இன்னும் முன்பே time-block செய்தால் உதவும்."
+            : "Completion is decent, but time-blocking your top priorities earlier will help."
+          : isTamil
+            ? "உங்கள் board அதிகமாக நிரம்பியிருக்கலாம். தினசரி load குறைத்து top 3 tasks-க்கு exact start time கொடுக்கவும்."
+            : "Your board may be overfilled. Cut daily load and assign exact start times to the top 3 tasks.",
+      trend: trendDelta >= 0
+        ? isTamil
+          ? `வாரத்தின் தொடக்கம் முதல் சுமார் ${Math.abs(trendDelta)} points முன்னேற்றம் காணப்படுகிறது.`
+          : `Trend is improving by about ${Math.abs(trendDelta)} points from the start of the week.`
+        : isTamil
+          ? `வாரத்தின் போது சுமார் ${Math.abs(trendDelta)} points குறைவு ஏற்பட்டது.`
+          : `Trend dipped by about ${Math.abs(trendDelta)} points during the week.`,
       predictedPct,
       chartPoints: completionTrend,
       nextWeekPlan,
+      burnoutRisk,
+      overdueCount: overdueTasks.length,
+      overloadedDays: overloadedDays.length,
+      nextWeekTaskDrafts,
     };
-  }, [goals, streakDays, weekly]);
+  }, [appLanguage, copy.analytics, goals, nowMinutes, streakDays, weekly]);
+
+  const createNextWeekPlan = useCallback(() => {
+    const draftTasks = aiWeeklyAnalysis.nextWeekTaskDrafts || [];
+    if (!draftTasks.length) return;
+
+    const existingSignatures = new Set(
+      goals.map((goal) => `${goal.date}|${goal.startTime || ""}|${String(goal.text || "").trim().toLowerCase()}`)
+    );
+
+    const freshTasks = draftTasks
+      .filter((goal) => !existingSignatures.has(`${goal.date}|${goal.startTime || ""}|${String(goal.text || "").trim().toLowerCase()}`))
+      .map((goal, index) => normalizeGoal({ ...goal, id: Date.now() + index }));
+
+    if (!freshTasks.length) {
+      window.alert(copy.analytics.planReady);
+      return;
+    }
+
+    save([...goals, ...freshTasks]);
+    setActiveView("planner");
+    setWeekBase(new Date(`${freshTasks[0].date}T00:00:00`));
+    setActiveDate(freshTasks[0].date);
+    window.alert(copy.analytics.planCreated);
+  }, [aiWeeklyAnalysis.nextWeekTaskDrafts, copy.analytics, goals, save]);
 
   useEffect(() => {
     const onKey = (e) => {
@@ -582,6 +703,7 @@ export default function DailyGoals() {
           existingTasks: pendingGoals.slice(0, 5),
           recentTasks: goals.slice(-8),
           date: activeDate,
+          language: appLanguage,
           context: aiContext.trim(),
         })
       });
@@ -597,16 +719,25 @@ export default function DailyGoals() {
       }
     } catch (err) {
       console.error('AI schedule error:', err);
-      const fallback = [
-        "09:00 - 10:30 - 🧠 Deep Work & Focus Session",
-        "10:30 - 10:45 - ☕ Short Break & Stretch",
-        "10:45 - 12:00 - 📧 Emails & Admin Tasks",
-        "12:00 - 13:00 - 🥗 Lunch Break",
-        "13:00 - 15:00 - 🤝 Meetings & Collaboration",
-        "15:00 - 17:00 - ✅ Review & Wrap Up"
-      ].join('\n');
+      const fallback = (appLanguage === "ta"
+        ? [
+            "09:00 - 10:30 - முக்கிய வேலை கவன அமர்வு",
+            "10:30 - 10:45 - சிறிய இடைவேளை மற்றும் நீட்டிப்பு",
+            "10:45 - 12:00 - மின்னஞ்சல் மற்றும் admin வேலை",
+            "12:00 - 13:00 - மதிய உணவு இடைவேளை",
+            "13:00 - 15:00 - கூட்டங்கள் மற்றும் ஒத்துழைப்பு",
+            "15:00 - 17:00 - நாள் மதிப்பாய்வு மற்றும் முடிப்பு"
+          ]
+        : [
+            "09:00 - 10:30 - Deep Work and Focus Session",
+            "10:30 - 10:45 - Short Break and Stretch",
+            "10:45 - 12:00 - Emails and Admin Tasks",
+            "12:00 - 13:00 - Lunch Break",
+            "13:00 - 15:00 - Meetings and Collaboration",
+            "15:00 - 17:00 - Review and Wrap Up"
+          ]).join('\n');
       onTaskTextChange(fallback);
-      window.alert('AI unavailable — showing smart default schedule instead!');
+      window.alert(appLanguage === "ta" ? 'AI கிடைக்கவில்லை. smart default schedule காட்டப்படுகிறது!' : 'AI unavailable - showing smart default schedule instead!');
     } finally {
       setAiLoading(false);
     }
@@ -733,6 +864,27 @@ export default function DailyGoals() {
 
   const themeClass = `theme-${themeMode}`;
   const isPlannerIframeView = activeView === "tasks";
+  function buildNextWeekDates() {
+    const today = new Date();
+    const start = new Date(today);
+    const currentDay = start.getDay() || 7;
+    start.setDate(start.getDate() + (8 - currentDay));
+    start.setHours(0, 0, 0, 0);
+
+    return Array.from({ length: 5 }, (_, index) => {
+      const date = new Date(start);
+      date.setDate(start.getDate() + index);
+      return toKey(date);
+    });
+  }
+  function shiftTime(time, minutes) {
+    if (!time) return "";
+    const [hours, mins] = String(time).split(":").map(Number);
+    if (Number.isNaN(hours) || Number.isNaN(mins)) return "";
+    const date = new Date();
+    date.setHours(hours, mins + minutes, 0, 0);
+    return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+  }
   const activeDateLabel = activeDate === todayKey() ? copy.common.todayFocus : new Date(`${activeDate}T00:00:00`).toLocaleDateString(appLanguage === "ta" ? "ta-IN" : "en-IN", { weekday: "long", month: "long", day: "numeric" });
 
   const mainTabItems = [
@@ -753,12 +905,13 @@ export default function DailyGoals() {
 
   const localizedMainTabItems = mainTabItems.map((tab) => ({ ...tab, label: copy.tabs[tab.id] || tab.label }));
   const localizedMoreTabItems = moreTabItems.map((tab) => ({ ...tab, label: copy.tabs[tab.id] || tab.label }));
+  const localizedTabItems = [...localizedMainTabItems, ...localizedMoreTabItems];
 
   return (
     <div className={`page ${themeClass}${isPlannerIframeView ? " planner-mode" : ""}`} style={{ "--task-font-size": `${taskFontSize}px`, "--task-font-family": taskFontFamily, "--ui-scale": `${uiScale / 100}`, "--global-font-weight": fontWeight }} onTouchStart={handleGlobalTouchStart} onTouchEnd={handleGlobalTouchEnd}>
       <div className="app">
         <div className="tab-nav">
-          {tabItems.map(tab => (
+          {localizedTabItems.map(tab => (
             <button key={tab.id} className={`tab-btn ${activeView === tab.id ? 'active' : ''}`} onClick={() => setActiveView(tab.id)}>
               <span className="tab-icon">{tab.icon}</span><span className="tab-label">{tab.label}</span>
             </button>
@@ -810,13 +963,13 @@ export default function DailyGoals() {
         {showForm && (
           <div className="overlay" onClick={() => setShowForm(false)}>
             <div className="modal" onClick={e => e.stopPropagation()} style={{ maxHeight: '90vh', overflowY: 'auto' }}>
-              <div className="m-title">{editingGoal ? '✏️ Edit Task' : '➕ New Task'}</div>
+              <div className="m-title">{editingGoal ? copy.taskForm.editTask : copy.taskForm.newTask}</div>
 
               <div className="fg">
-                <label className="fl">Task Description</label>
+                <label className="fl">{copy.taskForm.taskDescription}</label>
                 <textarea
                   className="fi task-box"
-                  placeholder="What needs to be done? (e.g. Meeting 9am-10am)"
+                  placeholder={copy.taskForm.taskPlaceholder}
                   value={form.text}
                   onChange={e => onTaskTextChange(e.target.value)}
                   autoFocus
@@ -825,10 +978,10 @@ export default function DailyGoals() {
               </div>
 
               <div className="fg">
-                <label className="fl">AI Context</label>
+                <label className="fl">{copy.taskForm.aiContext}</label>
                 <textarea
                   className="fi task-box"
-                  placeholder="Optional: tell AI your focus, energy level, or preferred schedule style"
+                  placeholder={copy.taskForm.aiContextPlaceholder}
                   value={aiContext}
                   onChange={e => setAiContext(e.target.value)}
                   style={{ minHeight: '78px' }}
@@ -836,28 +989,28 @@ export default function DailyGoals() {
               </div>
 
               <div className="fg">
-                <label className="fl">Date</label>
+                <label className="fl">{copy.taskForm.date}</label>
                 <input type="date" className="fi" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} />
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div className="fg">
-                  <label className="fl">Start Time</label>
+                  <label className="fl">{copy.taskForm.startTime}</label>
                   <input type="time" className="fi" value={form.startTime} onChange={e => setForm(p => ({ ...p, startTime: e.target.value }))} />
                 </div>
                 <div className="fg">
-                  <label className="fl">End Time</label>
+                  <label className="fl">{copy.taskForm.endTime}</label>
                   <input type="time" className="fi" value={form.endTime} onChange={e => setForm(p => ({ ...p, endTime: e.target.value }))} />
                 </div>
               </div>
 
               <div className="fg">
-                <label className="fl">🔔 Reminder Time</label>
+                <label className="fl">{copy.taskForm.reminderTime}</label>
                 <input type="time" className="fi" value={form.reminder} onChange={e => setForm(p => ({ ...p, reminder: e.target.value }))} />
               </div>
 
               <div className="fg">
-                <label className="fl">Priority</label>
+                <label className="fl">{copy.taskForm.priority}</label>
                 <select className="fs" value={form.priority} onChange={e => setForm(p => ({ ...p, priority: e.target.value }))}>
                   {PRIORITY_OPTIONS.map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
@@ -865,13 +1018,13 @@ export default function DailyGoals() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div className="fg">
-                  <label className="fl">Session</label>
+                  <label className="fl">{copy.taskForm.session}</label>
                   <select className="fs" value={form.session} onChange={e => setForm(p => ({ ...p, session: e.target.value }))}>
                     {SESSION_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
                 <div className="fg">
-                  <label className="fl">Repeat</label>
+                  <label className="fl">{copy.taskForm.repeat}</label>
                   <select className="fs" value={form.repeat} onChange={e => setForm(p => ({ ...p, repeat: e.target.value }))}>
                     {REPEAT_OPTIONS.map(r => <option key={r} value={r}>{r}</option>)}
                   </select>
@@ -880,14 +1033,14 @@ export default function DailyGoals() {
 
               <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
                 <button className="new-btn" style={{ flex: 2 }} onClick={submitForm}>
-                  {editingGoal ? '💾 Save Changes' : '✅ Add Task'}
+                  {editingGoal ? copy.common.saveChanges : copy.common.addTask}
                 </button>
-                <button className="hero-btn" style={{ flex: 1 }} onClick={() => setShowForm(false)}>Cancel</button>
+                <button className="hero-btn" style={{ flex: 1 }} onClick={() => setShowForm(false)}>{copy.common.cancel}</button>
               </div>
 
               {!editingGoal && (
                 <button className="tool-btn" style={{ width: '100%', marginTop: '10px', opacity: aiLoading ? 0.7 : 1 }} onClick={handleAiAutoSchedule} disabled={aiLoading}>
-                  {aiLoading ? '⏳ AI is thinking...' : '🤖 AI Auto-Schedule'}
+                  {aiLoading ? copy.taskForm.aiThinking : copy.taskForm.aiAutoSchedule}
                 </button>
               )}
             </div>
@@ -902,7 +1055,7 @@ export default function DailyGoals() {
             <div className="toast-body">
               <div className="toast-icon-wrap"><span className="toast-icon">⏰</span></div>
               <div className="toast-content">
-                <div className="toast-title">Next task starting soon!</div>
+                <div className="toast-title">{copy.alerts.nextTaskSoon}</div>
                 <div className="toast-message">"{upcomingTaskAlert.text}" at {upcomingTaskAlert.startTime}</div>
               </div>
               <button className="toast-close" onClick={() => setUpUpcomingTaskAlert(null)}>✕</button>
@@ -914,11 +1067,11 @@ export default function DailyGoals() {
         {reminderPopup && (
           <div className="overlay" onClick={() => setReminderPopup(null)}>
             <div className="modal" onClick={(e) => e.stopPropagation()}>
-              <div className="m-title">🔔 Task Reminder</div>
-              <div className="fg"><div className="fl">Task</div><div className="fi">{reminderPopup.text}</div></div>
-              {(reminderPopup.startTime || reminderPopup.endTime) && (<div className="fg"><div className="fl">Time</div><div className="fi">{formatTimeRange(reminderPopup.startTime, reminderPopup.endTime)}</div></div>)}
-              {reminderPopup.session && (<div className="fg"><div className="fl">Session</div><div className="fi">{reminderPopup.session}</div></div>)}
-              <div style={{ textAlign: 'center', marginTop: '16px' }}><button className="new-btn" onClick={() => setReminderPopup(null)}>Got it</button></div>
+              <div className="m-title">{copy.alerts.taskReminder}</div>
+              <div className="fg"><div className="fl">{copy.common.task}</div><div className="fi">{reminderPopup.text}</div></div>
+              {(reminderPopup.startTime || reminderPopup.endTime) && (<div className="fg"><div className="fl">{copy.common.time}</div><div className="fi">{formatTimeRange(reminderPopup.startTime, reminderPopup.endTime)}</div></div>)}
+              {reminderPopup.session && (<div className="fg"><div className="fl">{copy.common.session}</div><div className="fi">{reminderPopup.session}</div></div>)}
+              <div style={{ textAlign: 'center', marginTop: '16px' }}><button className="new-btn" onClick={() => setReminderPopup(null)}>{copy.common.gotIt}</button></div>
             </div>
           </div>
         )}
@@ -939,7 +1092,7 @@ export default function DailyGoals() {
                 activeDate={activeDate} setActiveDate={setActiveDate} activeDateLabel={activeDateLabel} weekBase={weekBase} setWeekBase={setWeekBase} weekDays={weekDays}
                 liveClockLabel={liveClockLabel} done={done} total={total} pct={pct} nextUpcomingGoal={nextUpcomingGoal} setForm={setForm} setEditingGoal={setEditingGoal} setShowForm={setShowForm}
                 liveCurrentGoal={liveCurrentGoal} liveCountdown={liveCountdown} focusMode={focusMode} setFocusMode={setFocusMode} showCelebration={showCelebration} setShowCelebration={setShowCelebration}
-                liveHighlightEnabled={liveHighlightEnabled} aiBriefing={aiBriefing} openAiPlanner={() => { setForm({ text: "", date: activeDate, reminder: "", startTime: "", endTime: "", repeat: "None", session: "Morning", priority: "Medium" }); setEditingGoal(null); setAiContext(""); setShowForm(true); }}
+                liveHighlightEnabled={liveHighlightEnabled} aiBriefing={aiBriefing} copy={copy} openAiPlanner={() => { setForm({ text: "", date: activeDate, reminder: "", startTime: "", endTime: "", repeat: "None", session: "Morning", priority: "Medium" }); setEditingGoal(null); setAiContext(""); setShowForm(true); }}
                 goals={goals} dotsFor={dotsFor} priorityFilter={priorityFilter} setPriorityFilter={setPriorityFilter} timeFilter={timeFilter} setTimeFilter={setTimeFilter}
                 searchTerm={searchTerm} setSearchTerm={setSearchTerm} searchRef={searchRef} pendingGoals={pendingGoals} completedGoals={completedGoals} visibleGoals={visibleGoals}
                 selectedGoalIds={selectedGoalIds} selectedSet={selectedSet} selectAllVisibleGoals={selectAllVisibleGoals} deleteSelectedGoals={deleteSelectedGoals} clearSelectedGoals={clearSelectedGoals}
@@ -949,7 +1102,7 @@ export default function DailyGoals() {
             </div>
           )}
           {activeView === "planner" && <div key="planner" className="view-transition"><PlannerView plannerView={plannerView} setPlannerView={setPlannerView} goals={goals} setActiveDate={setActiveDate} setActiveView={setActiveView} /></div>}
-          {activeView === "analytics" && <div key="analytics" className="view-transition"><AnalyticsView setShowPomodoro={setShowPomodoro} setShowImportExport={setShowImportExport} setActiveView={setActiveView} goals={goals} weekly={weekly} aiWeeklyAnalysis={aiWeeklyAnalysis} appLanguage={appLanguage} copy={copy} /></div>}
+          {activeView === "analytics" && <div key="analytics" className="view-transition"><AnalyticsView setShowPomodoro={setShowPomodoro} setShowImportExport={setShowImportExport} setActiveView={setActiveView} goals={goals} weekly={weekly} aiWeeklyAnalysis={aiWeeklyAnalysis} onCreateNextWeekPlan={createNextWeekPlan} appLanguage={appLanguage} copy={copy} /></div>}
           {activeView === "career" && <div key="career" className="view-transition"><CareerView /></div>}
           {activeView === "tools" && (
             <div key="tools" className="view-transition">

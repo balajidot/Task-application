@@ -1,7 +1,13 @@
 import React, { Suspense } from 'react';
 import ProductivityAnalytics from '../components/ProductivityAnalytics';
 
-export default function AnalyticsView({ setShowPomodoro, setShowImportExport, setActiveView, goals, weekly, aiWeeklyAnalysis, copy }) {
+export default function AnalyticsView({ setShowPomodoro, setShowImportExport, setActiveView, goals, weekly, aiWeeklyAnalysis, onCreateNextWeekPlan, copy }) {
+  const burnoutLabel = aiWeeklyAnalysis.burnoutRisk === 'high'
+    ? (copy.analytics.burnoutHigh || 'High')
+    : aiWeeklyAnalysis.burnoutRisk === 'medium'
+      ? (copy.analytics.burnoutMedium || 'Medium')
+      : (copy.analytics.burnoutLow || 'Low');
+
   return (
     <div className="animate-fade-in">
       <div className="hero">
@@ -11,8 +17,8 @@ export default function AnalyticsView({ setShowPomodoro, setShowImportExport, se
             <div className="tip">{copy.analytics.subtitle}</div>
           </div>
           <div className="head-actions">
-            <button className="hero-btn" onClick={() => setShowPomodoro(true)}>Pomodoro</button>
-            <button className="hero-btn" onClick={() => setShowImportExport(true)}>Import/Export</button>
+            <button className="hero-btn" onClick={() => setShowPomodoro(true)}>{copy.analytics.startPomodoro}</button>
+            <button className="hero-btn" onClick={() => setShowImportExport(true)}>{copy.analytics.exportTasks}</button>
           </div>
         </div>
       </div>
@@ -27,19 +33,19 @@ export default function AnalyticsView({ setShowPomodoro, setShowImportExport, se
         </div>
         <div className="ai-briefing-grid">
           <div className="ai-briefing-card">
-            <div className="ai-briefing-label">Summary</div>
+            <div className="ai-briefing-label">{copy.analytics.summary}</div>
             <div className="ai-briefing-text">{aiWeeklyAnalysis.summary}</div>
           </div>
           <div className="ai-briefing-card">
-            <div className="ai-briefing-label">Momentum</div>
+            <div className="ai-briefing-label">{copy.analytics.momentum}</div>
             <div className="ai-briefing-text">{aiWeeklyAnalysis.momentum}</div>
           </div>
           <div className="ai-briefing-card">
-            <div className="ai-briefing-label">Pattern</div>
+            <div className="ai-briefing-label">{copy.analytics.pattern}</div>
             <div className="ai-briefing-text">{aiWeeklyAnalysis.pattern}</div>
           </div>
           <div className="ai-briefing-card">
-            <div className="ai-briefing-label">Advice</div>
+            <div className="ai-briefing-label">{copy.analytics.advice}</div>
             <div className="ai-briefing-text">{aiWeeklyAnalysis.advice}</div>
           </div>
         </div>
@@ -51,12 +57,12 @@ export default function AnalyticsView({ setShowPomodoro, setShowImportExport, se
         </div>
         <div className="ai-briefing-grid">
           <div className="ai-briefing-card">
-            <div className="ai-briefing-label">Trend</div>
+            <div className="ai-briefing-label">{copy.analytics.trend}</div>
             <div className="ai-briefing-text">{aiWeeklyAnalysis.trend}</div>
           </div>
           <div className="ai-briefing-card">
-            <div className="ai-briefing-label">Predicted Next Week</div>
-            <div className="ai-briefing-text">{aiWeeklyAnalysis.predictedPct}% completion chance if current pattern continues.</div>
+            <div className="ai-briefing-label">{copy.analytics.predictedNextWeek}</div>
+            <div className="ai-briefing-text">{aiWeeklyAnalysis.predictedPct}% {copy.analytics.predictedNote || "completion chance if current pattern continues."}</div>
           </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: `repeat(${aiWeeklyAnalysis.chartPoints.length}, 1fr)`, gap: 8, alignItems: 'end', marginTop: 16, height: 120 }}>
@@ -72,6 +78,7 @@ export default function AnalyticsView({ setShowPomodoro, setShowImportExport, se
       <div className="card">
         <div className="section-head">
           <div className="focus-title">{copy.analytics.nextWeek}</div>
+          <button className="new-btn" style={{ width: 'auto' }} onClick={onCreateNextWeekPlan}>{copy.analytics.createNextWeekPlan}</button>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {aiWeeklyAnalysis.nextWeekPlan.map((item, index) => (
@@ -81,6 +88,20 @@ export default function AnalyticsView({ setShowPomodoro, setShowImportExport, se
             </div>
           ))}
         </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 12, marginTop: 16 }}>
+          <div className="ai-briefing-card">
+            <div className="ai-briefing-label">{copy.analytics.planReady}</div>
+            <div className="ai-briefing-text">{aiWeeklyAnalysis.nextWeekTaskDrafts.length} {copy.analytics.readyTasks || "tasks ready for one-tap creation."}</div>
+          </div>
+          <div className="ai-briefing-card">
+            <div className="ai-briefing-label">{copy.analytics.burnoutRisk}</div>
+            <div className="ai-briefing-text">{burnoutLabel}</div>
+          </div>
+          <div className="ai-briefing-card">
+            <div className="ai-briefing-label">{copy.analytics.cleanup}</div>
+            <div className="ai-briefing-text">{copy.analytics.cleanup}: {aiWeeklyAnalysis.overdueCount}</div>
+          </div>
+        </div>
       </div>
 
       <div className="card">
@@ -88,9 +109,10 @@ export default function AnalyticsView({ setShowPomodoro, setShowImportExport, se
           <div className="focus-title">{copy.analytics.quickTools}</div>
         </div>
         <div className="quick-tools">
-          <button className="tool-btn" onClick={() => setShowPomodoro(true)}>Start Pomodoro</button>
-          <button className="tool-btn" onClick={() => setShowImportExport(true)}>Export Tasks</button>
-          <button className="tool-btn" onClick={() => setActiveView('tasks')}>View Tasks</button>
+          <button className="tool-btn" onClick={() => setShowPomodoro(true)}>{copy.analytics.startPomodoro}</button>
+          <button className="tool-btn" onClick={() => setShowImportExport(true)}>{copy.analytics.exportTasks}</button>
+          <button className="tool-btn" onClick={() => setActiveView('tasks')}>{copy.analytics.viewTasks}</button>
+          <button className="tool-btn" onClick={() => setActiveView('planner')}>{copy.analytics.openPlanner}</button>
         </div>
       </div>
     </div>

@@ -11,7 +11,7 @@ export default function TasksView({
   activeDate, setActiveDate, activeDateLabel, weekBase, setWeekBase,
   liveClockLabel, done, total, pct, nextUpcomingGoal, setForm, setEditingGoal, setShowForm,
   liveCurrentGoal, liveCountdown, focusMode, setFocusMode,
-  showCelebration, setShowCelebration, liveHighlightEnabled, aiBriefing, openAiPlanner, goals, dotsFor,
+  showCelebration, setShowCelebration, liveHighlightEnabled, aiBriefing, copy, openAiPlanner, goals, dotsFor,
   priorityFilter, setPriorityFilter, timeFilter, setTimeFilter,
   searchTerm, setSearchTerm, searchRef,
   pendingGoals, completedGoals, visibleGoals, selectedGoalIds, selectedSet,
@@ -131,12 +131,12 @@ export default function TasksView({
   );
 
   return (
-    <div className="view-transition tasks-shell" style={{ animation: 'smoothFadeIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) both', position: 'relative' }}>
+    <div className="view-transition tasks-shell" style={{ animation: 'viewFadeIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) both', position: 'relative' }}>
       {actionTask && (
         <div className="overlay" onClick={() => setActionTask(null)} style={{ zIndex: 100000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div className="modal" onClick={(event) => event.stopPropagation()} style={{ width: '90%', maxWidth: '380px', padding: '24px', textAlign: 'center', borderRadius: '20px' }}>
             <div style={{ fontSize: '1.3rem', fontWeight: 900, marginBottom: '8px', color: 'var(--text)' }}>
-              Task Actions
+              {copy.tasksView.taskActions}
             </div>
             <div style={{ fontSize: '0.9rem', color: 'var(--muted)', marginBottom: '24px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               "{actionTask.text}"
@@ -158,25 +158,25 @@ export default function TasksView({
                 setShowForm(true);
                 setActionTask(null);
               }}>
-                Edit Task
+                {copy.common.edit}
               </button>
 
               <button className="new-btn" style={{ background: 'var(--chip)', color: 'var(--text)', border: '1px solid var(--card-border)', boxShadow: 'none' }} onClick={() => {
                 toggleSelectGoal(actionTask.id);
                 setActionTask(null);
               }}>
-                {selectedSet.has(actionTask.id) ? 'Deselect Task' : 'Select Task'}
+                {selectedSet.has(actionTask.id) ? copy.tasksView.deselectTask : copy.tasksView.selectTask}
               </button>
 
               <button className="new-btn" style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', boxShadow: 'none' }} onClick={() => {
                 removeGoal(actionTask.id);
                 setActionTask(null);
               }}>
-                Delete Task
+                {copy.common.delete}
               </button>
 
               <button className="new-btn" style={{ background: 'transparent', color: 'var(--muted)', marginTop: '4px', boxShadow: 'none' }} onClick={() => setActionTask(null)}>
-                Cancel
+                {copy.common.cancel}
               </button>
             </div>
           </div>
@@ -203,17 +203,17 @@ export default function TasksView({
               }}
               title={liveCurrentGoal ? 'Enter Focus Mode for current task' : 'No active task right now'}
             >
-              Focus
+              {copy.tasksView.focus}
             </button>
             <button className="new-btn" onClick={() => {
               setForm({ text: '', date: activeDate, reminder: '', startTime: '', endTime: '', repeat: 'None', session: 'Morning', priority: 'Medium' });
               setEditingGoal(null);
               setShowForm(true);
             }}>
-              New Task
+              {copy.tasksView.newTask}
             </button>
             <button className="hero-btn" onClick={openAiPlanner}>
-              AI Plan
+              {copy.tasksView.aiPlan}
             </button>
           </div>
         </div>
@@ -221,10 +221,10 @@ export default function TasksView({
 
       <div className="card tasks-panel" style={{ marginTop: 12 }}>
         <div className="tasks-panel-head">
-          <div className="focus-title">AI Coach</div>
+          <div className="focus-title">{copy.tasksView.aiCoach}</div>
           <div className="task-summary-chip">
-            <span>Live Mode</span>
-            <strong>{liveHighlightEnabled ? 'On' : 'Off'}</strong>
+            <span>{copy.tasksView.liveMode}</span>
+            <strong>{liveHighlightEnabled ? copy.common.on : copy.common.off}</strong>
           </div>
         </div>
         <div className="ai-briefing-grid">
@@ -243,7 +243,7 @@ export default function TasksView({
         </div>
         {activeDate !== todayKey() && liveCurrentGoal && (
           <button className="tool-btn" style={{ marginTop: 14 }} onClick={() => setActiveDate(todayKey())}>
-            Jump to live task
+            {copy.tasksView.jumpToLive}
           </button>
         )}
       </div>
@@ -258,7 +258,7 @@ export default function TasksView({
         >
           <button onClick={() => setLiveStripVisible(false)} style={{ position: 'absolute', top: '8px', right: '12px', background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: '16px', padding: '4px', cursor: 'pointer', zIndex: 10 }}>×</button>
           <div>
-            <div className="tag">CURRENT TASK</div>
+            <div className="tag">{copy.tasksView.currentTask}</div>
             <div className="task">{liveCurrentGoal.text}</div>
             {liveCurrentGoal.startTime && liveCurrentGoal.endTime && (
               <TaskProgressIndicator
@@ -290,7 +290,7 @@ export default function TasksView({
           <div className="cal-month" style={{ transition: 'all 0.3s ease' }}>{new Date(weekBase).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}</div>
           <div className="cal-actions">
             <button className="cal-btn" onClick={() => { const nextWeek = new Date(weekBase); nextWeek.setDate(nextWeek.getDate() - 7); setWeekBase(nextWeek); }}>◀</button>
-            <button className="today-btn" onClick={() => { setWeekBase(new Date()); setActiveDate(todayKey()); }}>Today</button>
+            <button className="today-btn" onClick={() => { setWeekBase(new Date()); setActiveDate(todayKey()); }}>{copy.common.today}</button>
             <button className="cal-btn" onClick={() => { const nextWeek = new Date(weekBase); nextWeek.setDate(nextWeek.getDate() + 7); setWeekBase(nextWeek); }}>▶</button>
           </div>
         </div>
@@ -349,7 +349,7 @@ export default function TasksView({
       <div className="card tasks-panel">
         <div className="tasks-panel-head">
           <div className="tasks-filter-stack">
-            <div className="focus-title">Today's Tasks</div>
+            <div className="focus-title">{copy.tasksView.todayTasks}</div>
             <div className="filters">
               <button className={`filter-btn ${priorityFilter === 'All' ? 'active' : ''}`} onClick={() => setPriorityFilter('All')}>All</button>
               {PRIORITY_OPTIONS.map((priority) => (
@@ -366,34 +366,34 @@ export default function TasksView({
             </div>
           </div>
           <div className="task-summary-chip">
-            <span>Focused Today</span>
+            <span>{copy.tasksView.focusedToday}</span>
             <strong>{total}</strong>
           </div>
         </div>
 
-        <input ref={searchRef} type="text" className="search-input" placeholder="Search tasks..." value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} />
+        <input ref={searchRef} type="text" className="search-input" placeholder={copy.tasksView.searchPlaceholder} value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} />
 
         <div className="pending-tasks-section tasks-section">
-          <div className="section-head"><div className="section-title-sm">Pending Tasks ({pendingGoals.length})</div></div>
+          <div className="section-head"><div className="section-title-sm">{copy.tasksView.pendingTasks} ({pendingGoals.length})</div></div>
           {pendingGoals.length === 0 ? (
-            <div className="empty">{searchTerm ? 'No pending tasks found matching your search.' : 'No pending tasks for today. Great job!'}</div>
+            <div className="empty">{searchTerm ? copy.tasksView.noPendingSearch : copy.tasksView.noPending}</div>
           ) : (
             <>
               {selectedGoalIds.length > 0 && (
                 <div className="quick-tools compact">
-                  <button className="tool-btn" onClick={selectAllVisibleGoals}>Select All ({visibleGoals.length})</button>
-                  <button className="tool-btn warn" onClick={deleteSelectedGoals}>Delete Selected ({selectedGoalIds.length})</button>
-                  <button className="tool-btn" onClick={clearSelectedGoals}>Clear Selection</button>
+                  <button className="tool-btn" onClick={selectAllVisibleGoals}>{copy.tasksView.selectAll} ({visibleGoals.length})</button>
+                  <button className="tool-btn warn" onClick={deleteSelectedGoals}>{copy.tasksView.deleteSelected} ({selectedGoalIds.length})</button>
+                  <button className="tool-btn" onClick={clearSelectedGoals}>{copy.tasksView.clearSelection}</button>
                 </div>
               )}
 
-              <div className="goal-list tasks-list" key={`pending-${activeDate}`} style={{ animation: 'smoothFadeIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) both' }}>
+              <div className="goal-list tasks-list" key={`pending-${activeDate}`} style={{ animation: 'viewFadeIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) both' }}>
                 {pendingGoals.map((goal, idx) => renderTaskItem(goal, idx, false))}
               </div>
 
               <div className="quick-tools compact">
-                <button className="tool-btn" onClick={markAllPendingDone}>Mark All Done ({pendingGoals.length})</button>
-                <button className="tool-btn" onClick={duplicatePendingToTomorrow}>Copy to Tomorrow ({pendingGoals.length})</button>
+                <button className="tool-btn" onClick={markAllPendingDone}>{copy.tasksView.markAllDone} ({pendingGoals.length})</button>
+                <button className="tool-btn" onClick={duplicatePendingToTomorrow}>{copy.tasksView.copyTomorrow} ({pendingGoals.length})</button>
               </div>
             </>
           )}
@@ -402,15 +402,15 @@ export default function TasksView({
         {completedGoals.length > 0 && (
           <div className="completed-tasks-section compact" style={{ position: 'relative', transition: 'all 0.4s cubic-bezier(0.22, 1, 0.36, 1)' }}>
             <div className="section-head completed-tasks-head cursor-pointer" onClick={() => setCompletedTasksCollapsed(!completedTasksCollapsed)} style={{ userSelect: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div className="section-title-sm" style={{ color: 'rgba(110, 231, 183, 0.95)' }}>Completed Tasks ({completedGoals.length})</div>
+              <div className="section-title-sm" style={{ color: 'rgba(110, 231, 183, 0.95)' }}>{copy.tasksView.completedTasks} ({completedGoals.length})</div>
               <div className="collapse-icon" style={{ fontSize: '14px', color: 'rgba(22, 163, 74, 0.7)', transition: 'transform 0.3s cubic-bezier(0.25, 1, 0.5, 1)', transform: completedTasksCollapsed ? 'rotate(0deg)' : 'rotate(180deg)' }}>▼</div>
             </div>
 
             {!completedTasksCollapsed && (
-              <div className="goal-list tasks-list" key={`completed-${activeDate}`} style={{ opacity: '0.8', animation: 'smoothFadeIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) both' }}>
+              <div className="goal-list tasks-list" key={`completed-${activeDate}`} style={{ opacity: '0.8', animation: 'viewFadeIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) both' }}>
                 {completedGoals.map((goal, idx) => renderTaskItem(goal, idx + pendingGoals.length, true))}
                 <div className="quick-tools compact" style={{ paddingTop: '10px', borderTop: '1px solid rgba(34, 197, 94, 0.15)' }}>
-                  <button className="tool-btn" onClick={reopenAllCompleted}>Reopen All ({completedGoals.length})</button>
+                  <button className="tool-btn" onClick={reopenAllCompleted}>{copy.tasksView.reopenAll} ({completedGoals.length})</button>
                 </div>
               </div>
             )}

@@ -110,7 +110,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'GEMINI_API_KEY not set in Vercel environment variables' });
   }
 
-  const { userName = 'Friend', existingTasks = [], recentTasks = [], date, context = '' } = req.body || {};
+  const { userName = 'Friend', existingTasks = [], recentTasks = [], date, context = '', language = 'en' } = req.body || {};
 
   if (!Array.isArray(existingTasks) || !Array.isArray(recentTasks)) {
     return res.status(400).json({ error: 'existingTasks and recentTasks must be arrays' });
@@ -126,6 +126,7 @@ export default async function handler(req, res) {
   const recentTaskText = recentTasks.map((task) => task?.text).filter(Boolean).join(', ');
   const existingTaskText = existingTasks.map((task) => task?.text).filter(Boolean).join(', ');
 
+  const outputLanguage = language === 'ta' ? 'Tamil' : 'English';
   const prompt = `You are an assistant that creates a neat, realistic, non-repetitive daily plan.
 
 User: ${userName}
@@ -133,6 +134,7 @@ Date: ${todayDate}
 Already on the board: ${existingTaskText || 'No tasks yet'}
 Recently suggested before: ${recentTaskText || 'No recent suggestions'}
 Extra context from the user: ${context || 'None'}
+Output language: ${outputLanguage}
 
 Use this idea pool for variety, but do not repeat the exact same wording:
 ${suggestedThemes.map((item) => `- ${item}`).join('\n')}
@@ -146,7 +148,8 @@ Rules:
 6. Avoid copying the exact text from "Already on the board" or "Recently suggested before".
 7. Make the blocks practical and well-spaced between 08:00 and 18:30.
 8. Include at least one lighter block or break.
-9. Output only the 6 schedule lines.`;
+9. Output only the 6 schedule lines.
+10. Task descriptions must be written in ${outputLanguage}.`;
 
   try {
     const response = await fetch(
@@ -182,12 +185,35 @@ Rules:
 
     const fallback = pickFallback(todayDate, userName)
       .filter((line) => !existingTasks.some((task) => line.toLowerCase().includes(String(task?.text || '').trim().toLowerCase())))
-      .slice(0, 6);
+      .slice(0, 6)
+      .map((line) => language === 'ta' ? translateFallbackLine(line) : line);
 
     return res.status(200).json({ schedule: fallback.join('\n') });
   } catch (error) {
     console.error('Handler error:', error);
-    const fallback = pickFallback(todayDate, userName);
+    const fallback = pickFallback(todayDate, userName).map((line) => language === 'ta' ? translateFallbackLine(line) : line);
     return res.status(200).json({ schedule: fallback.join('\n') });
   }
+}
+
+function translateFallbackLine(line) {
+  return line
+    .replace('Plan the day and warm up', 'நாளை திட்டமிட்டு லேசாக தொடங்கு')
+    .replace('Deep work on your top priority', 'முக்கிய பணியில் ஆழ்ந்த கவன அமர்வு')
+    .replace('Admin cleanup and follow-ups', 'admin சீரமைப்பு மற்றும் follow-up')
+    .replace('Focus block for learning', 'கற்றலுக்கான கவன block')
+    .replace('Project execution sprint', 'project செயல்பாட்டு sprint')
+    .replace('Wrap-up and tomorrow plan', 'நாள் முடிப்பு மற்றும் நாளைய திட்டம்')
+    .replace('Light review and setup', 'லேசான review மற்றும் setup')
+    .replace('Coding or project build block', 'coding அல்லது project build block')
+    .replace('Revision and practice set', 'revision மற்றும் practice அமர்வு')
+    .replace('Meetings or collaboration', 'கூட்டங்கள் அல்லது ஒத்துழைப்பு')
+    .replace('High-focus execution sprint', 'உயர் கவன செயல்பாட்டு sprint')
+    .replace('Reflection and buffer time', 'reflection மற்றும் buffer நேரம்')
+    .replace('Morning reset and planning', 'காலை reset மற்றும் திட்டம்')
+    .replace('Important task deep work', 'முக்கிய பணிக்கான deep work')
+    .replace('Research and study block', 'research மற்றும் study block')
+    .replace('Inbox and checklist reset', 'inbox மற்றும் checklist reset')
+    .replace('Build or practice session', 'build அல்லது practice session')
+    .replace('Review, tidy up, and prep next steps', 'review, tidy up, அடுத்த படி தயாரிப்பு');
 }

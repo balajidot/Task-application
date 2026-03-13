@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { showAppNotification } from '../services/notifications';
+import { showAppNotification } from '../notifications.fixed';
 
 const UpcomingTaskAlert = ({ upcomingTask, onAlert }) => {
   const [alertShown, setAlertShown] = useState(false);
