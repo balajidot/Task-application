@@ -7,3 +7,11 @@ release-stable/
 node_modules/
 dist/
 .vercel
+# Gradle temporary files
+.gradle-home/
+.gradle/
+build/
+captures/
+
+# Local configuration files
+local.properties
