@@ -8,7 +8,7 @@
   margin: 0;
   padding: 0;
   font-weight: var(--global-font-weight, 500) !important;
-  scroll-behavior: smooth;
+  /* ✅ PERF FIX: Removed scroll-behavior:smooth from * — was causing scroll jank */
 }
 
 body, html {
@@ -247,7 +247,7 @@ body, html {
   border-radius: 14px; padding: 8px 10px;
   box-shadow: 0 4px 20px rgba(0,0,0,0.06);
   position: sticky; top: 0; z-index: 100;
-  backdrop-filter: blur(12px);
+  /* ✅ PERF FIX: Removed backdrop-filter — expensive on non-fixed elements */
   overflow-x: auto; overflow-y: hidden;
   scrollbar-width: none; -ms-overflow-style: none;
 }
@@ -270,7 +270,8 @@ body, html {
 .card {
   background: var(--card); border-radius: 16px; padding: 16px 18px;
   border: 1px solid var(--card-border); box-shadow: 0 4px 20px rgba(0,0,0,0.03);
-  transition: all .3s cubic-bezier(0.4, 0, 0.2, 1); backdrop-filter: blur(8px);
+  transition: box-shadow .3s ease, border-color .3s ease;
+  /* ✅ PERF FIX: Removed backdrop-filter:blur(8px) — was creating GPU layer per card */
   width: 100%; overflow: hidden;
 }
 .card:hover { box-shadow: 0 8px 30px rgba(0,0,0,0.06); }
@@ -321,8 +322,7 @@ body, html {
   padding: 16px; animation: fadeUp .3s ease both; transition: all .2s ease;
   box-shadow: 0 2px 5px rgba(0,0,0,0.02); width: 100%; position: relative;
   overflow: hidden; min-height: 60px;
-  backface-visibility: hidden; -webkit-backface-visibility: hidden;
-  transform: translateZ(0); -webkit-transform: translateZ(0);
+  /* ✅ PERF FIX: Removed translateZ(0) — only keep contain for layout performance */
   contain: layout style paint;
 }
 .goal-item::before {
@@ -370,7 +370,8 @@ body, html {
 .empty { text-align: center; color: var(--muted); padding: 40px 0; line-height: 1.5; font-weight: 700; font-size: 1.1rem; background: var(--card); border-radius: 14px; border: 1px dashed var(--card-border); }
 
 /* Animated Emoji */
-.animated-emoji { display: inline-block; transform-origin: bottom center; animation: emojiWiggle 3s cubic-bezier(0.175, 0.885, 0.32, 1.275) infinite; margin-right: 8px; font-size: 1.3em; vertical-align: bottom; }
+/* ✅ PERF FIX: Removed continuous emojiWiggle animation — was running on every task item */
+.animated-emoji { display: inline-block; margin-right: 8px; font-size: 1.3em; vertical-align: bottom; }
 
 /* ============================================
    COMPLETED TASKS BOX
@@ -384,7 +385,8 @@ body, html {
 /* ============================================
    OVERDUE TASK WRAPPER
    ============================================ */
-.overdue-task-wrapper { position: relative; margin: 8px 0; border-radius: 12px; overflow: hidden; animation: overduePulse 2s ease-in-out infinite; }
+/* ✅ PERF FIX: Removed overduePulse infinite animation — was running per overdue task */
+.overdue-task-wrapper { position: relative; margin: 8px 0; border-radius: 12px; overflow: hidden; border: 1.5px solid rgba(239,68,68,0.5); }
 .overdue-badge { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; padding: 8px 12px; font-size: 0.75rem; font-weight: 900; text-align: center; text-transform: uppercase; letter-spacing: 0.5px; border-radius: 8px 8px 0 0; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 2px 8px rgba(239,68,68,0.3); }
 .overdue-task-wrapper .goal-item { border: 2px solid #ef4444; border-radius: 0 0 12px 12px; background: linear-gradient(90deg, rgba(239,68,68,0.08) 0%, var(--card) 100%); }
 .overdue-task-wrapper .goal-time-range { color: #ef4444; border-color: rgba(239,68,68,0.4); background: rgba(239,68,68,0.08); }
@@ -416,7 +418,8 @@ body, html {
   box-shadow: 0 8px 30px rgba(16,185,129,0.15);
 }
 .enhanced-live-strip::before { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent 0%, rgba(16,185,129,.1) 50%, transparent 100%); animation: slideGlow 3s infinite linear; }
-.enhanced-live-strip::after { content: ''; position: absolute; inset: -2px; border-radius: 18px; background: linear-gradient(135deg, #10b981, #3b82f6, #8b5cf6, #10b981); background-size: 300% 300%; animation: gradientRotate 4s linear infinite; z-index: -1; }
+/* ✅ PERF FIX: Simplified gradient border — removed 300% background-size animation */
+.enhanced-live-strip::after { content: ''; position: absolute; inset: -2px; border-radius: 18px; background: linear-gradient(135deg, #10b981, #3b82f6, #8b5cf6); z-index: -1; }
 
 .live-task-main { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
 .live-strip .task-info { flex: 1; }
@@ -456,7 +459,7 @@ body, html {
 /* ============================================
    STATUS BAR
    ============================================ */
-.status-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 16px; background: var(--card); border: 1px solid var(--card-border); border-radius: 14px; box-shadow: 0 -2px 20px rgba(0,0,0,0.04); font-size: .8rem; font-weight: 700; color: var(--muted); position: sticky; bottom: 0; z-index: 100; backdrop-filter: blur(12px); }
+.status-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 16px; background: var(--card); border: 1px solid var(--card-border); border-radius: 14px; box-shadow: 0 -2px 20px rgba(0,0,0,0.04); font-size: .8rem; font-weight: 700; color: var(--muted); position: sticky; bottom: 0; z-index: 100; /* ✅ PERF FIX: Removed backdrop-filter */ }
 .status-bar-left { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .status-clock { font-family: 'Courier New', Courier, monospace; font-weight: 900; color: var(--text); font-size: .85rem; letter-spacing: 0.5px; background: var(--chip); padding: 3px 8px; border-radius: 6px; border: 1px solid var(--card-border); }
 .status-divider { color: var(--card-border); font-size: .6rem; }
@@ -725,8 +728,9 @@ body.keyboard-open .page { padding-bottom: calc(var(--keyboard-height) + 16px) !
 /* ============================================
    VIEW TRANSITIONS & PERFORMANCE
    ============================================ */
-.view-transition { animation: viewFadeIn 0.2s ease-out; will-change: opacity, transform; }
-.goal-item, .tab-btn, .filter-btn, .card { backface-visibility: hidden; -webkit-backface-visibility: hidden; transform: translateZ(0); -webkit-transform: translateZ(0); }
+/* ✅ PERF FIX: Removed blanket translateZ(0) on all cards — was creating too many GPU layers on mobile */
+.view-transition { animation: viewFadeIn 0.2s ease-out; }
+.goal-item { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
 .animate-fade-in { animation: viewFadeIn 0.35s cubic-bezier(0.4, 0, 0.2, 1) both; }
 
 /* ============================================

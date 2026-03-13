@@ -82,6 +82,10 @@ export default function DailyGoals() {
   const [showCelebration, setShowCelebration] = useState(false);
   const [nextUpcomingTask, setNextUpcomingTask] = useState(null);
   const [nowTick, setNowTick] = useState(Date.now());
+  // ✅ PERF FIX: Separate minute-tick for expensive task calculations
+  // nowTick = every second (clock display only)
+  // nowMinuteTick = every 60 seconds (task switching logic)
+  const [nowMinuteTick, setNowMinuteTick] = useState(Date.now());
   const [showShortcuts, setShowShortcuts] = useState(false);
   
   const [journalEntries, setJournalEntries] = useState({});
@@ -171,10 +175,11 @@ export default function DailyGoals() {
     initOneSignal();
   }, []);
 
+  // ✅ PERF FIX: isEOD uses 60-second tick
   const isEOD = useMemo(() => {
-    const now = new Date(nowTick);
+    const now = new Date(nowMinuteTick);
     return (now.getHours() >= 22 && now.getMinutes() >= 30) || now.getHours() >= 23;
-  }, [nowTick]);
+  }, [nowMinuteTick]);
 
   const weekDays = useMemo(() => getWeekDays(weekBase), [weekBase]);
   
@@ -191,7 +196,8 @@ export default function DailyGoals() {
   const pendingGoals = useMemo(() => visibleGoals.filter((g) => !isDoneOn(g, activeDate)), [visibleGoals, activeDate]);
   const completedGoals = useMemo(() => visibleGoals.filter((g) => isDoneOn(g, activeDate)), [visibleGoals, activeDate]);
   const selectedSet = useMemo(() => new Set(selectedGoalIds), [selectedGoalIds]);
-  const nowMinutes = useMemo(() => { const now = new Date(nowTick); return now.getHours() * 60 + now.getMinutes(); }, [nowTick]);
+  // ✅ PERF FIX: nowMinutes uses 60-second tick — not every second
+  const nowMinutes = useMemo(() => { const now = new Date(nowMinuteTick); return now.getHours() * 60 + now.getMinutes(); }, [nowMinuteTick]);
   
   const liveCurrentGoal = useMemo(() => (
     [...goals]
@@ -230,7 +236,13 @@ export default function DailyGoals() {
   const weekly = useMemo(() => weeklyStats(goals), [goals]);
   const streakDays = useMemo(() => completionStreak(goals), [goals]);
 
-  useEffect(() => { masterTimerRef.current = setInterval(() => setNowTick(Date.now()), 1000); return () => clearInterval(masterTimerRef.current); }, []);
+  useEffect(() => {
+    // ✅ PERF FIX: Clock ticks every second (display only)
+    masterTimerRef.current = setInterval(() => setNowTick(Date.now()), 1000);
+    // ✅ PERF FIX: Expensive task calculations only every 60 seconds
+    const minuteTimer = setInterval(() => setNowMinuteTick(Date.now()), 60000);
+    return () => { clearInterval(masterTimerRef.current); clearInterval(minuteTimer); };
+  }, []);
   useEffect(() => { return () => { clearTimeout(pulseTimerRef.current); clearTimeout(celebrateTimerRef.current); clearTimeout(globalCelebrationTimerRef.current); if (pendingWriteRef.current.timer) clearTimeout(pendingWriteRef.current.timer); }; }, []);
   useEffect(() => { setTabSwitching(true); const t = setTimeout(() => setTabSwitching(false), 200); return () => clearTimeout(t); }, [activeView]);
 
@@ -358,14 +370,15 @@ export default function DailyGoals() {
     { key: '?', action: () => setShowShortcuts(s => !s) },
   ]);
 
-  const onTaskTextChange = (value) => {
+  // ✅ PERF FIX: Wrapped in useCallback to prevent recreation on every render
+  const onTaskTextChange = useCallback((value) => {
     setForm((prev) => {
       const next = { ...prev, text: value };
       const cleaned = value.split(/\r?\n/).map((line) => line.replace(/^\s*[-*]\s*/, "").trim()).filter(Boolean);
       if (cleaned.length === 1) { const parsed = parseTaskLine(cleaned[0], prev); if (parsed.matchedRange) { next.text = parsed.text; next.startTime = parsed.startTime; next.endTime = parsed.endTime; next.reminder = parsed.reminder; next.session = parsed.session; } }
       return next;
     });
-  };
+  }, []);
 
   const submitForm = () => {
     if (!form.text.trim()) return;
