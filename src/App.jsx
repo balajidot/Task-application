@@ -1,5 +1,4 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import OneSignal from 'react-onesignal'; 
 import PomodoroTimer from "./components/PomodoroTimer";
 import TaskImportExport from "./components/TaskImportExport";
 import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts";
@@ -11,7 +10,6 @@ import {
   initializeNotifications,
   scheduleTaskNotifications,
 } from "./services/notifications";
-import { scheduleTaskNotifications as scheduleOneSignalNotifications } from "./services/oneSignal";
 
 import './App.css';
 import { LiveTaskPopup } from "./components/SharedUI";
@@ -64,7 +62,7 @@ export default function DailyGoals() {
   const [overdueEnabled, setOverdueEnabled] = useState(true);
   const [fontWeight, setFontWeight] = useState(500);
   const [soundTheme, setSoundTheme] = useState('default');
-  const [hapticEnabled, setHapticEnabled] = useState(true); // ✅ Mobile haptic feedback toggle
+  const [hapticEnabled, setHapticEnabled] = useState(true); 
   
   const [reminderPopup, setReminderPopup] = useState(null);
   const [liveTaskPopup, setLiveTaskPopup] = useState(null);
@@ -78,13 +76,11 @@ export default function DailyGoals() {
   const [showPomodoro, setShowPomodoro] = useState(false);
   const [showImportExport, setShowImportExport] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
-  const [upcomingTaskAlert, setUpcomingTaskAlert] = useState(null);
+  const [upcomingTaskAlert, setUpUpcomingTaskAlert] = useState(null);
   const [showCelebration, setShowCelebration] = useState(false);
   const [nextUpcomingTask, setNextUpcomingTask] = useState(null);
   const [nowTick, setNowTick] = useState(Date.now());
-  // ✅ PERF FIX: Separate minute-tick for expensive task calculations
-  // nowTick = every second (clock display only)
-  // nowMinuteTick = every 60 seconds (task switching logic)
+  
   const [nowMinuteTick, setNowMinuteTick] = useState(Date.now());
   const [showShortcuts, setShowShortcuts] = useState(false);
   
@@ -97,7 +93,6 @@ export default function DailyGoals() {
 
   useMobileFeatures({ themeMode, activeView, setActiveView, setShowForm, setShowMoreMenu });
 
-  // 🔥 100% SAFE GLOBAL SWIPE HANDLER (BUILT-IN) 🔥
   const touchStartX = useRef(null);
   const touchStartY = useRef(null);
 
@@ -165,17 +160,6 @@ export default function DailyGoals() {
     }
   };
 
-  useEffect(() => {
-    const initOneSignal = async () => {
-      try {
-        await OneSignal.init({ appId: "f98c4786-2104-4f35-936c-7b810f1d13ca", allowLocalhostAsSecureOrigin: true });
-        OneSignal.Slidedown.promptPush();
-      } catch (error) { console.error("OneSignal Initialization Error:", error); }
-    };
-    initOneSignal();
-  }, []);
-
-  // ✅ PERF FIX: isEOD uses 60-second tick
   const isEOD = useMemo(() => {
     const now = new Date(nowMinuteTick);
     return (now.getHours() >= 22 && now.getMinutes() >= 30) || now.getHours() >= 23;
@@ -196,7 +180,7 @@ export default function DailyGoals() {
   const pendingGoals = useMemo(() => visibleGoals.filter((g) => !isDoneOn(g, activeDate)), [visibleGoals, activeDate]);
   const completedGoals = useMemo(() => visibleGoals.filter((g) => isDoneOn(g, activeDate)), [visibleGoals, activeDate]);
   const selectedSet = useMemo(() => new Set(selectedGoalIds), [selectedGoalIds]);
-  // ✅ PERF FIX: nowMinutes uses 60-second tick — not every second
+  
   const nowMinutes = useMemo(() => { const now = new Date(nowMinuteTick); return now.getHours() * 60 + now.getMinutes(); }, [nowMinuteTick]);
   
   const liveCurrentGoal = useMemo(() => (
@@ -237,12 +221,11 @@ export default function DailyGoals() {
   const streakDays = useMemo(() => completionStreak(goals), [goals]);
 
   useEffect(() => {
-    // ✅ PERF FIX: Clock ticks every second (display only)
     masterTimerRef.current = setInterval(() => setNowTick(Date.now()), 1000);
-    // ✅ PERF FIX: Expensive task calculations only every 60 seconds
     const minuteTimer = setInterval(() => setNowMinuteTick(Date.now()), 60000);
     return () => { clearInterval(masterTimerRef.current); clearInterval(minuteTimer); };
   }, []);
+  
   useEffect(() => { return () => { clearTimeout(pulseTimerRef.current); clearTimeout(celebrateTimerRef.current); clearTimeout(globalCelebrationTimerRef.current); if (pendingWriteRef.current.timer) clearTimeout(pendingWriteRef.current.timer); }; }, []);
   useEffect(() => { setTabSwitching(true); const t = setTimeout(() => setTabSwitching(false), 200); return () => clearTimeout(t); }, [activeView]);
 
@@ -288,8 +271,7 @@ export default function DailyGoals() {
     if (!loaded) return;
     writeUiState({ activeDate, activeView, searchTerm, priorityFilter, timeFilter, weekBase: weekBase instanceof Date ? weekBase.toISOString() : new Date().toISOString() });
     writePrefs({ themeMode, taskFontSize, taskFontFamily, uiScale, overdueEnabled, fontWeight, soundTheme, hapticEnabled });
-    scheduleTaskNotifications(goals);
-    scheduleOneSignalNotifications(goals);
+    scheduleTaskNotifications(goals); // ✅ Now strictly uses clean Local Notifications
   }, [activeDate, activeView, loaded, priorityFilter, searchTerm, timeFilter, weekBase, themeMode, taskFontSize, taskFontFamily, uiScale, overdueEnabled, fontWeight, soundTheme, hapticEnabled, goals]);
 
   const save = useCallback((updated) => {
@@ -318,11 +300,6 @@ export default function DailyGoals() {
     return () => timers.forEach(clearTimeout);
   }, [goals, loaded]);
 
-  useEffect(() => {
-    if (!reminderPopup) return;
-    const timer = setTimeout(() => setReminderPopup(null), 12000); return () => clearTimeout(timer);
-  }, [reminderPopup]);
-
   const calculateNextUpcomingTask = useCallback(() => { 
     const currentTime = new Date().toTimeString().slice(0, 5); 
     return pendingGoals.filter(task => task.startTime && task.startTime > currentTime).sort((a, b) => a.startTime.localeCompare(b.startTime))[0] || null; 
@@ -334,9 +311,8 @@ export default function DailyGoals() {
       if (nextTask) { 
         const timeUntilStart = new Date(`${nextTask.date}T${nextTask.startTime}`) - new Date(); 
         if (timeUntilStart <= 300000 && timeUntilStart > 0) { 
-          // 🔥 SOUND REPEAT BUG FIX 🔥
           if (!nextAlertShownRef.current[nextTask.id]) {
-            setUpcomingTaskAlert(nextTask); 
+            setUpUpcomingTaskAlert(nextTask); 
             AudioPlayer.playReminder(); 
             nextAlertShownRef.current[nextTask.id] = true; 
           }
@@ -370,7 +346,6 @@ export default function DailyGoals() {
     { key: '?', action: () => setShowShortcuts(s => !s) },
   ]);
 
-  // ✅ PERF FIX: Wrapped in useCallback to prevent recreation on every render
   const onTaskTextChange = useCallback((value) => {
     setForm((prev) => {
       const next = { ...prev, text: value };
@@ -401,7 +376,6 @@ export default function DailyGoals() {
   const handleAiAutoSchedule = async () => {
     setAiLoading(true);
     try {
-      // ✅ FIX: Use absolute URL — Capacitor APK can't use relative /api/gemini
       const API_URL = (typeof window !== 'undefined' && window.Capacitor)
         ? 'https://task-application-sigma.vercel.app/api/gemini'
         : '/api/gemini';
@@ -421,13 +395,12 @@ export default function DailyGoals() {
       const data = await response.json();
 
       if (data.schedule) {
-        onTaskTextChange(data.schedule);  // fills the task textarea with AI suggestions
+        onTaskTextChange(data.schedule);  
       } else {
         throw new Error(data.error || 'No schedule returned');
       }
     } catch (err) {
       console.error('AI schedule error:', err);
-      // Fallback to static suggestions if API fails
       const fallback = [
         "09:00 - 10:30 - 🧠 Deep Work & Focus Session",
         "10:30 - 10:45 - ☕ Short Break & Stretch",
@@ -517,7 +490,6 @@ export default function DailyGoals() {
           ))}
         </div>
 
-        {/* 🔥 NEW FEATURE: WELCOME NAME POPUP 🔥 */}
         {showNameSetup && (
           <div className="overlay" style={{ zIndex: 99999, backdropFilter: 'blur(8px)', background: 'rgba(0,0,0,0.7)' }}>
             <div className="modal" style={{ 
@@ -560,9 +532,6 @@ export default function DailyGoals() {
           </div>
         )}
 
-        {/* ============================================
-            🔥 TASK CREATE / EDIT FORM MODAL (FIXED)
-            ============================================ */}
         {showForm && (
           <div className="overlay" onClick={() => setShowForm(false)}>
             <div className="modal" onClick={e => e.stopPropagation()} style={{ maxHeight: '90vh', overflowY: 'auto' }}>
@@ -650,7 +619,7 @@ export default function DailyGoals() {
                 <div className="toast-title">Next task starting soon!</div>
                 <div className="toast-message">"{upcomingTaskAlert.text}" at {upcomingTaskAlert.startTime}</div>
               </div>
-              <button className="toast-close" onClick={() => setUpcomingTaskAlert(null)}>✕</button>
+              <button className="toast-close" onClick={() => setUpUpcomingTaskAlert(null)}>✕</button>
             </div>
             <div className="toast-progress-bar"><div className="toast-progress-fill"></div></div>
           </div>
@@ -698,7 +667,6 @@ export default function DailyGoals() {
           {activeView === "tools" && (
             <div key="tools" className="view-transition">
               <ToolsView onOpenPomodoro={() => setShowPomodoro(true)} />
-              {/* Task Templates — below ToolsView, proper mobile padding */}
               <div style={{ padding: '0 16px 20px', maxWidth: '600px', margin: '0 auto' }}>
                 <TaskTemplates onApplyTemplate={handleApplyTemplate} />
               </div>
@@ -728,9 +696,6 @@ export default function DailyGoals() {
           {activeView === "goals" && <div key="goals" className="view-transition"><GoalsView /></div>}
         </Suspense>
 
-        {/* ✅ Focus Mode is handled inside TasksView via EnhancedFocusMode */}
-
-        {/* ✅ FIX: Pomodoro Modal — was MISSING from JSX! */}
         {showPomodoro && (
           <div className="overlay" onClick={() => setShowPomodoro(false)}>
             <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 400 }}>
@@ -746,7 +711,6 @@ export default function DailyGoals() {
           </div>
         )}
 
-        {/* ✅ FIX: Import/Export Modal — was MISSING from JSX! */}
         {showImportExport && (
           <div className="overlay" onClick={() => setShowImportExport(false)}>
             <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 500 }}>

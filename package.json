@@ -15,7 +15,6 @@
     "@capacitor/haptics": "^8.0.1",
     "@capacitor/keyboard": "^8.0.1",
     "@capacitor/local-notifications": "^8.0.2",
-    "@capacitor/push-notifications": "^8.0.2",
     "@capacitor/status-bar": "^8.0.1",
     "autoprefixer": "^10.4.27",
     "canvas-confetti": "^1.9.4",
@@ -25,12 +24,12 @@
     "postcss": "^8.5.8",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-onesignal": "^3.5.1",
     "recharts": "^3.8.0",
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^4.2.1"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
     "@vitejs/plugin-react": "^4.0.0",
     "vite": "^5.0.0",
     "vite-plugin-pwa": "^0.20.0"

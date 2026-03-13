@@ -5,10 +5,27 @@
 import { enforceRateLimit, getClientKey } from './_rateLimit.js';
 
 export default async function handler(req, res) {
+  // ✅ 1. CORS Headers - Capacitor (APK) கோரிக்கைகளை அனுமதிக்க
+  res.setHeader('Access-Control-Allow-Credentials', true);
+  res.setHeader('Access-Control-Allow-Origin', '*'); // எல்லா origin-களையும் அனுமதிக்க
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+  );
+
+  // ✅ 2. Preflight Request (OPTIONS) வந்தால் உடனடியாக 200 OK அனுப்ப வேண்டும்
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  // ✅ 3. POST Method-ஐ மட்டும் அனுமதி
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // --- Rate Limiting & Security ---
   const rateLimit = enforceRateLimit(getClientKey(req));
   if (!rateLimit.allowed) {
     return res.status(429).json({ error: 'Too many AI planning requests. Please try again in a few minutes.' });
@@ -19,6 +36,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'GEMINI_API_KEY not set in Vercel environment variables' });
   }
 
+  // --- Input Validation ---
   const { userName, existingTasks = [], date, context = '' } = req.body;
   if (!Array.isArray(existingTasks)) {
     return res.status(400).json({ error: 'existingTasks must be an array' });
@@ -27,6 +45,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'context must be a string under 2000 characters' });
   }
 
+  // --- Prompt Engineering ---
   const todayDate = date || new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
   const existingText = existingTasks.length > 0
     ? `The user already has these tasks today: ${existingTasks.map(t => t.text).join(', ')}.`
@@ -76,6 +95,7 @@ CORRECT example output:
 17:30 - 18:15 - 🚗 Pick up Amma from work`;
 
   try {
+    // --- Gemini API Call ---
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
       {
