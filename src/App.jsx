@@ -1,14 +1,17 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import OneSignal from 'react-onesignal'; 
 import PomodoroTimer from "./components/PomodoroTimer";
 import TaskImportExport from "./components/TaskImportExport";
 import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts";
 import { useMobileFeatures, triggerHaptic } from "./hooks/useMobileFeatures";
 import {
   getNotificationPermission,
+  requestNotificationPermission,
   showAppNotification,
   initializeNotifications,
   scheduleTaskNotifications,
 } from "./services/notifications";
+import { scheduleTaskNotifications as scheduleOneSignalNotifications } from "./services/oneSignal";
 
 import './App.css';
 import { LiveTaskPopup } from "./components/SharedUI";
@@ -61,7 +64,7 @@ export default function DailyGoals() {
   const [overdueEnabled, setOverdueEnabled] = useState(true);
   const [fontWeight, setFontWeight] = useState(500);
   const [soundTheme, setSoundTheme] = useState('default');
-  const [autoStartEnabled, setAutoStartEnabled] = useState(false);
+  const [hapticEnabled, setHapticEnabled] = useState(true); // ✅ Mobile haptic feedback toggle
   
   const [reminderPopup, setReminderPopup] = useState(null);
   const [liveTaskPopup, setLiveTaskPopup] = useState(null);
@@ -162,6 +165,16 @@ export default function DailyGoals() {
     }
   };
 
+  useEffect(() => {
+    const initOneSignal = async () => {
+      try {
+        await OneSignal.init({ appId: "f98c4786-2104-4f35-936c-7b810f1d13ca", allowLocalhostAsSecureOrigin: true });
+        OneSignal.Slidedown.promptPush();
+      } catch (error) { console.error("OneSignal Initialization Error:", error); }
+    };
+    initOneSignal();
+  }, []);
+
   // ✅ PERF FIX: isEOD uses 60-second tick
   const isEOD = useMemo(() => {
     const now = new Date(nowMinuteTick);
@@ -255,7 +268,7 @@ export default function DailyGoals() {
         if (typeof prefs.overdueEnabled === 'boolean') setOverdueEnabled(prefs.overdueEnabled);
         if (prefs.fontWeight) setFontWeight(Number(prefs.fontWeight) || 500);
         if (prefs.soundTheme) setSoundTheme(prefs.soundTheme);
-        if (typeof prefs.autoStartEnabled === 'boolean') setAutoStartEnabled(prefs.autoStartEnabled);
+        if (typeof prefs.hapticEnabled === 'boolean') setHapticEnabled(prefs.hapticEnabled);
       }
       if (journalRaw) { try { setJournalEntries(JSON.parse(journalRaw)); } catch{} }
       if (habitsRaw) { try { setHabitsData(JSON.parse(habitsRaw)); } catch{} }
@@ -266,6 +279,7 @@ export default function DailyGoals() {
       setLoaded(true);
       
       initializeNotifications().then(setNotifPerm);
+      if (getNotificationPermission() === "default") requestNotificationPermission().then(setNotifPerm);
     };
     loadInitData();
   }, []);
@@ -273,23 +287,22 @@ export default function DailyGoals() {
   useEffect(() => {
     if (!loaded) return;
     writeUiState({ activeDate, activeView, searchTerm, priorityFilter, timeFilter, weekBase: weekBase instanceof Date ? weekBase.toISOString() : new Date().toISOString() });
-    writePrefs({ themeMode, taskFontSize, taskFontFamily, uiScale, overdueEnabled, fontWeight, soundTheme, autoStartEnabled });
+    writePrefs({ themeMode, taskFontSize, taskFontFamily, uiScale, overdueEnabled, fontWeight, soundTheme, hapticEnabled });
     scheduleTaskNotifications(goals);
-  }, [activeDate, activeView, loaded, priorityFilter, searchTerm, timeFilter, weekBase, themeMode, taskFontSize, taskFontFamily, uiScale, overdueEnabled, fontWeight, soundTheme, autoStartEnabled, goals]);
+    scheduleOneSignalNotifications(goals);
+  }, [activeDate, activeView, loaded, priorityFilter, searchTerm, timeFilter, weekBase, themeMode, taskFontSize, taskFontFamily, uiScale, overdueEnabled, fontWeight, soundTheme, hapticEnabled, goals]);
 
   const save = useCallback((updated) => {
-    const resolved = typeof updated === "function" ? updated(goals) : updated;
-    setGoals(resolved);
+    setGoals(updated);
     let serialized = "[]";
-    try { serialized = JSON.stringify(resolved); } catch {}
+    try { serialized = JSON.stringify(updated); } catch {}
     pendingWriteRef.current.last = serialized;
     if (pendingWriteRef.current.timer) clearTimeout(pendingWriteRef.current.timer);
     pendingWriteRef.current.timer = setTimeout(() => { writeStorage(pendingWriteRef.current.last).catch(() => {}); }, 300);
-  }, [goals]);
+  }, []);
 
   useEffect(() => {
-    const permission = notifPerm || getNotificationPermission();
-    if (!loaded || !["granted", "capacitor"].includes(permission)) return;
+    if (!loaded || getNotificationPermission() !== "granted") return;
     const now = new Date(); const today = todayKey();
     const timers = goals.filter((g) => g.reminder && goalVisibleOn(g, today) && !isDoneOn(g, today)).map((g) => {
       const [hh, mm] = g.reminder.split(":").map(Number); 
@@ -303,7 +316,7 @@ export default function DailyGoals() {
       }, diff);
     }).filter(Boolean);
     return () => timers.forEach(clearTimeout);
-  }, [goals, loaded, notifPerm]);
+  }, [goals, loaded]);
 
   useEffect(() => {
     if (!reminderPopup) return;
@@ -348,16 +361,14 @@ export default function DailyGoals() {
     window.addEventListener("keydown", onKey); return () => window.removeEventListener("keydown", onKey);
   }, [showForm, activeDate, form, editingGoal, goals]);
 
-  const keyboardShortcuts = useMemo(() => ([
+  useKeyboardShortcuts([
     { key: '1', ctrl: true, action: () => setActiveView('insights') },
     { key: '2', ctrl: true, action: () => setActiveView('tasks') },
     { key: '3', ctrl: true, action: () => setActiveView('planner') },
     { key: '4', ctrl: true, action: () => setActiveView('settings') },
     { key: 'w', ctrl: true, action: () => setPlannerView(prev => prev === 'monthly' ? 'weekly' : 'monthly') },
     { key: '?', action: () => setShowShortcuts(s => !s) },
-  ]), []);
-
-  useKeyboardShortcuts(keyboardShortcuts);
+  ]);
 
   // ✅ PERF FIX: Wrapped in useCallback to prevent recreation on every render
   const onTaskTextChange = useCallback((value) => {
@@ -390,12 +401,17 @@ export default function DailyGoals() {
   const handleAiAutoSchedule = async () => {
     setAiLoading(true);
     try {
-      const response = await fetch('/api/gemini', {
+      // ✅ FIX: Use absolute URL — Capacitor APK can't use relative /api/gemini
+      const API_URL = (typeof window !== 'undefined' && window.Capacitor)
+        ? 'https://task-application-sigma.vercel.app/api/gemini'
+        : '/api/gemini';
+
+      const response = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userName: userName || 'Friend',
-          existingTasks: pendingGoals.slice(0, 5),   // send up to 5 current tasks for context
+          existingTasks: pendingGoals.slice(0, 5),
           date: activeDate,
         })
       });
@@ -679,27 +695,74 @@ export default function DailyGoals() {
           {activeView === "planner" && <div key="planner" className="view-transition"><PlannerView plannerView={plannerView} setPlannerView={setPlannerView} goals={goals} setActiveDate={setActiveDate} setActiveView={setActiveView} /></div>}
           {activeView === "analytics" && <div key="analytics" className="view-transition"><AnalyticsView setShowPomodoro={setShowPomodoro} setShowImportExport={setShowImportExport} setActiveView={setActiveView} goals={goals} weekly={weekly} /></div>}
           {activeView === "career" && <div key="career" className="view-transition"><CareerView /></div>}
-          {activeView === "tools" && <div key="tools" className="view-transition"><ToolsView onOpenPomodoro={() => setShowPomodoro(true)} /><div style={{ padding: '0 20px', maxWidth: '900px', margin: '0 auto' }}><TaskTemplates onApplyTemplate={handleApplyTemplate} /></div></div>}
-          {activeView === "settings" && <div key="settings" className="view-transition"><SettingsView setActiveView={setActiveView} themeMode={themeMode} setThemeMode={setThemeMode} taskFontFamily={taskFontFamily} setTaskFontFamily={setTaskFontFamily} taskFontSize={taskFontSize} setTaskFontSize={setTaskFontSize} uiScale={uiScale} setUiScale={setUiScale} overdueEnabled={overdueEnabled} setOverdueEnabled={setOverdueEnabled} fontWeight={fontWeight} setFontWeight={setFontWeight} soundTheme={soundTheme} setSoundTheme={setSoundTheme} autoStartEnabled={autoStartEnabled} setAutoStartEnabled={setAutoStartEnabled} /></div>}
+          {activeView === "tools" && (
+            <div key="tools" className="view-transition">
+              <ToolsView onOpenPomodoro={() => setShowPomodoro(true)} />
+              {/* Task Templates — below ToolsView, proper mobile padding */}
+              <div style={{ padding: '0 16px 20px', maxWidth: '600px', margin: '0 auto' }}>
+                <TaskTemplates onApplyTemplate={handleApplyTemplate} />
+              </div>
+            </div>
+          )}
+          {activeView === "settings" && (
+            <div key="settings" className="view-transition">
+              <SettingsView
+                setActiveView={setActiveView}
+                themeMode={themeMode} setThemeMode={setThemeMode}
+                taskFontFamily={taskFontFamily} setTaskFontFamily={setTaskFontFamily}
+                taskFontSize={taskFontSize} setTaskFontSize={setTaskFontSize}
+                uiScale={uiScale} setUiScale={setUiScale}
+                overdueEnabled={overdueEnabled} setOverdueEnabled={setOverdueEnabled}
+                fontWeight={fontWeight} setFontWeight={setFontWeight}
+                soundTheme={soundTheme} setSoundTheme={setSoundTheme}
+                hapticEnabled={hapticEnabled} setHapticEnabled={setHapticEnabled}
+                userName={userName} setUserName={setUserName}
+                notifPerm={notifPerm}
+                requestNotifPerm={() => requestNotificationPermission().then(setNotifPerm)}
+                goals={goals} setGoals={setGoals}
+              />
+            </div>
+          )}
           {activeView === "habits" && <div key="habits" className="view-transition"><HabitsView /></div>}
           {activeView === "journal" && <div key="journal" className="view-transition"><JournalView /></div>}
           {activeView === "goals" && <div key="goals" className="view-transition"><GoalsView /></div>}
         </Suspense>
 
-        {focusMode && liveCurrentGoal && (
-          <div className="focus-wall-overlay" style={{ zIndex: 10000 }}>
-            <button className="focus-wall-exit" onClick={() => setFocusMode(false)}>Exit Focus Mode</button>
-            <div className="focus-wall-content">
-              <div className="focus-wall-label">CURRENT FOCUS</div>
-              <div className="focus-wall-task">
-                 {(() => {
-                  const match = liveCurrentGoal.text.match(/^(\p{Emoji_Presentation}|\p{Emoji}\uFE0F)(.*)/u);
-                  return match ? <><span className="animated-emoji" style={{ fontSize: '1.5em' }}>{match[1]}</span>{match[2]}</> : liveCurrentGoal.text;
-                })()}
+        {/* ✅ Focus Mode is handled inside TasksView via EnhancedFocusMode */}
+
+        {/* ✅ FIX: Pomodoro Modal — was MISSING from JSX! */}
+        {showPomodoro && (
+          <div className="overlay" onClick={() => setShowPomodoro(false)}>
+            <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 400 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <h2 className="m-title" style={{ margin: 0 }}>🍅 Pomodoro Timer</h2>
+                <button className="mini-btn" onClick={() => setShowPomodoro(false)}>✕ Close</button>
               </div>
-              <div className="focus-wall-time">{liveCurrentGoal.startTime} - {liveCurrentGoal.endTime}</div>
-              <div className="focus-wall-countdown">{liveCountdown || "00:00"}</div>
-              <button className="focus-wall-done-btn" onClick={() => { toggleDoneWithCelebration(liveCurrentGoal); setFocusMode(false); }}>MARK MISSION COMPLETE</button>
+              <PomodoroTimer
+                onTaskComplete={() => showAppNotification('Pomodoro Complete! 🎉', { body: 'Take a 5-minute break!' })}
+                onBreakComplete={() => showAppNotification('Break Over!', { body: 'Time to focus again!' })}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* ✅ FIX: Import/Export Modal — was MISSING from JSX! */}
+        {showImportExport && (
+          <div className="overlay" onClick={() => setShowImportExport(false)}>
+            <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 500 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <h2 className="m-title" style={{ margin: 0 }}>📦 Import / Export Tasks</h2>
+                <button className="mini-btn" onClick={() => setShowImportExport(false)}>✕ Close</button>
+              </div>
+              <TaskImportExport
+                goals={goals}
+                onImport={(imported) => {
+                  const merged = [...goals, ...imported.filter(t => !goals.find(g => g.id === t.id))];
+                  save(merged);
+                  setShowImportExport(false);
+                  window.alert(`✅ ${imported.length} tasks imported!`);
+                }}
+              />
             </div>
           </div>
         )}

@@ -1,9 +1,16 @@
-// 🤖 Gemini AI — Smart Routine Filler
+// Gemini AI — Smart Routine Filler
 // File location: api/smart-routine.js
+
+import { enforceRateLimit, getClientKey } from './_rateLimit.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const rateLimit = enforceRateLimit(getClientKey(req));
+  if (!rateLimit.allowed) {
+    return res.status(429).json({ error: 'Too many AI planning requests. Please try again in a few minutes.' });
   }
 
   const apiKey = process.env.GEMINI_API_KEY;
@@ -13,6 +20,15 @@ export default async function handler(req, res) {
 
   // Frontend-ல் இருந்து வரும் தரவுகள்
   const { userName, goals, flexibleBlocks, fixedRoutine } = req.body;
+  if (typeof goals !== 'string' && goals != null) {
+    return res.status(400).json({ error: 'goals must be a string when provided' });
+  }
+  if (typeof flexibleBlocks !== 'string' && flexibleBlocks != null) {
+    return res.status(400).json({ error: 'flexibleBlocks must be a string when provided' });
+  }
+  if (typeof fixedRoutine !== 'string' && fixedRoutine != null) {
+    return res.status(400).json({ error: 'fixedRoutine must be a string when provided' });
+  }
 
   // AI-ஐக் கட்டுப்படுத்தும் மிகத் துல்லியமான Prompt
   const prompt = `You are an elite productivity engineer. Your job is to fill the user's empty time blocks with highly productive tasks without touching their fixed schedule.
@@ -46,10 +62,11 @@ EXPECTED JSON FORMAT:
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
-            temperature: 0.7, // Slightly lower for more logical, structured output
-            responseMimeType: "application/json" // FORCING strictly JSON output
+            temperature: 0.7,
+            responseMimeType: "application/json"
           }
-        })
+        }),
+        signal: AbortSignal.timeout(20000)
       }
     );
 

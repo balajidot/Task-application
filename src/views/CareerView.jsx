@@ -3,16 +3,20 @@ import { CAREER_KEY } from '../utils/constants';
 import { readPersist, writePersist } from '../utils/helpers';
 
 export default function CareerView() {
-  const [goal, setGoal] = useState("Become Senior Full Stack Engineer");
+  const [goal, setGoal] = useState("Become HDFC Bank Relationship Manager");
   const [skills, setSkills] = useState([
-    { id: 1, name: 'React & Frontend', progress: 75 },
-    { id: 2, name: 'Data Structures & Algo', progress: 45 },
-    { id: 3, name: 'System Design', progress: 20 }
+    { id: 1, name: 'Banking Products & CASA', progress: 40 },
+    { id: 2, name: 'English Communication', progress: 55 },
+    { id: 3, name: 'Quantitative Aptitude', progress: 35 },
+    { id: 4, name: 'Banking Awareness & RBI', progress: 45 },
+    { id: 5, name: 'Customer Relationship Skills', progress: 60 },
   ]);
   const [tasks, setTasks] = useState([
-    { id: 1, text: 'Master React Server Components', done: true },
-    { id: 2, text: 'Solve 10 LeetCode Mediums Weekly', done: false },
-    { id: 3, text: 'Read "Designing Data-Intensive Applications"', done: false }
+    { id: 1, text: 'Study CASA, NPA, CRR, SLR concepts daily', done: false },
+    { id: 2, text: 'Practice 20 Quant questions every morning', done: false },
+    { id: 3, text: 'Read 1 banking current affairs article daily', done: false },
+    { id: 4, text: 'Practice English mock interview answers', done: false },
+    { id: 5, text: 'Complete HDFC Bank product knowledge notes', done: false },
   ]);
   const [newTask, setNewTask] = useState("");
   const [newSkill, setNewSkill] = useState("");

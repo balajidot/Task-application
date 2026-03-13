@@ -21,11 +21,6 @@ window.addEventListener('load', () => {
   initializeOneSignal().then(success => {
     if (success) {
       setupNotificationClickHandler();
-      
-      // Request notification permission for push notifications
-      if ('Notification' in window && Notification.permission === 'default') {
-        Notification.requestPermission();
-      }
     }
   });
 });

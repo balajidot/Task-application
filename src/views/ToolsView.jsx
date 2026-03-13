@@ -81,116 +81,102 @@ export default function ToolsView({ onOpenPomodoro }) {
   };
 
   return (
-    <div className="tools-view animate-fade-in" style={{ padding: '20px', maxWidth: '900px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-        <h2 style={{ fontSize: '1.8rem', fontWeight: 900, color: 'var(--text)', margin: 0 }}>🛠 Working Tools</h2>
-        <button className="new-btn" style={{ padding: '12px 24px', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={onOpenPomodoro}>
-          <span>🍅</span> Start Pomodoro Timer
+    <div className="tools-view animate-fade-in" style={{ padding: '16px', maxWidth: '600px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      
+      {/* ── Header ── */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h2 style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--text)', margin: 0 }}>🛠 Working Tools</h2>
+        <button className="hero-btn" style={{ padding: '10px 16px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '6px' }} onClick={onOpenPomodoro}>
+          🍅 Pomodoro
         </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '24px' }}>
-        <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
-          <div className="m-title" style={{ fontSize: '1.2rem', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span>✍️ Quick Notes</span>
-            <span style={{ fontSize: '.7rem', color: '#10b981', fontWeight: 700 }}>Auto-saved ✓</span>
-          </div>
-          <textarea 
-             className="fi task-box" 
-             placeholder="Jot down quick thoughts, meeting notes, or daily snippets here..." 
-             value={quickNotes} 
-             onChange={(e) => updateField('quickNotes', e.target.value)}
-             style={{ minHeight: '250px', flex: 1, fontSize: '0.95rem', lineHeight: 1.5 }}
-          />
-        </div>
-
-        <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
-          <div className="m-title" style={{ fontSize: '1.2rem', marginBottom: '12px', color: '#f59e0b', borderBottomColor: 'rgba(245, 158, 11, 0.2)' }}>
-            <span>🧠 Brain Dump</span>
-          </div>
-          <textarea 
-             className="fi task-box" 
-             placeholder="Dump all your distracting or random ideas here to free up mental RAM and stay focused on the task at hand..." 
-             value={brainDump} 
-             onChange={(e) => updateField('brainDump', e.target.value)}
-             style={{ minHeight: '250px', flex: 1, borderColor: 'rgba(245, 158, 11, 0.3)', fontSize: '0.95rem', lineHeight: 1.5 }}
-          />
-        </div>
-
-        <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <div className="m-title" style={{ fontSize: '1.2rem', marginBottom: '20px', color: '#10b981', borderBottomColor: 'rgba(16, 185, 129, 0.2)' }}>
-            <span>🫁 Box Breathing</span>
-          </div>
-          <div className="breathing-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', flex: 1, justifyContent: 'center' }}>
-            <div className={`breathing-circle${breathingActive ? ` breathing-active ${breathingPhase}` : ''}`} style={{ 
-              width: '120px', 
-              height: '120px', 
-              borderRadius: '50%', 
-              background: 'linear-gradient(135deg, #10b981, #059669)',
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center',
-              color: 'white',
-              fontSize: '1.2rem',
-              fontWeight: 'bold',
-              transition: 'all 1s ease-in-out'
-            }}>
-              {breathingActive ? `${breathingCount}` : 'START'}
-            </div>
-            <div style={{ textAlign: 'center', fontSize: '0.9rem', color: 'var(--muted)' }}>
-              {breathingActive ? (
-                <div>
-                  <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>{breathingPhase.toUpperCase()}</div>
-                  <div style={{ fontSize: '0.8rem' }}>4-4-4-4 breathing pattern</div>
-                </div>
-              ) : (
-                <div>Click to start focused breathing exercise</div>
-              )}
-            </div>
-            <button 
-              className="new-btn" 
-              onClick={toggleBreathing}
-              style={{ 
-                background: breathingActive ? 'linear-gradient(135deg, #ef4444, #dc2626)' : 'linear-gradient(135deg, #10b981, #059669)',
-                marginTop: '10px'
-              }}
-            >
-              {breathingActive ? 'Stop' : 'Start'} Breathing
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="card" style={{ marginTop: '10px' }}>
-        <div className="m-title" style={{ fontSize: '1.2rem', marginBottom: '20px', color: '#3b82f6', borderBottomColor: 'rgba(59, 130, 246, 0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>📅 Evening Daily Review</span>
+      {/* ── Quick Notes ── */}
+      <div className="card">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+          <span style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text)' }}>✍️ Quick Notes</span>
           <span style={{ fontSize: '.7rem', color: '#10b981', fontWeight: 700 }}>Auto-saved ✓</span>
         </div>
-        
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          <div className="fg" style={{ margin: 0 }}>
-            <div className="fl" style={{ fontSize: '0.9rem', color: 'var(--text)', marginBottom: '10px' }}>What did I complete today?</div>
-            <textarea 
-               className="fi" 
-               placeholder="Reflect on your wins and progress made..." 
-               value={completedToday}
-               onChange={(e) => updateField('completedToday', e.target.value)}
-               style={{ minHeight: '100px', resize: 'vertical' }}
+        <textarea
+          className="fi task-box"
+          placeholder="Jot down quick thoughts, meeting notes, or daily snippets here..."
+          value={quickNotes}
+          onChange={(e) => updateField('quickNotes', e.target.value)}
+          style={{ minHeight: '120px', fontSize: '0.9rem', lineHeight: 1.5 }}
+        />
+      </div>
+
+      {/* ── Brain Dump ── */}
+      <div className="card">
+        <div style={{ fontSize: '1rem', fontWeight: 800, color: '#f59e0b', marginBottom: 10 }}>🧠 Brain Dump</div>
+        <textarea
+          className="fi task-box"
+          placeholder="Dump all your distracting or random ideas here to free up mental RAM..."
+          value={brainDump}
+          onChange={(e) => updateField('brainDump', e.target.value)}
+          style={{ minHeight: '120px', borderColor: 'rgba(245,158,11,0.3)', fontSize: '0.9rem', lineHeight: 1.5 }}
+        />
+      </div>
+
+      {/* ── Box Breathing ── */}
+      <div className="card" style={{ textAlign: 'center' }}>
+        <div style={{ fontSize: '1rem', fontWeight: 800, color: '#10b981', marginBottom: 16 }}>🫁 Box Breathing</div>
+        <div
+          className={`breathing-circle${breathingActive ? ` breathing-active ${breathingPhase}` : ''}`}
+          style={{
+            width: 100, height: 100, borderRadius: '50%',
+            background: 'linear-gradient(135deg, #10b981, #059669)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: 'white', fontSize: '1.2rem', fontWeight: 'bold',
+            transition: 'all 1s ease-in-out', margin: '0 auto 12px'
+          }}
+        >
+          {breathingActive ? breathingCount : 'START'}
+        </div>
+        <div style={{ fontSize: '0.85rem', color: 'var(--muted)', marginBottom: 14, minHeight: 36 }}>
+          {breathingActive
+            ? <><strong style={{ display: 'block', color: 'var(--text)' }}>{breathingPhase.toUpperCase()}</strong>4-4-4-4 breathing pattern</>
+            : 'Tap to start focused breathing exercise'}
+        </div>
+        <button
+          className="new-btn"
+          onClick={toggleBreathing}
+          style={{ background: breathingActive ? 'linear-gradient(135deg,#ef4444,#dc2626)' : 'linear-gradient(135deg,#10b981,#059669)' }}
+        >
+          {breathingActive ? '⏹ Stop Breathing' : '▶ Start Breathing'}
+        </button>
+      </div>
+
+      {/* ── Evening Daily Review ── */}
+      <div className="card">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <span style={{ fontSize: '1rem', fontWeight: 800, color: '#3b82f6' }}>📅 Evening Daily Review</span>
+          <span style={{ fontSize: '.7rem', color: '#10b981', fontWeight: 700 }}>Auto-saved ✓</span>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div>
+            <div className="fl">WHAT DID I COMPLETE TODAY?</div>
+            <textarea
+              className="fi"
+              placeholder="Reflect on your wins and progress made..."
+              value={completedToday}
+              onChange={(e) => updateField('completedToday', e.target.value)}
+              style={{ minHeight: '90px', resize: 'vertical' }}
             />
           </div>
-          
-          <div className="fg" style={{ margin: 0 }}>
-            <div className="fl" style={{ fontSize: '0.9rem', color: 'var(--text)', marginBottom: '10px' }}>What should improve tomorrow?</div>
-            <textarea 
-               className="fi" 
-               placeholder="Identify friction points, distractions, and plan adjustments..." 
-               value={improveTomorrow}
-               onChange={(e) => updateField('improveTomorrow', e.target.value)}
-               style={{ minHeight: '100px', resize: 'vertical', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+          <div>
+            <div className="fl">WHAT SHOULD IMPROVE TOMORROW?</div>
+            <textarea
+              className="fi"
+              placeholder="Identify friction points, distractions, and plan adjustments..."
+              value={improveTomorrow}
+              onChange={(e) => updateField('improveTomorrow', e.target.value)}
+              style={{ minHeight: '90px', resize: 'vertical', borderColor: 'rgba(239,68,68,0.3)' }}
             />
           </div>
         </div>
       </div>
+
     </div>
   );
 }

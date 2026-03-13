@@ -172,8 +172,10 @@ export function useSwipeTabSwitcher(activeView, setActiveView) {
       const deltaX = e.changedTouches[0].clientX - touchStartX.current;
       const deltaY = e.changedTouches[0].clientY - touchStartY.current;
 
-      // Only horizontal swipes (ignore vertical scrolling)
-      if (Math.abs(deltaX) < 60 || Math.abs(deltaY) > Math.abs(deltaX)) {
+      // ✅ FIX: Increased threshold 60→100px to prevent accidental tab switches
+      // Also require vertical delta to be small (< 40px) to avoid scroll conflicts
+      const SWIPE_THRESHOLD = 100;
+      if (Math.abs(deltaX) < SWIPE_THRESHOLD || Math.abs(deltaY) > 40 || Math.abs(deltaY) > Math.abs(deltaX) * 0.6) {
         touchStartX.current = null;
         return;
       }
@@ -181,11 +183,11 @@ export function useSwipeTabSwitcher(activeView, setActiveView) {
       const currentIndex = TAB_ORDER.indexOf(activeView);
       if (currentIndex === -1) return;
 
-      if (deltaX < -60 && currentIndex < TAB_ORDER.length - 1) {
+      if (deltaX < -SWIPE_THRESHOLD && currentIndex < TAB_ORDER.length - 1) {
         // Swipe Left → Next tab
         triggerSelectionHaptic();
         setActiveView(TAB_ORDER[currentIndex + 1]);
-      } else if (deltaX > 60 && currentIndex > 0) {
+      } else if (deltaX > SWIPE_THRESHOLD && currentIndex > 0) {
         // Swipe Right → Previous tab
         triggerSelectionHaptic();
         setActiveView(TAB_ORDER[currentIndex - 1]);

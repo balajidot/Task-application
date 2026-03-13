@@ -531,8 +531,9 @@ body, html {
 /* ============================================
    MODALS & POPUPS
    ============================================ */
-.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); display: grid; place-items: center; z-index: 3000; padding: 16px; animation: fadeIn 0.2s ease; }
-.modal { background: var(--card); width: 100%; max-width: 520px; border-radius: 20px; padding: 28px; border: 1px solid var(--card-border); box-shadow: 0 25px 60px rgba(0,0,0,0.25); animation: modalSlide 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275); backdrop-filter: blur(12px); }
+/* ✅ PERF FIX: Removed backdrop-filter from overlay+modal — only shown briefly, still looks good */
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: grid; place-items: center; z-index: 3000; padding: 16px; animation: fadeIn 0.2s ease; }
+.modal { background: var(--card); width: 100%; max-width: 520px; border-radius: 20px; padding: 28px; border: 1px solid var(--card-border); box-shadow: 0 25px 60px rgba(0,0,0,0.25); animation: modalSlide 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
 .m-title { font-size: 1.3rem; font-weight: 900; margin-bottom: 16px; color: var(--text); border-bottom: 2px solid var(--chip); padding-bottom: 10px; }
 .fg { margin-bottom: 14px; }
 .fl { display: block; font-size: .75rem; font-weight: 800; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -556,7 +557,7 @@ body, html {
 /* ============================================
    TOAST NOTIFICATION
    ============================================ */
-.toast-notification { position: fixed; top: 24px; right: 24px; z-index: 9000; width: 380px; max-width: calc(100vw - 48px); background: var(--card); border: 1px solid var(--card-border); border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.05); backdrop-filter: blur(20px); animation: toastSlideIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); overflow: hidden; }
+.toast-notification { position: fixed; top: 24px; right: 24px; z-index: 9000; width: 380px; max-width: calc(100vw - 48px); background: var(--card); border: 1px solid var(--card-border); border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.25); /* ✅ PERF FIX: Removed backdrop-filter:blur(20px) */ animation: toastSlideIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); overflow: hidden; }
 .toast-accent-bar { height: 3px; background: linear-gradient(90deg, #f59e0b, #f97316, #ef4444); background-size: 200% 100%; animation: accentShift 3s linear infinite; }
 .toast-body { display: flex; align-items: center; gap: 14px; padding: 16px 18px; }
 .toast-icon-wrap { width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, rgba(245,158,11,0.15), rgba(249,115,22,0.15)); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
@@ -584,7 +585,7 @@ body, html {
 .focus-wall-done-btn:hover { transform: translateY(-5px) scale(1.05); box-shadow: 0 20px 40px rgba(16,185,129,0.5); }
 
 /* Focus Overlay */
-.focus-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 90; backdrop-filter: blur(4px); animation: fadeIn 0.3s ease; }
+.focus-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.75); z-index: 90; /* ✅ PERF FIX: Removed backdrop-filter:blur(4px) */ animation: fadeIn 0.3s ease; }
 .focus-highlight { position: relative; z-index: 91; box-shadow: 0 0 30px rgba(37,99,235,0.4), 0 0 60px rgba(37,99,235,0.2) !important; border: 2px solid rgba(37,99,235,0.5) !important; border-radius: 14px; }
 
 /* ============================================

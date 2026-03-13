@@ -1,10 +1,17 @@
-// 🤖 Gemini AI — Auto Task Generator
+// Gemini AI — Auto Task Generator
 // File location: api/gemini.js (in your project ROOT folder)
 // Vercel serverless function — called from App.jsx
+
+import { enforceRateLimit, getClientKey } from './_rateLimit.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const rateLimit = enforceRateLimit(getClientKey(req));
+  if (!rateLimit.allowed) {
+    return res.status(429).json({ error: 'Too many AI planning requests. Please try again in a few minutes.' });
   }
 
   const apiKey = process.env.GEMINI_API_KEY;
@@ -13,6 +20,12 @@ export default async function handler(req, res) {
   }
 
   const { userName, existingTasks = [], date, context = '' } = req.body;
+  if (!Array.isArray(existingTasks)) {
+    return res.status(400).json({ error: 'existingTasks must be an array' });
+  }
+  if (typeof context !== 'string' || context.length > 2000) {
+    return res.status(400).json({ error: 'context must be a string under 2000 characters' });
+  }
 
   const todayDate = date || new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
   const existingText = existingTasks.length > 0
@@ -74,7 +87,8 @@ CORRECT example output:
             temperature: 0.7,
             maxOutputTokens: 300
           }
-        })
+        }),
+        signal: AbortSignal.timeout(20000)
       }
     );
 

@@ -39,77 +39,87 @@ export function GoalItem({ goal, idx, doneHere, pulse, celebrate, liveNow, count
   const goalItemContent = (
     <div
       className={`goal-item${doneHere ? " done" : ""}${pulse ? " pulse" : ""}${celebrate ? " celebrate" : ""}${liveNow ? " live" : ""}`}
-      style={{ animationDelay: `${idx * 35}ms` }}
+      style={{ animationDelay: `${idx * 35}ms`, padding: '12px 14px' }}
     >
-      <div className="goal-row">
+      {/* ── ROW 1: Checkbox + Task Text + Time ── */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', width: '100%' }}>
+        {/* Select + Checkbox stacked */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', flexShrink: 0, marginTop: '2px' }}>
+          <button className={`chk${doneHere ? " checked" : ""}`} onClick={onToggleDone} style={{ width: 26, height: 26 }}>
+            {doneHere && <span className="checkmark">✓</span>}
+          </button>
+        </div>
+
+        {/* Task text — flex grow */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div className={`goal-text${doneHere ? " done" : ""}`} style={{ marginBottom: 4 }}>
+            {(() => {
+              const match = goal.text.match(/^(\p{Emoji_Presentation}|\p{Emoji}\uFE0F)(.*)/u);
+              if (match) return <><span style={{ marginRight: 4 }}>{match[1]}</span>{match[2]}</>;
+              return goal.text;
+            })()}
+          </div>
+
+          {/* Time range */}
+          {(goal.startTime || goal.endTime) && (
+            <div className="goal-time-range" style={{ display: 'inline-flex', fontSize: '0.78rem', padding: '3px 10px' }}>
+              {formatTimeRange(goal.startTime, goal.endTime)}
+            </div>
+          )}
+
+          {/* LIVE badge + countdown */}
+          {liveNow && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
+              <span className="live-pill-task">🔴 LIVE</span>
+              {countdownText && <span className="countdown-text" style={{ fontSize: '0.72rem' }}>{countdownText}</span>}
+            </div>
+          )}
+        </div>
+
+        {/* Edit + Delete buttons — right side */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
+          <button
+            className="mini-btn"
+            onClick={onEdit}
+            disabled={liveNow && !doneHere}
+            style={liveNow && !doneHere ? { opacity: 0.4, cursor: "not-allowed", fontSize: '0.65rem' } : { fontSize: '0.65rem' }}
+          >✏️</button>
+          <button
+            className="mini-btn warn"
+            onClick={onDelete}
+            disabled={liveNow && !doneHere}
+            style={liveNow && !doneHere ? { opacity: 0.4, cursor: "not-allowed", fontSize: '0.65rem' } : { fontSize: '0.65rem' }}
+          >🗑</button>
+        </div>
+      </div>
+
+      {/* ── ROW 2: Priority + Reminder + Repeat badges ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, flexWrap: 'wrap', paddingLeft: 36 }}>
+        {/* Priority */}
+        <span className={`p-badge p-${goal.priority.toLowerCase()}`} style={{ fontSize: '0.65rem' }}>
+          {goal.priority === 'High' ? '🔴' : goal.priority === 'Medium' ? '🟡' : '🟢'} {goal.priority}
+        </span>
+
+        {/* Reminder */}
+        {goal.reminder && (
+          <span className="badge rem" style={{ fontSize: '0.65rem' }}>
+            ⏰ {new Date(`2000-01-01T${goal.reminder}:00`).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true }).toUpperCase()}
+          </span>
+        )}
+
+        {/* Repeat */}
+        {goal.repeat !== "None" && (
+          <span className="badge rep" style={{ fontSize: '0.65rem' }}>🔁 {goal.repeat}</span>
+        )}
+
+        {/* Select button — small, at end */}
         <button
           className={`pick-btn${selected ? " active" : ""}`}
           onClick={onToggleSelect}
+          style={{ marginLeft: 'auto', fontSize: '0.65rem', padding: '3px 8px' }}
         >
-          {selected ? "Sel" : "Pick"}
+          {selected ? "✓ Sel" : "Select"}
         </button>
-        <button className={`chk${doneHere ? " checked" : ""}`} onClick={onToggleDone}>
-          {doneHere && <span className="checkmark">✓</span>}
-        </button>
-        <div className={`goal-text${doneHere ? " done" : ""}`}>
-          {(() => {
-            const match = goal.text.match(/^(\p{Emoji_Presentation}|\p{Emoji}\uFE0F)(.*)/u);
-            if (match) {
-              return (
-                <>
-                  <span className="animated-emoji">{match[1]}</span>
-                  {match[2]}
-                </>
-              );
-            }
-            return goal.text;
-          })()}
-        </div>
-        <div className="goal-time-range">
-          {formatTimeRange(goal.startTime, goal.endTime)}
-        </div>
-        {liveNow && <span className="live-pill-task">LIVE</span>}
-        {liveNow && countdownText && (
-          <span className="countdown-text">{countdownText}</span>
-        )}
-        <span className={`p-badge p-${goal.priority.toLowerCase()}`}>
-          {goal.priority}
-        </span>
-        <button
-          className="mini-btn"
-          onClick={onEdit}
-          disabled={liveNow && !doneHere}
-          style={liveNow && !doneHere ? { opacity: 0.5, cursor: "not-allowed" } : {}}
-          title={liveNow && !doneHere ? "Strict Mode: Cannot edit an active task" : ""}
-        >
-          Edit
-        </button>
-        <button
-          className="mini-btn warn"
-          onClick={onDelete}
-          disabled={liveNow && !doneHere}
-          style={liveNow && !doneHere ? { opacity: 0.5, cursor: "not-allowed" } : {}}
-          title={liveNow && !doneHere ? "Strict Mode: Cannot delete an active task" : ""}
-        >
-          Delete
-        </button>
-      </div>
-      <div className="badges">
-        {goal.reminder && (
-          <span className="badge rem">
-            Reminder{" "}
-            {new Date(`2000-01-01T${goal.reminder}:00`)
-              .toLocaleTimeString("en-IN", {
-                hour: "2-digit",
-                minute: "2-digit",
-                hour12: true,
-              })
-              .toUpperCase()}
-          </span>
-        )}
-        {goal.repeat !== "None" && (
-          <span className="badge rep">Repeat {goal.repeat}</span>
-        )}
       </div>
     </div>
   );

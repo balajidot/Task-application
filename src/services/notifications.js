@@ -24,45 +24,47 @@ export async function requestNotificationPermission() {
   // --- CAPACITOR APK ---
   if (isCapacitor()) {
     try {
-      const { PushNotifications } = await import('@capacitor/push-notifications');
+      // ✅ FIX: Check LocalNotifications first (safer, no FCM needed)
       const { LocalNotifications } = await import('@capacitor/local-notifications');
+      const permResult = await LocalNotifications.requestPermissions();
+      
+      if (permResult.display === 'granted') {
+        // ✅ Only try PushNotifications if LocalNotifications worked
+        try {
+          const { PushNotifications } = await import('@capacitor/push-notifications');
+          const pushResult = await PushNotifications.requestPermissions();
+          if (pushResult.receive === 'granted') {
+            await PushNotifications.register().catch(() => {}); // don't crash if FCM fails
 
-      // Request push permission
-      const result = await PushNotifications.requestPermissions();
+            PushNotifications.addListener('registration', (token) => {
+              localStorage.setItem('fcmToken', token.value);
+            }).catch(() => {});
 
-      if (result.receive === 'granted') {
-        await PushNotifications.register();
+            PushNotifications.addListener('registrationError', () => {
+              // Silent fail — app should not crash
+            }).catch(() => {});
 
-        PushNotifications.addListener('registration', (token) => {
-          console.log('✅ FCM Token:', token.value);
-          localStorage.setItem('fcmToken', token.value);
-        });
+            PushNotifications.addListener('pushNotificationReceived', (notification) => {
+              console.log('📱 Push received:', notification);
+            }).catch(() => {});
 
-        PushNotifications.addListener('registrationError', (error) => {
-          console.error('FCM Registration error:', error);
-        });
-
-        PushNotifications.addListener('pushNotificationReceived', (notification) => {
-          console.log('📱 Push received:', notification);
-        });
-
-        PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
-          const taskId = action.notification.data?.taskId;
-          if (taskId) {
-            window.dispatchEvent(new CustomEvent('navigateToTask', {
-              detail: { taskId }
-            }));
+            PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+              const taskId = action.notification.data?.taskId;
+              if (taskId) {
+                window.dispatchEvent(new CustomEvent('navigateToTask', { detail: { taskId } }));
+              }
+            }).catch(() => {});
           }
-        });
-
-        // Also request local notification permission
-        await LocalNotifications.requestPermissions();
-
+        } catch {
+          // ✅ FIX: PushNotifications failure should NOT crash app
+          console.log('Push notifications unavailable — using local only');
+        }
         return 'granted';
       }
       return 'denied';
     } catch (error) {
-      console.error('Capacitor notification setup failed:', error);
+      // ✅ FIX: Complete safe fallback — never crash
+      console.log('Notification setup skipped:', error?.message || error);
       return 'denied';
     }
   }

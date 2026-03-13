@@ -161,6 +161,20 @@ export default function TasksView({
             <div className="tip">{liveClockLabel} • {done} of {total} completed</div>
           </div>
           <div className="head-actions">
+            {/* ✅ FIX: Focus Mode button — was NEVER calling setFocusMode(true) before! */}
+            <button
+              className="hero-btn"
+              onClick={() => setFocusMode(true)}
+              style={{
+                background: liveCurrentGoal ? 'linear-gradient(135deg,#10b981,#059669)' : 'var(--chip)',
+                color: liveCurrentGoal ? '#fff' : 'var(--muted)',
+                border: liveCurrentGoal ? 'none' : '1px solid var(--card-border)',
+                display: 'flex', alignItems: 'center', gap: 6
+              }}
+              title={liveCurrentGoal ? 'Enter Focus Mode for current task' : 'No active task right now'}
+            >
+              🎯 Focus
+            </button>
             <button className="new-btn" onClick={() => {
               setForm({ text: "", date: activeDate, reminder: "", startTime: "", endTime: "", repeat: "None", session: "Morning", priority: "Medium" });
               setEditingGoal(null);
@@ -194,7 +208,8 @@ export default function TasksView({
         </div>
       )}
 
-      {focusMode && liveCurrentGoal && <EnhancedFocusMode task={liveCurrentGoal} isActive={focusMode} onExit={() => setFocusMode(false)} />}
+      {/* ✅ FIX: Removed liveCurrentGoal condition — EnhancedFocusMode handles null task itself */}
+      {focusMode && <EnhancedFocusMode task={liveCurrentGoal} isActive={focusMode} onExit={() => setFocusMode(false)} />}
       <TaskCompletionCelebration isActive={showCelebration} onComplete={() => setShowCelebration(false)} />
       <DailyProductivityScore goals={goals} todayKey={todayKey()} />
 
