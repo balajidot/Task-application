@@ -29,7 +29,6 @@ export default async function handler(req, res) {
   }
 
   const { message, appData = {}, language = 'en' } = req.body || {};
-
   const outputLanguage = language === 'ta' ? 'Tamil' : 'English';
 
   const prompt = `You are an elite AI Productivity Coach. You have full access to the user's productivity data and app settings.
@@ -42,7 +41,6 @@ USER DATA ANALYSIS:
 
 APP SETTINGS:
 - Current Language: ${language}
-- (Assume other settings like Theme are available via commands)
 
 USER MESSAGE: "${message}"
 
@@ -60,53 +58,73 @@ INSTRUCTIONS:
 
 RESPONSE:`;
 
-  try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.8,
-            topP: 0.95,
-            maxOutputTokens: 1024,
-          },
-        }),
-        signal: AbortSignal.timeout(9000),
+  // Fallback Logic: Try 1.5-flash, then 1.0-pro
+  const models = [
+    { version: 'v1beta', name: 'gemini-1.5-flash' },
+    { version: 'v1beta', name: 'gemini-pro' }
+  ];
+
+  let lastError = null;
+
+  for (const model of models) {
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/${model.version}/models/${model.name}:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.8,
+              topP: 0.95,
+              maxOutputTokens: 1024,
+            },
+          }),
+          signal: AbortSignal.timeout(9000),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        lastError = data.error?.message || `Status ${response.status}`;
+        // If it's a "model not found" error, continue to next model
+        if (response.status === 404 || lastError.toLowerCase().includes('not found')) {
+          continue;
+        }
+        // For other errors (like 429), stop and report
+        return res.status(500).json({ error: 'Gemini API failed', message: lastError });
       }
-    );
 
-    if (!response.ok) {
-      const errData = await response.json();
-      return res.status(500).json({ 
-        error: 'Gemini API failed', 
-        status: response.status,
-        message: errData?.error?.message || 'Unknown Gemini error' 
-      });
-    }
-
-    const data = await response.json();
-    const aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "I'm sorry, I couldn't generate a response.";
-    
-    // Extract structured actions if present
-    let actions = [];
-    const actionsMatch = aiText.match(/<ACTIONS_JSON>([\s\S]*?)<\/ACTIONS_JSON>/);
-    if (actionsMatch) {
-      try {
-        const parsed = JSON.parse(actionsMatch[1].trim());
-        actions = Array.isArray(parsed) ? parsed : [parsed];
-      } catch (e) {
-        console.error('Failed to parse suggested actions:', e);
+      const aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "I'm sorry, I couldn't generate a response.";
+      
+      // Extract structured actions
+      let actions = [];
+      const actionsMatch = aiText.match(/<ACTIONS_JSON>([\s\S]*?)<\/ACTIONS_JSON>/);
+      if (actionsMatch) {
+        try {
+          const parsed = JSON.parse(actionsMatch[1].trim());
+          actions = Array.isArray(parsed) ? parsed : [parsed];
+        } catch (e) {
+          console.error('Failed to parse suggested actions:', e);
+        }
       }
+
+      const cleanText = aiText.replace(/<ACTIONS_JSON>[\s\S]*?<\/ACTIONS_JSON>/, '').trim();
+      return res.status(200).json({ response: cleanText, actions });
+
+    } catch (error) {
+      lastError = error.message;
+      if (error.name === 'TimeoutError' || error.message.includes('timeout')) {
+        return res.status(504).json({ error: 'Server Timeout', message: 'AI took too long to respond. Please try again.' });
+      }
+      continue; // Try next model on other fetch errors
     }
-
-    const cleanText = aiText.replace(/<ACTIONS_JSON>[\s\S]*?<\/ACTIONS_JSON>/, '').trim();
-
-    return res.status(200).json({ response: cleanText, actions });
-
-  } catch (error) {
-    return res.status(500).json({ error: 'Server error: ' + error.message });
   }
+
+  return res.status(500).json({ 
+    error: 'All Gemini models failed', 
+    message: lastError 
+  });
 }

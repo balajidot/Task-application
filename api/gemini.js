@@ -31,15 +31,7 @@ const FALLBACK_SCHEDULES = [
     '13:00 - 14:00 - Meetings or collaboration',
     '14:30 - 16:00 - High-focus execution sprint',
     '16:30 - 17:15 - Reflection and buffer time',
-  ],
-  [
-    '08:00 - 08:45 - Morning reset and planning',
-    '09:00 - 10:30 - Important task deep work',
-    '11:00 - 12:15 - Research and study block',
-    '13:15 - 14:00 - Inbox and checklist reset',
-    '14:15 - 15:45 - Build or practice session',
-    '16:00 - 17:00 - Review, tidy up, and prep next steps',
-  ],
+  ]
 ];
 
 function seedFromString(value) {
@@ -88,8 +80,8 @@ function sanitizeLines(text, existingTasks = []) {
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
+  res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
     res.status(200).end();
@@ -102,101 +94,73 @@ export default async function handler(req, res) {
 
   const rateLimit = enforceRateLimit(getClientKey(req));
   if (!rateLimit.allowed) {
-    return res.status(429).json({ error: 'Too many AI planning requests. Please try again in a few minutes.' });
+    return res.status(429).json({ error: 'Too many AI planning requests.' });
   }
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: 'GEMINI_API_KEY is not set in Vercel environment variables. Please add it to your project settings.' });
+    return res.status(500).json({ error: 'GEMINI_API_KEY is not set.' });
   }
 
   const { userName = 'Friend', existingTasks = [], recentTasks = [], date, context = '', language = 'en' } = req.body || {};
-
-  if (!Array.isArray(existingTasks) || !Array.isArray(recentTasks)) {
-    return res.status(400).json({ error: 'existingTasks and recentTasks must be arrays' });
-  }
-
-  if (typeof context !== 'string' || context.length > 2000) {
-    return res.status(400).json({ error: 'context must be a string under 2000 characters' });
-  }
-
   const todayDate = date || new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
   const seed = seedFromString(`${todayDate}:${userName}:${context}`);
   const suggestedThemes = shuffleWithSeed(TASK_BANK, seed).slice(0, 7);
-  const recentTaskText = recentTasks.map((task) => task?.text).filter(Boolean).join(', ');
   const existingTaskText = existingTasks.map((task) => task?.text).filter(Boolean).join(', ');
-
   const outputLanguage = language === 'ta' ? 'Tamil' : 'English';
-  const prompt = `You are an assistant that creates a neat, realistic, non-repetitive daily plan.
 
+  const prompt = `You are an assistant that creates a neat daily plan.
 User: ${userName}
 Date: ${todayDate}
 Already on the board: ${existingTaskText || 'No tasks yet'}
-Recently suggested before: ${recentTaskText || 'No recent suggestions'}
-Extra context from the user: ${context || 'None'}
 Output language: ${outputLanguage}
 
-Use this idea pool for variety, but do not repeat the exact same wording:
+Use this pool for variety:
 ${suggestedThemes.map((item) => `- ${item}`).join('\n')}
 
 Rules:
-1. Produce exactly 6 lines.
-2. Each line must be in this format only: HH:MM - HH:MM - Task description
-3. No bullets, no numbering, no markdown, no headings.
-4. Keep each task description short and natural.
-5. Do not repeat the same task wording across lines.
-6. Avoid copying the exact text from "Already on the board" or "Recently suggested before".
-7. Make the blocks practical and well-spaced between 08:00 and 18:30.
-8. Include at least one lighter block or break.
-9. Output only the 6 schedule lines.
-10. Task descriptions must be written in ${outputLanguage}.`;
+1. Produce exactly 6 lines in format: HH:MM - HH:MM - Task description
+2. Output ONLY the 6 schedule lines.
+3. Task descriptions must be in ${outputLanguage}.`;
 
-  try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 1,
-            topP: 0.95,
-            maxOutputTokens: 320,
-          },
-        }),
-        signal: AbortSignal.timeout(9000),
+  const models = [
+    { version: 'v1beta', name: 'gemini-1.5-flash' },
+    { version: 'v1beta', name: 'gemini-pro' }
+  ];
+
+  for (const model of models) {
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/${model.version}/models/${model.name}:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { temperature: 1, maxOutputTokens: 320 }
+          }),
+          signal: AbortSignal.timeout(9000),
+        }
+      );
+
+      const data = await response.json();
+      if (!response.ok) {
+        if (response.status === 404) continue;
+        break;
       }
-    );
 
-    if (!response.ok) {
-      const errData = await response.json();
-      return res.status(500).json({ 
-        error: 'Gemini API failed', 
-        status: response.status,
-        message: errData?.error?.message || 'Unknown Gemini error' 
-      });
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      const lines = sanitizeLines(text, existingTasks);
+      if (lines.length >= 4) return res.status(200).json({ schedule: lines.join('\n') });
+
+    } catch (e) {
+      continue;
     }
-
-    const data = await response.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    const lines = sanitizeLines(text, existingTasks);
-
-    if (lines.length >= 4) {
-      return res.status(200).json({ schedule: lines.join('\n') });
-    }
-
-    const fallback = pickFallback(todayDate, userName)
-      .filter((line) => !existingTasks.some((task) => line.toLowerCase().includes(String(task?.text || '').trim().toLowerCase())))
-      .slice(0, 6)
-      .map((line) => language === 'ta' ? translateFallbackLine(line) : line);
-
-    return res.status(200).json({ schedule: fallback.join('\n') });
-  } catch (error) {
-    console.error('Handler error:', error);
-    const fallback = pickFallback(todayDate, userName).map((line) => language === 'ta' ? translateFallbackLine(line) : line);
-    return res.status(200).json({ schedule: fallback.join('\n') });
   }
+
+  // Final Fallback if all AI fail
+  const fallback = pickFallback(todayDate, userName).map((line) => language === 'ta' ? translateFallbackLine(line) : line);
+  return res.status(200).json({ schedule: fallback.join('\n') });
 }
 
 function translateFallbackLine(line) {
@@ -212,11 +176,5 @@ function translateFallbackLine(line) {
     .replace('Revision and practice set', 'revision மற்றும் practice அமர்வு')
     .replace('Meetings or collaboration', 'கூட்டங்கள் அல்லது ஒத்துழைப்பு')
     .replace('High-focus execution sprint', 'உயர் கவன செயல்பாட்டு sprint')
-    .replace('Reflection and buffer time', 'reflection மற்றும் buffer நேரம்')
-    .replace('Morning reset and planning', 'காலை reset மற்றும் திட்டம்')
-    .replace('Important task deep work', 'முக்கிய பணிக்கான deep work')
-    .replace('Research and study block', 'research மற்றும் study block')
-    .replace('Inbox and checklist reset', 'inbox மற்றும் checklist reset')
-    .replace('Build or practice session', 'build அல்லது practice session')
-    .replace('Review, tidy up, and prep next steps', 'review, tidy up, அடுத்த படி தயாரிப்பு');
+    .replace('Reflection and buffer time', 'reflection மற்றும் buffer நேரம்');
 }

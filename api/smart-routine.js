@@ -20,88 +20,69 @@ export default async function handler(req, res) {
 
   const rateLimit = enforceRateLimit(getClientKey(req));
   if (!rateLimit.allowed) {
-    return res.status(429).json({ error: 'Too many AI planning requests. Please try again in a few minutes.' });
+    return res.status(429).json({ error: 'Too many requests.' });
   }
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: 'GEMINI_API_KEY is not set in Vercel environment variables. Please add it to your project settings.' });
+    return res.status(500).json({ error: 'GEMINI_API_KEY is not set.' });
   }
 
-  // Frontend-ல் இருந்து வரும் தரவுகள்
   const { userName, goals, flexibleBlocks, fixedRoutine } = req.body || {};
-  if (typeof goals !== 'string' && goals != null) {
-    return res.status(400).json({ error: 'goals must be a string when provided' });
-  }
-  if (typeof flexibleBlocks !== 'string' && flexibleBlocks != null) {
-    return res.status(400).json({ error: 'flexibleBlocks must be a string when provided' });
-  }
-  if (typeof fixedRoutine !== 'string' && fixedRoutine != null) {
-    return res.status(400).json({ error: 'fixedRoutine must be a string when provided' });
-  }
 
-  // AI-ஐக் கட்டுப்படுத்தும் மிகத் துல்லியமான Prompt
-  const prompt = `You are an elite productivity engineer. Your job is to fill the user's empty time blocks with highly productive tasks without touching their fixed schedule.
+  const prompt = `You are an elite productivity engineer. Fill the user's empty time blocks.
+USER: ${userName || 'The User'}
+GOALS: ${goals || 'Coding, Learning'}
+FIXED: ${fixedRoutine || 'Unknown'}
+EMPTY BLOCKS: ${flexibleBlocks || 'None'}
 
-USER PROFILE:
-- Name: ${userName || 'The User'}
-- Primary Goals: ${goals || 'Coding, Learning, Interview Prep'}
+Generate exactly ONE task for EACH flexible block.
+Return ONLY valid JSON array of objects inside <ROUTINE_JSON> tags.
+Format: [{"time_slot": "...", "task_title": "...", "why_it_matters": "..."}]`;
 
-CONSTRAINTS & RULES (READ CAREFULLY):
-1. The user has a strict fixed routine: ${fixedRoutine || 'Unknown'}. DO NOT suggest anything during these times.
-2. Here are the ONLY available empty time blocks: ${flexibleBlocks || 'None'}.
-3. Generate exactly ONE highly specific, deep-work task for EACH flexible block provided.
-4. The tasks MUST directly align with the User's Primary Goals.
-5. Return ONLY a valid JSON array of objects. Do not use markdown blocks like \`\`\`json. 
+  const models = [
+    { version: 'v1beta', name: 'gemini-1.5-flash' },
+    { version: 'v1beta', name: 'gemini-pro' }
+  ];
 
-EXPECTED JSON FORMAT:
-[
-  {
-    "time_slot": "10:00 - 12:00",
-    "task_title": "Build the Authentication API",
-    "why_it_matters": "Directly moves your coding project forward."
-  }
-]`;
+  let lastError = null;
 
-  try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.7,
-            responseMimeType: "application/json"
-          }
-        }),
-        signal: AbortSignal.timeout(9000)
+  for (const model of models) {
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/${model.version}/models/${model.name}:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.7,
+              responseMimeType: "application/json"
+            }
+          }),
+          signal: AbortSignal.timeout(9000)
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        lastError = data.error?.message || `Status ${response.status}`;
+        if (response.status === 404) continue;
+        break;
       }
-    );
 
-    if (!response.ok) {
-      const errData = await response.json();
-      return res.status(500).json({ 
-        error: 'Gemini API failed', 
-        status: response.status,
-        message: errData?.error?.message || 'Unknown Gemini error' 
-      });
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      const suggestedTasks = typeof text === 'string' ? JSON.parse(text) : text;
+
+      return res.status(200).json({ suggestions: suggestedTasks });
+
+    } catch (error) {
+      lastError = error.message;
+      continue;
     }
-
-    const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if (!text) {
-      return res.status(500).json({ error: 'Empty response' });
-    }
-
-    // AI அனுப்பிய JSON-ஐப் பாதுகாப்பாகப் பிரித்தெடுத்தல்
-    const suggestedTasks = JSON.parse(text);
-
-    return res.status(200).json({ suggestions: suggestedTasks });
-
-  } catch (error) {
-    return res.status(500).json({ error: 'Server error: ' + error.message });
   }
+
+  return res.status(500).json({ error: 'All models failed', message: lastError });
 }

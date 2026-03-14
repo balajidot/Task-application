@@ -49,39 +49,53 @@ INSTRUCTIONS:
 
 BRIEFING:`;
 
-  try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.9,
-            topP: 0.95,
-            maxOutputTokens: 200,
-          },
-        }),
-        signal: AbortSignal.timeout(9000),
+  const models = [
+    { version: 'v1beta', name: 'gemini-1.5-flash' },
+    { version: 'v1beta', name: 'gemini-pro' }
+  ];
+
+  let lastError = null;
+
+  for (const model of models) {
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/${model.version}/models/${model.name}:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.9,
+              topP: 0.95,
+              maxOutputTokens: 200,
+            },
+          }),
+          signal: AbortSignal.timeout(9000),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        lastError = data.error?.message || `Status ${response.status}`;
+        if (response.status === 404 || lastError.toLowerCase().includes('not found')) {
+          continue;
+        }
+        return res.status(500).json({ error: 'Gemini API failed', message: lastError });
       }
-    );
 
-    if (!response.ok) {
-      const errData = await response.json();
-      return res.status(500).json({ 
-        error: 'Gemini API failed', 
-        status: response.status,
-        message: errData?.error?.message || 'Unknown Gemini error' 
-      });
+      const briefing = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      return res.status(200).json({ briefing });
+
+    } catch (error) {
+      lastError = error.message;
+      if (error.name === 'TimeoutError' || error.message.includes('timeout')) {
+        return res.status(504).json({ error: 'Server Timeout', message: 'AI took too long to respond.' });
+      }
+      continue;
     }
-
-    const data = await response.json();
-    const briefing = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-
-    return res.status(200).json({ briefing });
-
-  } catch (error) {
-    return res.status(500).json({ error: error.message });
   }
+
+  return res.status(500).json({ error: 'All Gemini models failed', message: lastError });
 }

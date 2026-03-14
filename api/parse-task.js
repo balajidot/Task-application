@@ -49,45 +49,61 @@ INSTRUCTIONS:
 }
 </TASK_JSON>`;
 
-  try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.1,
-            topP: 0.95,
-            maxOutputTokens: 500,
-          },
-        }),
-        signal: AbortSignal.timeout(9000),
+  const models = [
+    { version: 'v1beta', name: 'gemini-1.5-flash' },
+    { version: 'v1beta', name: 'gemini-pro' }
+  ];
+
+  let lastError = null;
+
+  for (const model of models) {
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/${model.version}/models/${model.name}:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.1,
+              topP: 0.95,
+              maxOutputTokens: 500,
+            },
+          }),
+          signal: AbortSignal.timeout(9000),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        lastError = data.error?.message || `Status ${response.status}`;
+        if (response.status === 404 || lastError.toLowerCase().includes('not found')) {
+          continue;
+        }
+        return res.status(500).json({ error: 'Gemini API failed', message: lastError });
       }
-    );
 
-    if (!response.ok) {
-      const errData = await response.json();
-      return res.status(500).json({ 
-        error: 'Gemini API failed', 
-        status: response.status,
-        message: errData?.error?.message || 'Unknown Gemini error' 
-      });
+      const resultText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      const jsonMatch = resultText.match(/<TASK_JSON>([\s\S]*?)<\/TASK_JSON>/);
+      const parsedTask = jsonMatch ? JSON.parse(jsonMatch[1].trim()) : null;
+
+      if (!parsedTask) {
+        lastError = "Could not parse task JSON from AI response";
+        continue;
+      }
+
+      return res.status(200).json({ parsedTask });
+
+    } catch (error) {
+      lastError = error.message;
+      if (error.name === 'TimeoutError' || error.message.includes('timeout')) {
+        return res.status(504).json({ error: 'Server Timeout', message: 'AI took too long to respond.' });
+      }
+      continue;
     }
-
-    const data = await response.json();
-    const resultText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    const jsonMatch = resultText.match(/<TASK_JSON>([\s\S]*?)<\/TASK_JSON>/);
-    const parsedTask = jsonMatch ? JSON.parse(jsonMatch[1].trim()) : null;
-
-    if (!parsedTask) {
-      throw new Error('Could not parse task details');
-    }
-
-    return res.status(200).json({ parsedTask });
-
-  } catch (error) {
-    return res.status(500).json({ error: error.message });
   }
+
+  return res.status(500).json({ error: 'All Gemini models failed', message: lastError });
 }
