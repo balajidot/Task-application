@@ -23,6 +23,13 @@ export default function ChatAssistantView({ appLanguage, goals, habits, career, 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
+  
+  // Also scroll when keyboard opens
+  useEffect(() => {
+    const handleResize = () => scrollToBottom();
+    window.visualViewport?.addEventListener('resize', handleResize);
+    return () => window.visualViewport?.removeEventListener('resize', handleResize);
+  }, []);
 
   const handleSend = async (text) => {
     const userMsg = text || input;
@@ -99,7 +106,15 @@ export default function ChatAssistantView({ appLanguage, goals, habits, career, 
       ];
 
   return (
-    <div className="chat-view animate-fade-in" style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 160px)', maxWidth: '600px', margin: '0 auto', background: 'var(--bg)' }}>
+    <div className="chat-view animate-fade-in" style={{ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      height: 'calc(100vh - 160px - var(--keyboard-height, 0px))', 
+      maxWidth: '600px', 
+      margin: '0 auto', 
+      background: 'var(--bg)',
+      transition: 'height 0.2s ease-out'
+    }}>
       {/* Header */}
       <div style={{ padding: '16px', borderBottom: '1px solid var(--card-border)', background: 'var(--card)', borderRadius: '20px 20px 0 0', display: 'flex', alignItems: 'center', gap: '12px' }}>
         <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(135deg, #10b981, #3b82f6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>🤖</div>
