@@ -63,7 +63,7 @@ BRIEFING:`;
             maxOutputTokens: 200,
           },
         }),
-        signal: AbortSignal.timeout(15000),
+        signal: AbortSignal.timeout(9000),
       }
     );
 
