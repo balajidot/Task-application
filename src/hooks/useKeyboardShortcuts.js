@@ -1,7 +1,7 @@
-import { useEffect } from 'react';
+import React from 'react';
 
 const useKeyboardShortcuts = (shortcuts) => {
-  useEffect(() => {
+  React.useEffect(() => {
     const handleKeyDown = (event) => {
       // Check if user is typing in an input field
       if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {

@@ -23,6 +23,18 @@ export default function AnalyticsView({ setShowPomodoro, setShowImportExport, se
         </div>
       </div>
 
+      <div className="card story-card" style={{ background: 'linear-gradient(135deg, var(--bg-card), var(--bg-app))', border: '1px solid var(--accent)', position: 'relative', overflow: 'hidden' }}>
+        <div className="section-head">
+          <div className="focus-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span>✨</span> {copy.analytics.aiWeeklyStory || "Weekly AI Story"}
+          </div>
+        </div>
+        <div className="ai-story-content" style={{ fontSize: '1.1rem', lineHeight: '1.6', fontStyle: 'italic', color: 'var(--text)', padding: '12px 0' }}>
+          "{aiWeeklyAnalysis.weeklyStory}"
+        </div>
+        <div style={{ position: 'absolute', bottom: '-10px', right: '-10px', fontSize: '4rem', opacity: 0.05, transform: 'rotate(-15deg)' }}>📖</div>
+      </div>
+
       <Suspense fallback={<div className="skeleton-card"><div className="skeleton-title"></div><div className="skeleton-text"></div><div className="skeleton-text"></div><div className="skeleton-text"></div></div>}>
         <ProductivityAnalytics goals={goals} weeklyStats={weekly} />
       </Suspense>

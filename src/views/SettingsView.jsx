@@ -1,34 +1,45 @@
 import React, { useState, useCallback } from 'react';
 import { THEME_OPTIONS, FONT_OPTIONS, LANGUAGE_OPTIONS } from '../utils/constants';
+import { triggerHaptic } from '../hooks/useMobileFeatures';
 
 function Toggle({ value, onChange, color = '#10b981' }) {
+  const handleClick = (e) => {
+    e.stopPropagation();
+    if (typeof triggerHaptic === 'function') triggerHaptic('medium');
+    onChange(!value);
+  };
+
   return (
     <button
-      onClick={() => onChange(!value)}
+      onClick={handleClick}
       style={{
-        width: 52,
-        height: 28,
+        width: 58,
+        height: 32,
         borderRadius: 999,
         border: 'none',
         cursor: 'pointer',
-        background: value ? `linear-gradient(135deg, ${color}, ${color}cc)` : 'var(--card-border)',
+        background: value ? `linear-gradient(135deg, ${color}, ${color}cc)` : 'rgba(255,255,255,0.08)',
         position: 'relative',
-        transition: 'all 0.25s ease',
-        boxShadow: value ? `0 2px 8px ${color}55` : 'inset 0 1px 3px rgba(0,0,0,0.1)',
+        transition: 'all 0.4s cubic-bezier(0.23, 1, 0.32, 1)',
+        boxShadow: value ? `0 6px 15px ${color}33` : 'none',
+        padding: 0,
+        display: 'flex',
+        alignItems: 'center',
         flexShrink: 0,
       }}
     >
       <div
         style={{
-          width: 22,
-          height: 22,
+          width: 24,
+          height: 24,
           borderRadius: '50%',
           background: '#fff',
           position: 'absolute',
-          top: 3,
-          left: value ? 27 : 3,
-          transition: 'left 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-          boxShadow: '0 1px 4px rgba(0,0,0,0.18)',
+          top: 4,
+          left: value ? 30 : 4,
+          transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
+          boxShadow: '0 3px 8px rgba(0,0,0,0.25)',
+          transform: `scale(${value ? 1 : 0.95})`,
         }}
       />
     </button>
@@ -43,18 +54,19 @@ function SettingRow({ icon, title, subtitle, right, onClick, danger = false }) {
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: '13px 14px',
+        padding: '14px 16px',
         background: 'var(--chip)',
-        borderRadius: 12,
+        borderRadius: 14,
         border: `1px solid ${danger ? 'rgba(239,68,68,0.25)' : 'var(--card-border)'}`,
         cursor: onClick ? 'pointer' : 'default',
+        transition: 'background 0.2s ease',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-        <span style={{ fontSize: '1.2rem', flexShrink: 0 }}>{icon}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
+        <span style={{ fontSize: '1.25rem', flexShrink: 0, opacity: 0.9 }}>{icon}</span>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontWeight: 800, fontSize: '.92rem', color: danger ? '#ef4444' : 'var(--text)' }}>{title}</div>
-          {subtitle && <div style={{ fontSize: '.75rem', color: 'var(--muted)', marginTop: 2, fontWeight: 600 }}>{subtitle}</div>}
+          <div style={{ fontWeight: 800, fontSize: '.95rem', color: danger ? '#ef4444' : 'var(--text)', letterSpacing: '-0.01em' }}>{title}</div>
+          {subtitle && <div style={{ fontSize: '.78rem', color: 'var(--muted)', marginTop: 3, fontWeight: 600, lineHeight: 1.3 }}>{subtitle}</div>}
         </div>
       </div>
       {right && <div style={{ flexShrink: 0, marginLeft: 12 }}>{right}</div>}
@@ -64,11 +76,11 @@ function SettingRow({ icon, title, subtitle, right, onClick, danger = false }) {
 
 function Section({ title, children }) {
   return (
-    <div className="card" style={{ marginBottom: 0 }}>
-      <div style={{ fontSize: '0.7rem', fontWeight: 900, letterSpacing: '0.1em', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 12, paddingLeft: 2 }}>
+    <div className="card" style={{ marginBottom: 0, padding: '16px 12px' }}>
+      <div style={{ fontSize: '0.72rem', fontWeight: 900, letterSpacing: '0.08em', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 14, paddingLeft: 4, opacity: 0.8 }}>
         {title}
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {children}
       </div>
     </div>
@@ -116,6 +128,7 @@ export default function SettingsView({
     { label: 'Day/Night', value: 'time' },
   ];
 
+
   const saveName = () => {
     const name = tempName.trim();
     if (!name) return;
@@ -126,7 +139,13 @@ export default function SettingsView({
     setTimeout(() => setJustSaved(false), 2000);
   };
 
-  const notifLabel = notifPerm === 'granted' ? 'Enabled' : notifPerm === 'denied' ? 'Blocked in device settings' : 'Not enabled yet';
+  const isTamil = appLanguage === 'ta';
+  const notifLabel = notifPerm === 'granted' 
+    ? (isTamil ? 'அனுமதிக்கப்பட்டது' : 'Enabled') 
+    : notifPerm === 'denied' 
+      ? (isTamil ? 'அனுமதி மறுக்கப்பட்டது' : 'Blocked in settings') 
+      : (isTamil ? 'செயல்படுத்தப்படவில்லை' : 'Not enabled yet');
+  
   const notifColor = notifPerm === 'granted' ? '#10b981' : notifPerm === 'denied' ? '#ef4444' : '#f59e0b';
 
   const clearCompleted = useCallback(() => {
@@ -241,7 +260,22 @@ export default function SettingsView({
                 <div style={{ fontWeight: 800, fontSize: '.92rem', color: 'var(--text)' }}>Reminder Notifications</div>
                 <div style={{ fontSize: '.75rem', fontWeight: 700, marginTop: 3, color: notifColor }}>{notifLabel}</div>
               </div>
-              {notifPerm !== 'granted' ? <button onClick={() => requestNotifPerm?.()} className="new-btn">{copy.common.enable}</button> : <button className="mini-btn" onClick={onRefreshNotifications}>{copy.common.refresh}</button>}
+              {notifPerm === 'granted' ? (
+                <button className="mini-btn" onClick={onRefreshNotifications}>
+                  {isTamil ? 'புதுப்பி' : copy.common.refresh}
+                </button>
+              ) : notifPerm === 'denied' ? (
+                <button onClick={() => onOpenAppSettings?.()} className="new-btn" style={{ background: '#ef4444' }}>
+                  {isTamil ? 'அமைப்புகள்' : 'Settings'}
+                </button>
+              ) : (
+                <button onClick={() => {
+                  if (typeof triggerHaptic === 'function') triggerHaptic('medium');
+                  requestNotifPerm?.();
+                }} className="new-btn">
+                  {isTamil ? 'இயக்கு' : copy.common.enable}
+                </button>
+              )}
             </div>
           </div>
           <SettingRow icon="V" title="Haptic Feedback" subtitle="Vibration on key task actions" right={<Toggle value={hapticEnabled ?? true} onChange={(value) => setHapticEnabled?.(value)} color="#6366f1" />} />
@@ -256,7 +290,18 @@ export default function SettingsView({
               </select>
             }
           />
+          <div style={{ marginTop: 8, padding: '12px', background: 'rgba(59,130,246,0.05)', borderRadius: 10, border: '1px dashed rgba(59,130,246,0.3)' }}>
+             <div style={{ fontSize: '.72rem', fontWeight: 800, color: '#3b82f6', marginBottom: 8, textTransform: 'uppercase' }}>Troubleshooting</div>
+             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <button className="tool-btn" style={{ padding: '8px', fontSize: '.75rem' }} onClick={onRefreshNotifications}>Force Refresh Schedule</button>
+                <button className="tool-btn" style={{ padding: '8px', fontSize: '.75rem' }} onClick={onOpenAppSettings}>Open Device Settings</button>
+             </div>
+             <div style={{ fontSize: '.68rem', color: 'var(--muted)', marginTop: 8, fontWeight: 600 }}>
+                If reminders stop when app is closed, ensure "Exact Alarms" and "Unrestricted Battery" are enabled in App Settings.
+             </div>
+          </div>
         </Section>
+
 
         <Section title={copy.settings.theme}>
           <div style={{ padding: '12px 14px', background: 'var(--chip)', borderRadius: 12, border: '1px solid var(--card-border)' }}>

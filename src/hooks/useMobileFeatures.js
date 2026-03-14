@@ -3,7 +3,7 @@
 // Handles: Back button, Status bar, Safe area,
 //          Keyboard avoid, Haptic feedback, Tab swipe
 
-import { useEffect, useCallback, useRef } from "react";
+import React from "react";
 
 // ✅ Detect Capacitor (Android APK)
 const isCapacitor = () =>
@@ -42,15 +42,26 @@ async function setStatusBarColor(themeMode) {
     const { StatusBar, Style } = await import("@capacitor/status-bar");
 
     const colorMap = {
-      dark: "#0f0f1a",
+      dark: "#0b0f19",
+      midnight: "#08080e",
+      "ocean-dark": "#071318",
+      "cyber-neon": "#0a0a14",
+      "deep-purple": "#0e0a1a",
+      "emerald-night": "#071210",
+      "lavender-night": "#0f0d18",
+      "mocha-espresso": "#1a130e",
+      "graphite-lime": "#0f1520",
       light: "#ffffff",
-      "sunset-light": "#ffffff",
-      ocean: "#0a1628",
-      forest: "#0d1f0d",
+      "sunset-light": "#fef8f0",
+      "eye-comfort": "#f0f3da",
+      "forest-mist": "#eefcf5",
+      "rose-dawn": "#fff0f1",
+      "arctic-glass": "#f0f8ff",
+      "sakura-bloom": "#fff5f7",
     };
 
-    const color = colorMap[themeMode] || "#0f0f1a";
-    const isDark = !themeMode.includes("light");
+    const color = colorMap[themeMode] || (themeMode.includes("light") || themeMode.includes("bloom") || themeMode.includes("mist") || themeMode.includes("dawn") || themeMode.includes("comfort") ? "#ffffff" : "#0b0f19");
+    const isDark = !themeMode.includes("light") && !themeMode.includes("bloom") && !themeMode.includes("mist") && !themeMode.includes("dawn") && !themeMode.includes("comfort") && !themeMode.includes("glass");
 
     await StatusBar.setStyle({ style: isDark ? Style.Dark : Style.Light });
     await StatusBar.setBackgroundColor({ color });
@@ -114,24 +125,37 @@ function setupBackButton(activeView, setActiveView, setShowForm, setShowMoreMenu
     try {
       const { App } = await import("@capacitor/app");
       const listener = await App.addListener("backButton", ({ canGoBack }) => {
-        // If form is open → close form
-        setShowForm((prev) => {
-          if (prev) return false;
+        // 1. If form is open → close it
+        setShowForm((formOpen) => {
+          if (formOpen) return false;
 
-          // If more menu open → close menu
-          setShowMoreMenu((menuPrev) => {
-            if (menuPrev) return false;
+          // 2. If focus mode is open? (We need a way to track this if it's external, for now let's assume it's handled by other means or add a setter here if needed)
 
-            // If not on default tab → go to tasks
-            setActiveView((viewPrev) => {
-              if (viewPrev !== "tasks") return "tasks";
-              // On main tab → minimize app
-              App.minimizeApp();
-              return viewPrev;
-            });
-            return menuPrev;
+          // 3. If more menu is open → close it
+          let menuHandled = false;
+          setShowMoreMenu((menuOpen) => {
+            if (menuOpen) {
+              menuHandled = true;
+              return false;
+            }
+            return menuOpen;
           });
-          return prev;
+          if (menuHandled) return formOpen;
+
+          // 4. If not on tasks view → go to tasks
+          let viewHandled = false;
+          setActiveView((currentView) => {
+            if (currentView !== "tasks") {
+              viewHandled = true;
+              return "tasks";
+            }
+            return currentView;
+          });
+          if (viewHandled) return formOpen;
+
+          // 5. If on tasks view → minimize
+          App.minimizeApp();
+          return formOpen;
         });
       });
       cleanup = () => listener.remove();
@@ -156,44 +180,66 @@ const TAB_ORDER = [
   "goals",
 ];
 
+/**
+ * Enhanced global swipe-to-switch tabs.
+ * Consolidates directional logic, edge-zone protection, and interactive target rejection.
+ */
 export function useSwipeTabSwitcher(activeView, setActiveView) {
-  const touchStartX = useRef(null);
-  const touchStartY = useRef(null);
+  const touchStartX = React.useRef(null);
+  const touchStartY = React.useRef(null);
 
-  const handleTouchStart = useCallback((e) => {
+  const handleTouchStart = React.useCallback((e) => {
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
   }, []);
 
-  const handleTouchEnd = useCallback(
+  const handleTouchEnd = React.useCallback(
     (e) => {
-      if (touchStartX.current === null) return;
+      if (touchStartX.current === null || touchStartY.current === null) return;
 
-      const deltaX = e.changedTouches[0].clientX - touchStartX.current;
-      const deltaY = e.changedTouches[0].clientY - touchStartY.current;
+      const touchEndX = e.changedTouches[0].clientX;
+      const touchEndY = e.changedTouches[0].clientY;
+      const deltaX = touchStartX.current - touchEndX; // +ve = swipe left (finger moves left)
+      const deltaY = touchStartY.current - touchEndY;
+      const screenW = window.innerWidth;
+      const startX = touchStartX.current;
 
-      // ✅ FIX: Increased threshold 60→100px to prevent accidental tab switches
-      // Also require vertical delta to be small (< 40px) to avoid scroll conflicts
-      const SWIPE_THRESHOLD = 100;
-      if (Math.abs(deltaX) < SWIPE_THRESHOLD || Math.abs(deltaY) > 40 || Math.abs(deltaY) > Math.abs(deltaX) * 0.6) {
-        touchStartX.current = null;
-        return;
-      }
+      touchStartX.current = null;
+      touchStartY.current = null;
+
+      // 1. Edge Zone check: swipe must start in the middle 56% for gestures?
+      // Actually, standard is usually the middle area is for content, edges are for navigation.
+      // But the user's logic in App.jsx said: screenW * 0.22 (Edges only).
+      const EDGE = screenW * 0.22;
+      if (startX > EDGE && startX < screenW - EDGE) return;
+
+      // 2. Threshold
+      const THRESHOLD = 120;
+      if (Math.abs(deltaX) < THRESHOLD) return;
+
+      // 3. Horizontal check
+      if (Math.abs(deltaY) > Math.abs(deltaX) * 0.35) return;
+
+      // 4. Target check
+      const t = e.target;
+      if (
+        t.closest('.goal-item') || t.closest('.swipeable-task-container') ||
+        t.closest('.filters') || t.closest('.modal') || t.closest('.overlay') ||
+        t.closest('.live-strip') || t.closest('.tab-nav') || t.closest('.pomodoro-timer')
+      ) return;
 
       const currentIndex = TAB_ORDER.indexOf(activeView);
       if (currentIndex === -1) return;
 
-      if (deltaX < -SWIPE_THRESHOLD && currentIndex < TAB_ORDER.length - 1) {
-        // Swipe Left → Next tab
+      if (deltaX > THRESHOLD && currentIndex < TAB_ORDER.length - 1) {
+        // Finger moved left → Next tab
         triggerSelectionHaptic();
         setActiveView(TAB_ORDER[currentIndex + 1]);
-      } else if (deltaX > SWIPE_THRESHOLD && currentIndex > 0) {
-        // Swipe Right → Previous tab
+      } else if (deltaX < -THRESHOLD && currentIndex > 0) {
+        // Finger moved right → Previous tab
         triggerSelectionHaptic();
         setActiveView(TAB_ORDER[currentIndex - 1]);
       }
-
-      touchStartX.current = null;
     },
     [activeView, setActiveView]
   );
@@ -212,18 +258,18 @@ export function useMobileFeatures({
   setShowMoreMenu,
 }) {
   // Status bar color sync
-  useEffect(() => {
+  React.useEffect(() => {
     setStatusBarColor(themeMode);
   }, [themeMode]);
 
   // Keyboard avoid
-  useEffect(() => {
+  React.useEffect(() => {
     const cleanup = setupKeyboardAvoid();
     return cleanup;
   }, []);
 
   // Android back button
-  useEffect(() => {
+  React.useEffect(() => {
     const cleanup = setupBackButton(
       activeView,
       setActiveView,
@@ -234,7 +280,7 @@ export function useMobileFeatures({
   }, []);
 
   // Safe area meta tag (for notch/punch-hole screens)
-  useEffect(() => {
+  React.useEffect(() => {
     const meta = document.querySelector('meta[name="viewport"]');
     if (meta) {
       meta.setAttribute(

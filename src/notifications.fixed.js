@@ -237,6 +237,49 @@ export async function showAppNotification(title, options = {}) {
 
   return false;
 }
+export async function updateLiveActivityNotification(task, countdown) {
+  if (!isCapacitor()) return;
+  try {
+    const { LocalNotifications } = await import('@capacitor/local-notifications');
+    const notificationId = 9999; // Fixed ID for live activity
+
+    if (!task) {
+      await LocalNotifications.cancel({ notifications: [{ id: notificationId }] });
+      return;
+    }
+
+    await LocalNotifications.schedule({
+      notifications: [
+        {
+          title: `Active: ${task.text}`,
+          body: countdown || 'Task in progress',
+          id: notificationId,
+          channelId: TASK_CHANNEL_ID,
+          ongoing: true,
+          autoCancel: false,
+          silent: true,
+          schedule: { at: new Date(Date.now() + 100) },
+          extra: { taskId: task.id, type: 'live' }
+        }
+      ]
+    });
+  } catch (err) {
+    console.error('Live activity update failed:', err);
+  }
+}
+
+export async function clearAllNotifications() {
+  if (!isCapacitor()) return;
+  try {
+    const { LocalNotifications } = await import('@capacitor/local-notifications');
+    const pending = await LocalNotifications.getPending();
+    if (pending.notifications.length > 0) {
+      await LocalNotifications.cancel({ notifications: pending.notifications });
+    }
+  } catch (err) {
+    console.error('Clear all notifications failed:', err);
+  }
+}
 
 export async function scheduleTaskNotifications(tasks) {
   if (!isNotificationsSupported()) return;
@@ -260,7 +303,11 @@ export async function scheduleTaskNotifications(tasks) {
 
       const pending = await LocalNotifications.getPending();
       if (pending.notifications.length > 0) {
-        await LocalNotifications.cancel({ notifications: pending.notifications });
+        // Only cancel non-live notifications
+        const toCancel = pending.notifications.filter(n => n.id !== 9999);
+        if (toCancel.length > 0) {
+          await LocalNotifications.cancel({ notifications: toCancel });
+        }
       }
 
       const notifications = scheduledTaskEntries.flatMap(({ task, dateKey }) =>
@@ -268,7 +315,10 @@ export async function scheduleTaskNotifications(tasks) {
       );
 
       if (notifications.length > 0) {
-        await LocalNotifications.schedule({ notifications });
+        // Split into chunks of 50 to avoid OS limits
+        for (let i = 0; i < notifications.length; i += 50) {
+          await LocalNotifications.schedule({ notifications: notifications.slice(i, i + 50) });
+        }
       }
     } catch (error) {
       console.error('Capacitor schedule failed:', error);

@@ -1,5 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React from 'react';
 import { formatTimeRange, todayKey, timeToMinutes } from '../utils/helpers';
+import { triggerHaptic } from '../hooks/useMobileFeatures';
 
 const SwipeableTaskCard = ({ 
   goal, 
@@ -14,24 +15,23 @@ const SwipeableTaskCard = ({
   onToggleDone, 
   onEdit, 
   onDelete, 
-  onToggleSelect 
+  onToggleSelect
 }) => {
-  const [currentMins, setCurrentMins] = useState(() => {
+  const [currentMins, setCurrentMins] = React.useState(() => {
     const now = new Date();
     return now.getHours() * 60 + now.getMinutes();
   });
 
-  const [swipeOffset, setSwipeOffset] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
-  const [startX, setStartX] = useState(0);
+  const [swipeOffset, setSwipeOffset] = React.useState(0);
+  const [isDragging, setIsDragging] = React.useState(false);
+  const [startX, setStartX] = React.useState(0);
   
-  const cardRef = useRef(null);
-  // longPressTimer removed — TasksView handles long press via its own modal
+  const cardRef = React.useRef(null);
 
-  const SWIPE_THRESHOLD = 80;
-  const BUTTON_WIDTH = 80; 
+  const SWIPE_THRESHOLD = 80; 
+  const BUTTON_WIDTH = 100; 
 
-  useEffect(() => {
+  React.useEffect(() => {
     const interval = setInterval(() => {
       const now = new Date();
       setCurrentMins(now.getHours() * 60 + now.getMinutes());
@@ -46,24 +46,23 @@ const SwipeableTaskCard = ({
 
   const handleToggleDone = (e) => {
     e.stopPropagation();
+    if(typeof triggerHaptic==='function') triggerHaptic('medium');
     onToggleDone();
   };
-
-  // 🔥 FIX 1: Long press REMOVED from here — TasksView handles it via its own modal
-  // SwipeableTaskCard only handles swipe gestures (left=delete, right=complete/edit)
 
   const handleTouchStart = (e) => {
     setIsDragging(true);
     setStartX(e.touches[0].clientX);
     setSwipeOffset(0);
-    // NO long press timer here — parent TasksView handles long press
   };
 
   const handleTouchMove = (e) => {
     if (!isDragging) return;
     const currentX = e.touches[0].clientX;
-    const diff = currentX - startX;
-    const maxSwipe = BUTTON_WIDTH + 20;
+    const Diff = currentX - startX;
+    const friction = 0.4; 
+    const diff = Diff * friction;
+    const maxSwipe = BUTTON_WIDTH + 40;
     const clampedDiff = Math.max(-maxSwipe, Math.min(maxSwipe, diff));
     setSwipeOffset(clampedDiff);
   };
@@ -73,11 +72,14 @@ const SwipeableTaskCard = ({
     setIsDragging(false);
     if (Math.abs(swipeOffset) > SWIPE_THRESHOLD) {
       if (swipeOffset < 0) {
+        if(typeof triggerHaptic==='function') triggerHaptic('medium');
         onDelete();
       } else {
         if (doneHere) {
+          if(typeof triggerHaptic==='function') triggerHaptic('light');
           onEdit();
         } else {
+          if(typeof triggerHaptic==='function') triggerHaptic('medium');
           onToggleDone();
         }
       }
@@ -89,7 +91,6 @@ const SwipeableTaskCard = ({
     setIsDragging(true);
     setStartX(e.clientX);
     setSwipeOffset(0);
-    // NO long press timer here — parent TasksView handles long press
   };
 
   const handleMouseMove = (e) => {
@@ -118,7 +119,7 @@ const SwipeableTaskCard = ({
     setSwipeOffset(0);
   };
 
-  useEffect(() => {
+  React.useEffect(() => {
     const preventDefault = (e) => {
       if (isDragging && Math.abs(swipeOffset) > 10) {
         e.preventDefault();
@@ -132,46 +133,55 @@ const SwipeableTaskCard = ({
 
   const isGlowingLive = liveNow && !doneHere && !isOverdue;
 
+  // PREMIUM "MIDNIGHT SLATE" REFINED AESTHETIC
+  const cardBackground = `linear-gradient(165deg, color-mix(in srgb, var(--card) 95%, white 2%) 0%, var(--card) 100%)`;
+  const priorityColor = goal.priority === 'high' ? '#ff3b30' : goal.priority === 'medium' ? '#ff9500' : '#34c759';
+  const liveGlow = isGlowingLive ? `0 0 35px var(--accent-alpha, rgba(59, 130, 246, 0.6))` : '0 8px 30px rgba(0,0,0,0.4)';
+
   return (
     <div 
       className="swipeable-task-container" 
       style={{ 
         position: 'relative', 
         marginBottom: '12px',
-        borderRadius: '12px',
+        borderRadius: '24px',
         overflow: 'hidden', 
-        boxShadow: selected ? '0 4px 15px rgba(59, 130, 246, 0.2)' : '0 2px 8px rgba(0,0,0,0.04)'
+        background: 'transparent'
       }}
     >
-      <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '50%', background: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', paddingLeft: '24px', zIndex: 1 }}>
-        <span style={{ color: 'white', fontSize: '20px', fontWeight: 'bold' }}>{doneHere ? '✏️ Edit' : '✓ Complete'}</span>
+      {/* Action Backgrounds (Revealed on Swipe) */}
+      <div 
+        style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '100%', background: 'linear-gradient(90deg, #34c759, #28a745)', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', paddingLeft: '40px', zIndex: 1, opacity: Math.min(1, swipeOffset / 40) }}
+      >
+        <span style={{ fontSize: '28px' }}>{doneHere ? '✏️' : '✅'}</span>
       </div>
 
-      <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '50%', background: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: '24px', zIndex: 1 }}>
-        <span style={{ color: 'white', fontSize: '20px', fontWeight: 'bold' }}>🗑️ Delete</span>
+      <div 
+        style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '100%', background: 'linear-gradient(270deg, #ff3b30, #d63031)', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: '40px', zIndex: 1, opacity: Math.min(1, -swipeOffset / 40) }}
+      >
+        <span style={{ fontSize: '28px' }}>🗑️</span>
       </div>
 
+      {/* Main Card */}
       <div
         ref={cardRef}
-        className={`goal-item ${pulse ? "pulse " : ""}${celebrate ? "celebrate " : ""}${isGlowingLive ? "live-glowing-card" : ""}`}
+        className={`premium-slate-card ${pulse ? "pulse " : ""}${celebrate ? "celebrate " : ""}${isGlowingLive ? "live-glowing " : ""}`}
         style={{
           transform: `translateX(${swipeOffset}px)`,
-          transition: isDragging ? 'none' : 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+          transition: isDragging ? 'none' : 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
           cursor: isDragging ? 'grabbing' : 'grab',
           userSelect: 'none',
-          animationDelay: `${idx * 35}ms`,
           position: 'relative',
-          zIndex: 2,
-          backgroundColor: 'var(--card)', 
-          backgroundImage: isOverdue 
-            ? 'linear-gradient(90deg, rgba(239, 68, 68, 0.08) 0%, rgba(239, 68, 68, 0.02) 100%)' 
-            : (selected ? 'linear-gradient(90deg, rgba(59, 130, 246, 0.08) 0%, rgba(59, 130, 246, 0.02) 100%)' : 'none'),
-          border: isOverdue ? '1.5px solid rgba(239, 68, 68, 0.5)' : (selected ? '1.5px solid #3b82f6' : '1px solid var(--card-border)'),
-          borderRadius: '12px',
-          padding: '14px',
+          background: cardBackground,
+          borderRadius: '24px',
+          border: isGlowingLive ? `2.5px solid var(--accent)` : (selected ? '2px solid var(--accent)' : '1.5px solid var(--card-border)'),
+          padding: '28px 20px',
           display: 'flex',
           width: '100%',
-          boxSizing: 'border-box'
+          boxSizing: 'border-box',
+          zIndex: 2,
+          alignItems: 'center',
+          boxShadow: isGlowingLive ? liveGlow : (selected ? `0 12px 40px color-mix(in srgb, var(--accent) 30%, transparent)` : '0 8px 30px rgba(0,0,0,0.3)'),
         }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
@@ -181,91 +191,160 @@ const SwipeableTaskCard = ({
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
       >
-        
-        <div style={{ display: 'flex', gap: '12px', width: '100%', alignItems: 'flex-start' }}>
-          
-          <div style={{ display: 'flex', flexShrink: 0, marginTop: '2px' }}>
-            <button 
-              className={`chk${doneHere ? " checked" : ""}`} 
-              onClick={handleToggleDone} 
-              onPointerDown={(e) => e.stopPropagation()} 
-              onTouchStart={(e) => e.stopPropagation()}
-              onMouseDown={(e) => e.stopPropagation()}
+        {/* Left Section: Dot + Checkbox */}
+        <div style={{ display: 'flex', alignItems: 'center', marginRight: '20px', flexShrink: 0 }}>
+          <div style={{
+            width: '8px',
+            height: '8px',
+            borderRadius: '50%',
+            background: priorityColor,
+            marginRight: '14px',
+            boxShadow: `0 0 10px ${priorityColor}88`
+          }} />
+          <button 
+            className={`chk${doneHere ? " checked" : ""}`} 
+            onClick={handleToggleDone} 
+            onPointerDown={(e) => e.stopPropagation()} 
+            onTouchStart={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            style={{ width: '28px', height: '28px' }}
+          >
+            {doneHere && <span className="checkmark" style={{ fontSize: '14px' }}>✓</span>}
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, gap: '4px' }}>
+          {/* Title Area */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%' }}>
+            <div 
+              className={`goal-text${doneHere ? " done" : ""}`} 
+              style={{ 
+                margin: 0, 
+                fontSize: '2.8rem', 
+                lineHeight: '1.2', 
+                fontWeight: 1000, 
+                color: doneHere ? 'var(--muted)' : 'var(--text)', 
+                letterSpacing: '-0.04em',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}
             >
-              {doneHere && <span className="checkmark">✓</span>}
-            </button>
+              {(() => {
+                const match = goal.text.match(/^(\p{Emoji_Presentation}|\p{Emoji}\uFE0F)(.*)/u);
+                if (match) {
+                  return (
+                    <>
+                      <span className={isGlowingLive ? "animated-emoji-v6" : ""} style={{ marginRight: '10px', display: 'inline-block' }}>{match[1]}</span>
+                      {match[2]}
+                    </>
+                  );
+                }
+                return goal.text;
+              })()}
+            </div>
           </div>
+          
+          {/* Metadata Area: Time + Reminder */}
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ 
+              display: 'inline-flex', 
+              padding: '4px 12px', 
+              fontSize: '0.78rem', 
+              fontWeight: 900,
+              borderRadius: '12px',
+              background: 'var(--chip)',
+              color: 'var(--muted)',
+              border: '1px solid var(--card-border)'
+            }}>
+              {formatTimeRange(goal.startTime, goal.endTime)}
+            </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, overflow: 'hidden' }}>
-            
-            {/* ROW 1: Title & Actions */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-              <div className={`goal-text${doneHere ? " done" : ""}`} style={{ margin: 0, fontSize: '16px', lineHeight: '1.3' }}>
-                {(() => {
-                  const match = goal.text.match(/^(\p{Emoji_Presentation}|\p{Emoji}\uFE0F)(.*)/u);
-                  if (match) {
-                    return (
-                      <>
-                        <span className="animated-emoji">{match[1]}</span>
-                        {match[2]}
-                      </>
-                    );
-                  }
-                  return goal.text;
-                })()}
+            {goal.reminder && (
+              <div style={{ 
+                display: 'inline-flex', 
+                padding: '4px 12px', 
+                fontSize: '0.78rem', 
+                fontWeight: 900,
+                borderRadius: '12px',
+                background: 'rgba(245, 158, 11, 0.12)',
+                color: '#f59e0b',
+                border: '1px solid rgba(245, 158, 11, 0.2)',
+                alignItems: 'center',
+                gap: '6px'
+              }}>
+                <span style={{ fontSize: '12px' }}>🔔</span>
+                {new Date(`2000-01-01T${goal.reminder}:00`).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })}
               </div>
-              
-              <div className="desktop-actions" style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
-                <button className="mini-btn" onClick={(e) => { e.stopPropagation(); onEdit(); }}>Edit</button>
-                <button className="mini-btn warn" onClick={(e) => { e.stopPropagation(); onDelete(); }}>Delete</button>
-              </div>
-            </div>
-
-            {/* ROW 2: Time Range & Live Status */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
-              <span className="goal-time-range" style={{ padding: '0 8px', fontSize: '0.75rem', height: '24px', display: 'inline-flex', alignItems: 'center', margin: 0, borderRadius: '6px', opacity: 0.9 }}>
-                {formatTimeRange(goal.startTime, goal.endTime)}
-              </span>
-              
-              {liveNow && !isOverdue && !doneHere && <span className="live-pill-task" style={{ fontSize: '0.7rem', padding: '0 8px', height: '24px', display: 'inline-flex', alignItems: 'center', margin: 0 }}>LIVE</span>}
-              {liveNow && !isOverdue && !doneHere && countdownText && <span className="countdown-text" style={{ fontSize: '0.7rem', padding: '0 8px', height: '24px', display: 'inline-flex', alignItems: 'center', margin: 0 }}>{countdownText}</span>}
-            </div>
-
-            {/* ROW 3: PERFECTLY ALIGNED BADGES (Priority, Reminder, Repeat) */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
-              <span className={`p-badge p-${(goal.priority || "Medium").toLowerCase()}`} style={{ fontSize: '0.7rem', padding: '0 10px', height: '24px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', margin: 0, borderRadius: '6px' }}>
-                {goal.priority || "Medium"}
-              </span>
-              
-              {goal.reminder && (
-                <span className="badge rem" style={{ fontSize: '0.7rem', padding: '0 10px', height: '24px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', margin: 0, borderRadius: '6px', backgroundColor: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
-                  ⏰ {new Date(`2000-01-01T${goal.reminder}:00`).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true }).toUpperCase()}
-                </span>
-              )}
-              
-              {goal.repeat && goal.repeat !== "None" && (
-                <span className="badge rep" style={{ fontSize: '0.7rem', padding: '0 10px', height: '24px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', margin: 0, borderRadius: '6px', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
-                  🔁 {goal.repeat}
-                </span>
-              )}
-            </div>
-
+            )}
           </div>
         </div>
 
+        {/* Right Area: Live Badge + Edit Button */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
+          {isGlowingLive && (
+            <div style={{ 
+              background: 'var(--accent)',
+              color: '#fff',
+              fontSize: '0.68rem',
+              fontWeight: 1000,
+              padding: '6px 12px',
+              borderRadius: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              boxShadow: `0 4px 12px var(--accent-alpha, rgba(59, 130, 246, 0.4))`
+            }}>
+              LIVE <span className="live-dot-pulse" />
+            </div>
+          )}
+          <button 
+            onClick={(e) => { e.stopPropagation(); onEdit(); }}
+            className="card-edit-btn-v6"
+            style={{
+              background: 'var(--chip)',
+              border: '1.5px solid var(--card-border)',
+              borderRadius: '16px',
+              padding: '12px',
+              cursor: 'pointer',
+              display: 'flex',
+              color: 'var(--text)',
+              transition: 'all 0.2s',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+            }}
+          >
+            <span style={{ fontSize: '20px' }}>✏️</span>
+          </button>
+        </div>
+
         <style dangerouslySetInnerHTML={{__html: `
-          @keyframes pulseGlowTask {
-            0% { box-shadow: 0 0 5px rgba(16, 185, 129, 0.2); border-color: rgba(16, 185, 129, 0.3); }
-            50% { box-shadow: 0 0 15px rgba(16, 185, 129, 0.6); border-color: rgba(16, 185, 129, 1); }
-            100% { box-shadow: 0 0 5px rgba(16, 185, 129, 0.2); border-color: rgba(16, 185, 129, 0.3); }
+          .live-dot-pulse {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: #fff;
+            animation: live-blink 1s infinite;
           }
-          .live-glowing-card {
-            animation: pulseGlowTask 2.5s infinite ease-in-out !important;
-            background-image: linear-gradient(90deg, rgba(16, 185, 129, 0.08) 0%, rgba(16, 185, 129, 0.01) 100%) !important;
+          @keyframes live-blink {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.8); }
           }
-          @media (max-width: 768px) {
-            .desktop-actions { display: none !important; }
+          .animated-emoji-v6 {
+            animation: emoji-bounce-v6 2s infinite ease-in-out;
+            display: inline-block;
           }
+          @keyframes emoji-bounce-v6 {
+            0%, 100% { transform: translateY(0) rotate(0); }
+            50% { transform: translateY(-3px) rotate(5deg); }
+          }
+          .premium-slate-card.pulse { animation: card-pulse 0.4s ease; }
+          @keyframes card-pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+          }
+          .card-edit-btn-v6:active { transform: scale(0.9); }
+          .card-edit-btn-v6:hover { background: var(--card-border); }
         `}} />
       </div>
     </div>

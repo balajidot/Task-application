@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React from 'react';
 import SwipeableTaskCard from '../components/SwipeableTaskCard';
 import TaskProgressIndicator from '../components/TaskProgressIndicator';
 import EnhancedFocusMode from '../components/EnhancedFocusMode';
@@ -19,15 +19,17 @@ export default function TasksView({
   completedPulseId, celebratingGoalId, toggleDoneWithCelebration, removeGoal, toggleSelectGoal,
   markAllPendingDone, duplicatePendingToTomorrow, reopenAllCompleted
 }) {
-  const [completedTasksCollapsed, setCompletedTasksCollapsed] = useState(false);
-  const [liveStripVisible, setLiveStripVisible] = useState(true);
-  const [stripSwipeX, setStripSwipeX] = useState(0);
-  const [actionTask, setActionTask] = useState(null);
+  const [completedTasksCollapsed, setCompletedTasksCollapsed] = React.useState(false);
+  const [liveStripVisible, setLiveStripVisible] = React.useState(true);
+  const [stripSwipeX, setStripSwipeX] = React.useState(0);
+  const [actionTask, setActionTask] = React.useState(null);
+  const [modalPos, setModalPos] = React.useState({ x: 0, y: 0 });
 
-  const stripStartX = useRef(0);
-  const longPressTimer = useRef(null);
+  const stripStartX = React.useRef(0);
+  const longPressTimer = React.useRef(null);
+  const touchCoords = React.useRef({ x: 0, y: 0 });
 
-  const sevenDays = useMemo(() => {
+  const sevenDays = React.useMemo(() => {
     const base = new Date(weekBase);
     const day = base.getDay();
     const monday = new Date(base);
@@ -40,11 +42,11 @@ export default function TasksView({
     });
   }, [weekBase]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     setLiveStripVisible(true);
   }, [liveCurrentGoal?.id]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (!liveHighlightEnabled || !liveCurrentGoal?.id || activeDate !== todayKey()) return;
     const timer = window.setTimeout(() => {
       const element = document.querySelector(`[data-task-id="${liveCurrentGoal.id}"]`);
@@ -66,9 +68,14 @@ export default function TasksView({
     else setStripSwipeX(0);
   };
 
-  const startLongPress = (goal) => {
+  const startLongPress = (event, goal) => {
+    const touch = event.touches ? event.touches[0] : event;
+    const coords = { x: touch.clientX, y: touch.clientY };
+    touchCoords.current = coords;
+
     longPressTimer.current = setTimeout(() => {
       if (window.navigator?.vibrate) window.navigator.vibrate(50);
+      setModalPos(coords);
       setActionTask(goal);
     }, 450);
   };
@@ -85,16 +92,15 @@ export default function TasksView({
         touchAction: 'pan-y',
         userSelect: 'none',
         WebkitUserSelect: 'none',
-        borderRadius: '16px',
-        transform: liveCurrentGoal?.id === goal.id ? 'scale(1.01)' : 'none',
-        boxShadow: liveCurrentGoal?.id === goal.id ? '0 0 0 2px rgba(16,185,129,0.45), 0 18px 38px rgba(16,185,129,0.18)' : 'none',
-        transition: 'transform 0.2s ease',
+        borderRadius: '18px',
+        transform: liveCurrentGoal?.id === goal.id ? 'scale(1.02)' : 'none',
+        transition: 'transform 0.4s cubic-bezier(0.2, 1, 0.2, 1)',
       }}
-      onTouchStart={() => startLongPress(goal)}
+      onTouchStart={(e) => startLongPress(e, goal)}
       onTouchMove={clearLongPress}
       onTouchEnd={clearLongPress}
       onTouchCancel={clearLongPress}
-      onMouseDown={() => startLongPress(goal)}
+      onMouseDown={(e) => startLongPress(e, goal)}
       onMouseMove={clearLongPress}
       onMouseUp={clearLongPress}
       onMouseLeave={clearLongPress}
@@ -133,9 +139,22 @@ export default function TasksView({
   return (
     <div className="view-transition tasks-shell" style={{ animation: 'viewFadeIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) both', position: 'relative' }}>
       {actionTask && (
-        <div className="overlay" onClick={() => setActionTask(null)} style={{ zIndex: 100000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="modal" onClick={(event) => event.stopPropagation()} style={{ width: '90%', maxWidth: '380px', padding: '24px', textAlign: 'center', borderRadius: '20px' }}>
-            <div style={{ fontSize: '1.3rem', fontWeight: 900, marginBottom: '8px', color: 'var(--text)' }}>
+        <div className="overlay" onClick={() => setActionTask(null)} style={{ zIndex: 100000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)' }}>
+          <div className="modal" onClick={(event) => event.stopPropagation()} style={{ 
+            width: '90%', 
+            maxWidth: '340px', 
+            padding: '20px', 
+            textAlign: 'center', 
+            borderRadius: '24px',
+            background: 'var(--card-bg)',
+            border: '1px solid var(--card-border)',
+            boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
+            position: 'absolute',
+            left: `${Math.min(window.innerWidth - 350, Math.max(10, modalPos.x - 170))}px`,
+            top: `${Math.min(window.innerHeight - 400, Math.max(10, modalPos.y - 100))}px`,
+            animation: 'modalSlideUp 0.3s cubic-bezier(0.2, 1, 0.2, 1)'
+          }}>
+            <div style={{ fontSize: '1.2rem', fontWeight: 1000, marginBottom: '6px', color: 'var(--text)', letterSpacing: '-0.02em' }}>
               {copy.tasksView.taskActions}
             </div>
             <div style={{ fontSize: '0.9rem', color: 'var(--muted)', marginBottom: '24px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -219,7 +238,7 @@ export default function TasksView({
         </div>
       </div>
 
-      <div className="card tasks-panel" style={{ marginTop: 12 }}>
+      <div className="card tasks-panel" style={{ marginTop: 8 }}>
         <div className="tasks-panel-head">
           <div className="focus-title">{copy.tasksView.aiCoach}</div>
           <div className="task-summary-chip">
@@ -227,18 +246,24 @@ export default function TasksView({
             <strong>{liveHighlightEnabled ? copy.common.on : copy.common.off}</strong>
           </div>
         </div>
-        <div className="ai-briefing-grid">
+        <div className="ai-briefing-grid-v6">
           <div className="ai-briefing-card">
             <div className="ai-briefing-label">Focus</div>
-            <div className="ai-briefing-text">{aiBriefing.headline}</div>
+            <div className="ai-briefing-text" style={{ fontSize: '0.85rem' }}>{aiBriefing.headline}</div>
           </div>
           <div className="ai-briefing-card">
             <div className="ai-briefing-label">Risk</div>
-            <div className="ai-briefing-text">{aiBriefing.risk}</div>
+            <div className="ai-briefing-text" style={{ fontSize: '0.85rem' }}>{aiBriefing.risk}</div>
           </div>
           <div className="ai-briefing-card">
             <div className="ai-briefing-label">Suggestion</div>
-            <div className="ai-briefing-text">{aiBriefing.suggestion}</div>
+            <div className="ai-briefing-text" style={{ fontSize: '0.85rem' }}>{aiBriefing.suggestion}</div>
+          </div>
+          <div className="ai-briefing-card" style={{ background: 'rgba(59, 130, 246, 0.05)', border: '1px solid rgba(59, 130, 246, 0.1)' }}>
+            <div className="ai-briefing-label" style={{ color: '#3b82f6' }}>Progress</div>
+            <div className="ai-briefing-text" style={{ fontSize: '1.1rem', fontWeight: 900, color: 'var(--text)' }}>
+              {pct}% <span style={{ fontSize: '0.7rem', fontWeight: 600, opacity: 0.6 }}>Day Done</span>
+            </div>
           </div>
         </div>
         {activeDate !== todayKey() && liveCurrentGoal && (
@@ -251,7 +276,7 @@ export default function TasksView({
       {liveCurrentGoal && liveStripVisible && (
         <div
           className="live-strip enhanced-live-strip"
-          style={{ transform: `translateX(${stripSwipeX}px)`, opacity: 1 - (Math.abs(stripSwipeX) / 150), transition: stripSwipeX === 0 ? 'transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.4s ease' : 'none', position: 'relative', touchAction: 'pan-y' }}
+          style={{ transform: `translateX(${stripSwipeX}px)`, opacity: 1 - (Math.abs(stripSwipeX) / 150), transition: stripSwipeX === 0 ? 'transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.4s ease' : 'none', position: 'relative', touchAction: 'pan-y', marginTop: '4px' }}
           onTouchStart={handleStripTouchStart}
           onTouchMove={handleStripTouchMove}
           onTouchEnd={handleStripTouchEnd}
@@ -347,31 +372,54 @@ export default function TasksView({
       </div>
 
       <div className="card tasks-panel">
-        <div className="tasks-panel-head">
-          <div className="tasks-filter-stack">
-            <div className="focus-title">{copy.tasksView.todayTasks}</div>
-            <div className="filters">
-              <button className={`filter-btn ${priorityFilter === 'All' ? 'active' : ''}`} onClick={() => setPriorityFilter('All')}>All</button>
-              {PRIORITY_OPTIONS.map((priority) => (
-                <button key={priority} className={`filter-btn ${priorityFilter === priority ? 'active' : ''}`} onClick={() => setPriorityFilter(priority)}>
-                  {priority}
-                </button>
-              ))}
-              <button className={`filter-btn ${timeFilter === 'All Times' ? 'active' : ''}`} onClick={() => setTimeFilter('All Times')}>All Times</button>
-              {TIME_FILTER_OPTIONS.slice(1).map((filter) => (
-                <button key={filter} className={`filter-btn ${timeFilter === filter ? 'active' : ''}`} onClick={() => setTimeFilter(filter)}>
-                  {filter}
-                </button>
-              ))}
+        <div className="tasks-panel-head" style={{ marginBottom: '16px', flexDirection: 'column', alignItems: 'stretch', gap: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="focus-title" style={{ margin: 0 }}>{copy.tasksView.todayTasks}</div>
+            <div className="task-summary-chip-v6" style={{ background: 'rgba(255,255,255,0.04)', padding: '6px 12px', borderRadius: '10px', display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+              <span style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{copy.tasksView.focusedToday}</span>
+              <strong style={{ fontSize: '1rem', color: 'var(--text)' }}>{total}</strong>
             </div>
           </div>
-          <div className="task-summary-chip">
-            <span>{copy.tasksView.focusedToday}</span>
-            <strong>{total}</strong>
+          
+          <div className="filters-scroll-v6" style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px', msOverflowStyle: 'none', scrollbarWidth: 'none' }}>
+            <button className={`filter-btn ${priorityFilter === 'All' ? 'active' : ''}`} onClick={() => setPriorityFilter('All')}>All</button>
+            {PRIORITY_OPTIONS.map((priority) => (
+              <button key={priority} className={`filter-btn ${priorityFilter === priority ? 'active' : ''}`} onClick={() => setPriorityFilter(priority)}>
+                {priority}
+              </button>
+            ))}
+            <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)', margin: '4px 4px' }} />
+            <button className={`filter-btn ${timeFilter === 'All Times' ? 'active' : ''}`} onClick={() => setTimeFilter('All Times')}>All Times</button>
+            {TIME_FILTER_OPTIONS.slice(1).map((filter) => (
+              <button key={filter} className={`filter-btn ${timeFilter === filter ? 'active' : ''}`} onClick={() => setTimeFilter(filter)}>
+                {filter}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ position: 'relative' }}>
+            <input 
+              ref={searchRef} 
+              type="text" 
+              className="search-input-v6" 
+              placeholder={copy.tasksView.searchPlaceholder} 
+              value={searchTerm} 
+              onChange={(event) => setSearchTerm(event.target.value)} 
+              style={{
+                width: '100%',
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid rgba(255,255,255,0.06)',
+                borderRadius: '12px',
+                padding: '12px 14px 12px 40px',
+                color: 'var(--text)',
+                fontSize: '0.9rem',
+                outline: 'none',
+                transition: 'border 0.2s'
+              }}
+            />
+            <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }}>🔍</span>
           </div>
         </div>
-
-        <input ref={searchRef} type="text" className="search-input" placeholder={copy.tasksView.searchPlaceholder} value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} />
 
         <div className="pending-tasks-section tasks-section">
           <div className="section-head"><div className="section-title-sm">{copy.tasksView.pendingTasks} ({pendingGoals.length})</div></div>
@@ -389,6 +437,34 @@ export default function TasksView({
 
               <div className="goal-list tasks-list" key={`pending-${activeDate}`} style={{ animation: 'viewFadeIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) both' }}>
                 {pendingGoals.map((goal, idx) => renderTaskItem(goal, idx, false))}
+                
+                {/* Ghost Card for New Task */}
+                <div 
+                  onClick={() => {
+                    setForm({ text: '', date: activeDate, reminder: '', startTime: '', endTime: '', repeat: 'None', session: 'Morning', priority: 'Medium' });
+                    setEditingGoal(null);
+                    setShowForm(true);
+                  }}
+                  style={{
+                    padding: '16px',
+                    borderRadius: '18px',
+                    border: '2px dashed rgba(255,255,255,0.08)',
+                    background: 'rgba(255,255,255,0.02)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '12px',
+                    cursor: 'pointer',
+                    marginTop: '8px',
+                    transition: 'all 0.2s'
+                  }}
+                  className="ghost-add-task-v2"
+                >
+                  <span style={{ fontSize: '20px', color: 'var(--muted)' }}>+</span>
+                  <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--muted)', letterSpacing: '0.02em' }}>
+                    {copy.tasksView.newTask}
+                  </span>
+                </div>
               </div>
 
               <div className="quick-tools compact">
@@ -417,6 +493,62 @@ export default function TasksView({
           </div>
         )}
       </div>
+      <style dangerouslySetInnerHTML={{__html: `
+        .ai-briefing-grid-v6 {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 12px;
+          margin-top: 10px;
+        }
+        .ai-briefing-card {
+          background: rgba(255,255,255,0.03);
+          border: 1px solid rgba(255,255,255,0.06);
+          border-radius: 16px;
+          padding: 12px;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+        .ai-briefing-label {
+          font-size: 0.65rem;
+          font-weight: 800;
+          color: var(--muted);
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+        .ai-briefing-text {
+          color: var(--text);
+          font-weight: 700;
+          line-height: 1.3;
+        }
+        
+        @keyframes modalSlideUp {
+          from { transform: translateY(20px); opacity: 0; }
+          to { transform: translateY(-20px); opacity: 1; }
+        }
+
+        .filter-btn {
+          white-space: nowrap;
+          padding: 8px 16px;
+          border-radius: 10px;
+          font-size: 0.8rem;
+          font-weight: 800;
+          background: rgba(255,255,255,0.03);
+          color: var(--muted);
+          border: 1px solid rgba(255,255,255,0.06);
+          transition: all 0.2s;
+        }
+        .filter-btn.active {
+          background: var(--accent, #3b82f6);
+          color: #fff;
+          border-color: transparent;
+        }
+        
+        .search-input-v6:focus {
+          border-color: var(--accent, #3b82f6) !important;
+          background: rgba(255,255,255,0.05) !important;
+        }
+      `}} />
     </div>
   );
 }

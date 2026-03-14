@@ -23,7 +23,8 @@ body, html {
   min-height: 100dvh;
   -webkit-overflow-scrolling: touch;
   background: #020617;
-  overscroll-behavior-y: none;
+  overscroll-behavior-y: auto;
+  overflow-y: auto;
 }
 
 /* ============================================
@@ -40,6 +41,7 @@ body, html {
 .page {
   min-height: 100vh;
   min-height: 100dvh;
+  overflow-y: auto;
   display: flex;
   justify-content: center;
   padding: calc(16px + var(--safe-top)) calc(16px + var(--safe-right)) calc(80px + var(--safe-bottom)) calc(16px + var(--safe-left));
@@ -108,7 +110,7 @@ body, html {
   position: fixed; bottom: 0; left: 0; right: 0;
   background: color-mix(in srgb, var(--card) 88%, transparent); border-top: 1px solid color-mix(in srgb, var(--card-border) 80%, transparent);
   display: flex; justify-content: space-around; align-items: center;
-  padding: calc(8px) 8px calc(8px + var(--safe-bottom)) 8px;
+  padding: 8px 8px calc(8px + var(--safe-bottom)) 8px;
   min-height: calc(70px + var(--safe-bottom));
   z-index: 1000; box-shadow: 0 -12px 30px rgba(0,0,0,0.18);
   backdrop-filter: blur(18px);
@@ -165,6 +167,51 @@ body, html {
 .more-menu-item.active { background: rgba(37,99,235,0.1); border-color: #2563eb; color: #2563eb; }
 .more-menu-icon { font-size: 20px; width: 24px; text-align: center; }
 .more-menu-label { font-size: 16px; font-weight: 600; color: var(--text); }
+
+/* Bottom Sheet */
+.bottom-sheet-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+  display: flex; align-items: flex-end; z-index: 2000;
+  animation: fadeIn 0.25s ease-out;
+  backdrop-filter: blur(4px);
+}
+
+.bottom-sheet {
+  background: var(--card);
+  border-top: 1px solid var(--card-border);
+  border-radius: 24px 24px 0 0;
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 -10px 40px rgba(0,0,0,0.3);
+  animation: slideUpSheet 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  padding-bottom: var(--safe-bottom);
+}
+
+.bottom-sheet-header {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.bottom-sheet-handle {
+  width: 40px; height: 5px;
+  background: var(--card-border);
+  border-radius: 999px;
+  opacity: 0.6;
+}
+
+@keyframes slideUpSheet {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 
 /* ============================================
    BUTTONS
@@ -416,198 +463,8 @@ body, html {
 
 .swipeable-task-container {
   position: relative;
-  margin-bottom: 0;
-  border-radius: 14px;
-  overflow: hidden;
-}
-
-.swipeable-task-actions {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 50%;
-  display: flex;
-  align-items: center;
-  z-index: 1;
-  padding: 0 18px;
-}
-
-.swipeable-task-actions.left {
-  left: 0;
-  justify-content: flex-start;
-  background: linear-gradient(135deg, #059669, #10b981);
-}
-
-.swipeable-task-actions.right {
-  right: 0;
-  justify-content: flex-end;
-  background: linear-gradient(135deg, #dc2626, #ef4444);
-}
-
-.swipeable-task-actions span {
-  color: #fff;
-  font-size: 14px;
-  font-weight: 800;
-}
-
-.premium-task-card {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  width: 100%;
-  box-sizing: border-box;
-  padding: 11px 12px;
-  border-radius: 14px;
-  border: 1px solid var(--card-border);
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0)),
-    var(--card);
-  box-shadow: 0 10px 24px rgba(2, 6, 23, 0.14);
-}
-
-.premium-task-card.is-selected {
-  border-color: rgba(96, 165, 250, 0.75);
-  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.16);
-}
-
-.premium-task-card.is-overdue {
-  border-color: rgba(248, 113, 113, 0.65);
-  background:
-    linear-gradient(90deg, rgba(127, 29, 29, 0.22), rgba(127, 29, 29, 0.04)),
-    var(--card);
-}
-
-.premium-task-card-body {
-  display: flex;
-  gap: 10px;
-  width: 100%;
-  align-items: flex-start;
-}
-
-.premium-task-check {
-  display: flex;
-  flex-shrink: 0;
-  margin-top: 1px;
-}
-
-.premium-task-main {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  flex: 1;
-  min-width: 0;
-}
-
-.premium-task-topline {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 8px;
-}
-
-.premium-task-title {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.35;
-}
-
-.premium-task-meta,
-.premium-task-badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
-}
-
-.premium-task-actions {
-  display: flex;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-.premium-task-chip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  min-height: 22px;
-  padding: 0 8px;
-  border-radius: 999px;
-  border: 1px solid rgba(51, 65, 85, 0.9);
-  background: rgba(15, 23, 42, 0.5);
-  color: #cbd5e1;
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.premium-task-chip.time {
-  color: #e2e8f0;
-}
-
-.premium-task-chip.live {
-  border-color: rgba(52, 211, 153, 0.45);
-  background: rgba(6, 95, 70, 0.26);
-  color: #a7f3d0;
-}
-
-.premium-task-chip.countdown {
-  border-color: rgba(59, 130, 246, 0.32);
-  color: #bfdbfe;
-}
-
-.premium-task-chip.reminder {
-  border-color: rgba(245, 158, 11, 0.24);
-  color: #fbbf24;
-}
-
-.premium-task-chip.repeat {
-  border-color: rgba(96, 165, 250, 0.24);
-  color: #93c5fd;
-}
-
-.swipeable-task-container {
-  box-shadow: 0 8px 18px rgba(2, 6, 23, 0.1);
-}
-
-.swipeable-task-container > .goal-item {
-  padding: 11px 12px !important;
-  border: 1px solid rgba(51, 65, 85, 0.9) !important;
-  border-radius: 14px !important;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0)),
-    var(--card) !important;
-  box-shadow: 0 10px 24px rgba(2, 6, 23, 0.14) !important;
-}
-
-.swipeable-task-container > .goal-item > div {
-  gap: 10px !important;
-}
-
-.swipeable-task-container .goal-text {
-  font-size: 14px !important;
-  line-height: 1.35 !important;
-}
-
-.swipeable-task-container .goal-time-range,
-.swipeable-task-container .live-pill-task,
-.swipeable-task-container .countdown-text,
-.swipeable-task-container .p-badge,
-.swipeable-task-container .badge {
-  min-height: 22px !important;
-  padding: 0 8px !important;
-  border-radius: 999px !important;
-  font-size: 11px !important;
-  line-height: 1 !important;
-}
-
-.swipeable-task-container .desktop-actions {
-  gap: 6px !important;
-}
-
-.swipeable-task-container .mini-btn {
-  padding: 5px 8px !important;
-  font-size: 11px !important;
+  margin-bottom: 12px;
+  border-radius: 24px;
 }
 
 .goal-item {
@@ -856,7 +713,7 @@ body, html {
    MODALS & POPUPS
    ============================================ */
 /* ✅ PERF FIX: Removed backdrop-filter from overlay+modal — only shown briefly, still looks good */
-.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: grid; place-items: center; z-index: 3000; padding: 16px; animation: fadeIn 0.2s ease; }
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: flex-end; z-index: 3000; padding: 16px; animation: fadeIn 0.2s ease; }
 .modal { background: var(--card); width: 100%; max-width: 520px; border-radius: 20px; padding: 28px; border: 1px solid var(--card-border); box-shadow: 0 25px 60px rgba(0,0,0,0.25); animation: modalSlide 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
 .m-title { font-size: 1.3rem; font-weight: 900; margin-bottom: 16px; color: var(--text); border-bottom: 2px solid var(--chip); padding-bottom: 10px; }
 .fg { margin-bottom: 14px; }

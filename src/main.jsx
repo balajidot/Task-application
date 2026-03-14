@@ -5,20 +5,14 @@ import App from './App.jsx'
 
 registerPlugin('DeviceSettings')
 
-// ✅ 1. Service Worker Registration (Keeping this for PWA functionality)
+// 🛑 Unregister service workers in development to prevent stale cache issues
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
-      .then(() => {
-        console.log('Service Worker registered successfully');
-      })
-      .catch((error) => {
-        console.error('Service Worker registration failed:', error);
-      });
+  navigator.serviceWorker.getRegistrations().then((registrations) => {
+    for (let registration of registrations) {
+      registration.unregister();
+    }
   });
 }
-
-// ✅ 2. OneSignal initialization logic removed to fix build error
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
