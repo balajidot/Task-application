@@ -52,9 +52,13 @@ export default function ChatAssistantView({ appLanguage, goals, habits, career, 
         })
       });
 
+      if (!response.ok) {
+        throw new Error(`Server responded with ${response.status}`);
+      }
+
       const data = await response.json();
       
-      if (response.ok && data.response) {
+      if (data.response) {
         // Immediate actions (non-task additions)
         if (data.actions && Array.isArray(data.actions)) {
           const nonTaskActions = data.actions.filter(a => a.type !== 'ADD_TASKS');
@@ -75,8 +79,20 @@ export default function ChatAssistantView({ appLanguage, goals, habits, career, 
       }
     } catch (error) {
       console.error('Gemini Error:', error);
+      const isNetworkError = !error.response && error.message.includes('fetch') || error.message.includes('Network');
+      const statusText = error.message.includes('responded with') ? ` (${error.message.split('responded with ')[1]})` : "";
+      
+      const errorMsg = appLanguage === 'ta' 
+        ? `⚠️ (இணைப்பு பிழை${statusText}) ` 
+        : `⚠️ (Connectivity Issue${statusText}) `;
+        
       const aiResponse = getAssistantResponse(userMsg, appData, appLanguage);
-      setMessages(prev => [...prev, { id: Date.now() + 1, text: "*(Offline Mode)* " + aiResponse, sender: 'ai', time: new Date() }]);
+      setMessages(prev => [...prev, { 
+        id: Date.now() + 1, 
+        text: errorMsg + aiResponse, 
+        sender: 'ai', 
+        time: new Date() 
+      }]);
     } finally {
       setIsTyping(false);
       triggerHaptic('medium');
@@ -109,14 +125,25 @@ export default function ChatAssistantView({ appLanguage, goals, habits, career, 
     <div className="chat-view animate-fade-in" style={{ 
       display: 'flex', 
       flexDirection: 'column', 
-      height: 'calc(100vh - 160px - var(--keyboard-height, 0px))', 
+      height: '100%', 
+      width: '100%',
       maxWidth: '600px', 
       margin: '0 auto', 
       background: 'var(--bg)',
-      transition: 'height 0.2s ease-out'
+      position: 'relative',
+      overflow: 'hidden' // Prevent double scrollbars
     }}>
-      {/* Header */}
-      <div style={{ padding: '16px', borderBottom: '1px solid var(--card-border)', background: 'var(--card)', borderRadius: '20px 20px 0 0', display: 'flex', alignItems: 'center', gap: '12px' }}>
+      {/* Header - Fixed at top */}
+      <div style={{ 
+        padding: '16px', 
+        borderBottom: '1px solid var(--card-border)', 
+        background: 'var(--card)', 
+        borderRadius: '20px 20px 0 0', 
+        display: 'flex', 
+        alignItems: 'center', 
+        gap: '12px',
+        flexShrink: 0
+      }}>
         <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(135deg, #10b981, #3b82f6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>🤖</div>
         <div>
           <div style={{ fontWeight: 900, fontSize: '1.1rem' }}>{appLanguage === 'ta' ? 'AI உதவியாளர்' : 'AI Assistant'}</div>
@@ -125,7 +152,16 @@ export default function ChatAssistantView({ appLanguage, goals, habits, career, 
       </div>
 
       {/* Messages */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }} className="no-scrollbar">
+      <div style={{ 
+        flex: 1, 
+        overflowY: 'auto', 
+        padding: '16px', 
+        display: 'flex', 
+        flexDirection: 'column', 
+        gap: '12px',
+        WebkitOverflowScrolling: 'touch',
+        paddingBottom: '100px' // Space for fixed input area
+      }} className="no-scrollbar">
         {messages.map(m => (
           <div key={m.id} style={{
             alignSelf: m.sender === 'user' ? 'flex-end' : 'flex-start',
@@ -161,32 +197,45 @@ export default function ChatAssistantView({ appLanguage, goals, habits, career, 
             <div className="dot-typing" />
           </div>
         )}
-        <div ref={scrollRef} />
+        <div ref={scrollRef} style={{ height: '1px' }} />
       </div>
 
-      {/* Quick Actions */}
-      <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', padding: '10px 16px', borderTop: '1px solid var(--card-border)' }} className="no-scrollbar">
-        {quickActions.map((q, i) => (
-          <button key={i} className="filter-btn" onClick={() => handleSend(q.val)} style={{ whiteSpace: 'nowrap', borderRadius: '999px', padding: '8px 16px' }}>
-            {q.label}
+      {/* Bottom Area (Quick Actions + Input) */}
+      <div style={{ 
+        position: 'absolute', 
+        bottom: 'var(--keyboard-height, 0px)', 
+        left: 0, 
+        right: 0, 
+        background: 'var(--card)', 
+        zIndex: 10,
+        boxShadow: '0 -4px 20px rgba(0,0,0,0.3)',
+        transition: 'bottom 0.1s ease-out',
+        paddingBottom: 'env(safe-area-inset-bottom, 10px)'
+      }}>
+        {/* Quick Actions */}
+        <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', padding: '10px 16px', borderBottom: '1px solid var(--card-border)' }} className="no-scrollbar">
+          {quickActions.map((q, i) => (
+            <button key={i} className="filter-btn" onClick={() => handleSend(q.val)} style={{ whiteSpace: 'nowrap', borderRadius: '999px', padding: '8px 16px' }}>
+              {q.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Input Bar */}
+        <div style={{ padding: '12px 16px', display: 'flex', gap: '10px' }}>
+          <input 
+            type="text" 
+            className="fi" 
+            placeholder={appLanguage === 'ta' ? "கேளுங்கள்..." : "Type your question..."}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+            style={{ flex: 1, borderRadius: '999px', padding: '12px 20px' }}
+          />
+          <button className="new-btn" onClick={() => handleSend()} style={{ width: '48px', height: '48px', borderRadius: '50%', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            ➔
           </button>
-        ))}
-      </div>
-
-      {/* Input */}
-      <div style={{ padding: '12px 16px', borderTop: '1px solid var(--card-border)', background: 'var(--card)', borderRadius: '0 0 20px 20px', display: 'flex', gap: '10px' }}>
-        <input 
-          type="text" 
-          className="fi" 
-          placeholder={appLanguage === 'ta' ? "கேளுங்கள்..." : "Type your question..."}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-          style={{ flex: 1, borderRadius: '999px', padding: '12px 20px' }}
-        />
-        <button className="new-btn" onClick={() => handleSend()} style={{ width: '48px', height: '48px', borderRadius: '50%', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          ➔
-        </button>
+        </div>
       </div>
 
       <style dangerouslySetInnerHTML={{__html: `

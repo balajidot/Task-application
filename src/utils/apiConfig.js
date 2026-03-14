@@ -13,8 +13,8 @@ const isCapacitor = () =>
  * In a web environment, it uses relative paths.
  */
 export const getApiUrl = (endpoint) => {
-  // 🔴 IMPORTANT: Replace this with your actual Vercel deployment URL
-  const PRODUCTION_URL = "https://task-application-balajidots-projects.vercel.app";
+  // 🔴 Updated to the correct Vercel URL found in the project backup
+  const PRODUCTION_URL = "https://task-application-sigma.vercel.app";
   
   if (isCapacitor()) {
     // Ensure absolute URL for native app
