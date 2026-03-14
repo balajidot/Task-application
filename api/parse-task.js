@@ -63,7 +63,7 @@ INSTRUCTIONS:
             maxOutputTokens: 500,
           },
         }),
-        signal: AbortSignal.timeout(15000),
+        signal: AbortSignal.timeout(9000),
       }
     );
 
