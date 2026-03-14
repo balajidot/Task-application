@@ -80,17 +80,17 @@ export default function HabitsView() {
       </div>
 
       {/* ADD HABIT */}
-      <div className="card" style={{ marginBottom: '16px' }}>
-        <div style={{ display: 'flex', gap: '10px' }}>
+      <div className="card" style={{ marginBottom: '16px', background: 'var(--hero)', border: '1.5px solid var(--accent-alpha, rgba(99,102,241,0.2))' }}>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           <input
             className="fi"
             placeholder="Add a new habit (e.g. Exercise 30 min)..."
             value={newHabit}
             onChange={e => setNewHabit(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && addHabit()}
-            style={{ flex: 1, fontSize: '.95rem' }}
+            style={{ flex: 1 }}
           />
-          <button className="new-btn" onClick={addHabit} style={{ padding: '10px 24px', fontSize: '.9rem', flexShrink: 0 }}>
+          <button className="new-btn" onClick={addHabit} style={{ flexShrink: 0, padding: '14px 20px' }}>
             + Add Habit
           </button>
         </div>

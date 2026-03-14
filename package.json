@@ -16,6 +16,7 @@
     "@capacitor/keyboard": "^8.0.1",
     "@capacitor/local-notifications": "^8.0.2",
     "@capacitor/status-bar": "^8.0.1",
+    "@google/generative-ai": "^0.24.1",
     "autoprefixer": "^10.4.27",
     "canvas-confetti": "^1.9.4",
     "clsx": "^2.1.1",

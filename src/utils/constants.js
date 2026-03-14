@@ -87,6 +87,7 @@ export const APP_COPY = {
       habits: "Habits",
       journal: "Journal",
       goals: "Goals",
+      chat: "AI Chat",
       more: "More",
     },
     common: {
@@ -246,6 +247,7 @@ export const APP_COPY = {
       habits: "பழக்கங்கள்",
       journal: "ஜர்னல்",
       goals: "இலக்குகள்",
+      chat: "AI அரட்டை",
       more: "மேலும்",
     },
     common: {
@@ -478,13 +480,40 @@ APP_COPY.ta.ai = {
   goodStructure: "நல்ல அமைப்பு உள்ளது. அடுத்த 1 அல்லது 2 முக்கிய பணிகளை மட்டும் visible ஆக வைத்திருங்கள்.",
   dayClear: "இன்றைய நாள் clear ஆக உள்ளது. நாளைக்கான திட்டம் அமைக்க நல்ல நேரம்.",
 };
-Object.assign(APP_COPY.en.common, { on: "On", off: "Off" });
-Object.assign(APP_COPY.ta.common, { on: "à®‡à®¯à®•à¯à®•à®®à¯", off: "à®¨à®¿à®±à¯à®¤à¯à®¤à®®à¯" });
+Object.assign(APP_COPY.en.common, { on: "On", off: "Off", settings: "Settings", apply: "Apply", applied: "Applied" });
+Object.assign(APP_COPY.ta.common, { on: "இயக்கம்", off: "நிறுத்தம்", settings: "அமைப்புகள்", apply: "பயன்படுத்து", applied: "பயன்படுத்தப்பட்டது" });
 Object.assign(APP_COPY.en.analytics, {
   predictedNote: "completion chance if current pattern continues.",
   readyTasks: "tasks ready for one-tap creation.",
 });
 Object.assign(APP_COPY.ta.analytics, {
-  predictedNote: "completion chance à®¤à®±à¯à®ªà¯‹à®¤à¯ˆà®¯ pattern à®¤à¯Šà®Ÿà®°à¯à®¨à¯à®¤à®¾à®²à¯.",
-  readyTasks: "à®ªà®£à®¿à®•à®³à¯ one-tap creation à®•à¯à®•à¯ à®¤à®¯à®¾à®°à¯.",
+  predictedNote: "தற்போதைய முறை தொடர்ந்தால் முடிப்பதற்கான வாய்ப்பு.",
+  readyTasks: "ஒரு தட்டலில் உருவாக்கத் தயாராக உள்ள பணிகள்.",
 });
+
+export const AI_TIPS = {
+  en: [
+    { icon: '🔴', text: "You have {count} high-priority task{s} pending. Tackle {target} first using the 2-minute rule." },
+    { icon: '🍅', text: "{count} tasks queued today. Use Pomodoro (25-min blocks) to maintain deep focus." },
+    { icon: '🏆', text: "{pct}% done — excellent! Finishing strong boosts next-day motivation by 40%." },
+    { icon: '💪', text: "Halfway there at {pct}%. Visible progress is the strongest motivator. Keep going!" },
+    { icon: '🚀', text: "Only {pct}% done. Try the '5-minute rule' — commit to just 5 minutes to build momentum." },
+    { icon: '🫁', text: "Energy dip detected. Try Box Breathing in Tools to reset your focus." },
+    { icon: '📝', text: "Evening reflection time. Use Daily Review to capture wins and plan tomorrow." },
+    { icon: '🔥', text: "{count}-day streak! Discipline is built on consistency. Push for {next}!" },
+    { icon: '💡', text: "Time-blocking tip: Use '9:00 AM - 10:30 AM' format for precise scheduling." },
+    { icon: '🎯', text: "Focus purely on one task at a time. Multitasking reduces efficiency by 40%." }
+  ],
+  ta: [
+    { icon: '🔴', text: "உங்களிடம் {count} முக்கிய பணிகள் உள்ளன. '2-minute rule' பயன்படுத்தி உடனே தொடங்குங்கள்." },
+    { icon: '🍅', text: "இன்று {count} பணிகள் உள்ளன. கவனத்தை சிதறவிடாமல் இருக்க Pomodoro பயன்படுத்துங்கள்." },
+    { icon: '🏆', text: "{pct}% முடிந்தது — அருமை! இன்று முடிப்பது நாளைக்கான ஆர்வத்தை 40% அதிகரிக்கும்." },
+    { icon: '💪', text: "பாதி முடிந்தது ({pct}%). முன்னேற்றத்தை பார்ப்பது தான் சிறந்த உந்துதல். தொடருங்கள்!" },
+    { icon: '🚀', text: "{pct}% மட்டுமே முடிந்தது. '5-minute rule' முயற்சி செய்யுங்கள் — 5 நிமிடம் மட்டும் உழைக்க தொடங்குங்கள்." },
+    { icon: '🫁', text: "சோர்வாக உணர்கிறீர்களா? மூச்சுப் பயிற்சி (Box Breathing) செய்து புத்துணர்ச்சி பெறுங்கள்." },
+    { icon: '📝', text: "மாலை நேர ஆய்வு. இன்று சாதித்ததை குறித்து வைத்து நாளைக்கான திட்டத்தை இணையுங்கள்." },
+    { icon: '🔥', text: "{count}-நாள் தொடர்ச்சி! விடாமுயற்சி தான் வெற்றிக்கு வழி. {next} நாட்களை எட்டுங்கள்!" },
+    { icon: '💡', text: "நேரத்தை சரியாக திட்டமிட '9:00 AM - 10:30 AM' முறையை பயன்படுத்துங்கள்." },
+    { icon: '🎯', text: "ஒரு நேரத்தில் ஒரு வேலையில் மட்டும் கவனம் செலுத்துங்கள். அதுவே வேகமான வழி." }
+  ]
+};

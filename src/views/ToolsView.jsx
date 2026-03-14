@@ -150,8 +150,9 @@ export default function ToolsView({ onOpenPomodoro, appLanguage, copy }) {
       updateField('brainDump', '');
       setDumpRelaxing(false);
       setDumpRelaxed(true);
+      if (window.navigator?.vibrate) window.navigator.vibrate([20, 10, 20]);
       setTimeout(() => setDumpRelaxed(false), 4000);
-    }, 700);
+    }, 1200);
   };
 
   useEffect(() => {
@@ -234,9 +235,33 @@ export default function ToolsView({ onOpenPomodoro, appLanguage, copy }) {
 
       <div className="card">
         <div style={{ fontSize: '1rem', fontWeight: 800, color: '#f59e0b', marginBottom: 10 }}>{copy.tools.brainDump}</div>
-        <textarea className="fi task-box" placeholder="Dump all distracting or random ideas here to free mental RAM..." value={brainDump} onChange={(e) => updateField('brainDump', e.target.value)} style={{ minHeight: '120px', borderColor: 'rgba(245,158,11,0.3)', fontSize: '0.9rem', lineHeight: 1.5, transition: dumpRelaxing ? 'opacity 0.6s ease, transform 0.5s ease' : 'none', opacity: dumpRelaxing ? 0 : 1, transform: dumpRelaxing ? 'translateY(-8px) scale(0.98)' : 'none' }} />
-        <button onClick={handleDumpAndRelax} disabled={!brainDump.trim() || dumpRelaxing} style={{ marginTop: 10, width: '100%', padding: '12px', borderRadius: 12, border: 'none', cursor: brainDump.trim() && !dumpRelaxing ? 'pointer' : 'not-allowed', background: brainDump.trim() && !dumpRelaxing ? 'linear-gradient(135deg,#f59e0b,#d97706)' : 'var(--card-border)', color: brainDump.trim() ? '#fff' : 'var(--muted)', fontWeight: 900, fontSize: '0.92rem', opacity: !brainDump.trim() ? 0.45 : 1 }}>
-          {dumpRelaxing ? 'Clearing thoughts...' : dumpRelaxed ? 'Mind cleared' : 'Dump & Relax'}
+        <textarea 
+          className="fi task-box" 
+          placeholder="Dump all distracting or random ideas here to free mental RAM..." 
+          value={brainDump} 
+          onChange={(e) => updateField('brainDump', e.target.value)} 
+          style={{ 
+            minHeight: '120px', 
+            borderColor: 'rgba(245,158,11,0.3)', 
+            fontSize: '0.9rem', 
+            lineHeight: 1.5, 
+            transition: dumpRelaxing ? 'all 1.2s cubic-bezier(0.19, 1, 0.22, 1)' : 'all 0.3s ease', 
+            opacity: dumpRelaxing ? 0 : 1, 
+            transform: dumpRelaxing ? 'translateY(-40px) scale(1.1) rotate(2deg)' : 'none',
+            filter: dumpRelaxing ? 'blur(10px)' : 'none'
+          }} 
+        />
+        <button onClick={handleDumpAndRelax} disabled={!brainDump.trim() || dumpRelaxing} style={{ 
+          marginTop: 10, width: '100%', padding: '12px', borderRadius: 12, border: 'none', 
+          cursor: brainDump.trim() && !dumpRelaxing ? 'pointer' : 'not-allowed', 
+          background: brainDump.trim() && !dumpRelaxing ? 'linear-gradient(135deg,#f59e0b,#d97706)' : 'var(--card-border)', 
+          color: brainDump.trim() ? '#fff' : 'var(--muted)', 
+          fontWeight: 900, fontSize: '0.92rem', 
+          opacity: !brainDump.trim() ? 0.45 : 1,
+          transition: 'all 0.3s ease',
+          boxShadow: dumpRelaxing ? '0 0 20px rgba(245,158,11,0.4)' : 'none'
+        }}>
+          {dumpRelaxing ? '✨ Poof! Logic Cleared...' : dumpRelaxed ? '🌿 Mind is Calm' : 'Dump & Relax'}
         </button>
       </div>
 

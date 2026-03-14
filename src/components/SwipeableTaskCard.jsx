@@ -2,20 +2,24 @@ import React from 'react';
 import { formatTimeRange, todayKey, timeToMinutes } from '../utils/helpers';
 import { triggerHaptic } from '../hooks/useMobileFeatures';
 
-const SwipeableTaskCard = ({ 
-  goal, 
-  idx, 
-  doneHere, 
-  pulse, 
-  celebrate, 
-  liveNow, 
-  countdownText, 
+const SwipeableTaskCard = ({
+  goal,
+  idx,
+  doneHere,
+  pulse,
+  celebrate,
+  liveNow,
+  countdownText,
   selected,
   activeDate,
-  onToggleDone, 
-  onEdit, 
-  onDelete, 
-  onToggleSelect
+  overdueEnabled,
+  onToggleDone,
+  onEdit,
+  onDelete,
+  onToggleSelect,
+  cardTheme = 'glow',
+  cardBorderColor = '#3b82f6',
+  showCardDot = true
 }) => {
   const [currentMins, setCurrentMins] = React.useState(() => {
     const now = new Date();
@@ -25,17 +29,17 @@ const SwipeableTaskCard = ({
   const [swipeOffset, setSwipeOffset] = React.useState(0);
   const [isDragging, setIsDragging] = React.useState(false);
   const [startX, setStartX] = React.useState(0);
-  
+
   const cardRef = React.useRef(null);
 
-  const SWIPE_THRESHOLD = 80; 
-  const BUTTON_WIDTH = 100; 
+  const SWIPE_THRESHOLD = 80;
+  const BUTTON_WIDTH = 100;
 
   React.useEffect(() => {
     const interval = setInterval(() => {
       const now = new Date();
       setCurrentMins(now.getHours() * 60 + now.getMinutes());
-    }, 5000); 
+    }, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -46,7 +50,7 @@ const SwipeableTaskCard = ({
 
   const handleToggleDone = (e) => {
     e.stopPropagation();
-    if(typeof triggerHaptic==='function') triggerHaptic('medium');
+    if (typeof triggerHaptic === 'function') triggerHaptic('medium');
     onToggleDone();
   };
 
@@ -60,7 +64,7 @@ const SwipeableTaskCard = ({
     if (!isDragging) return;
     const currentX = e.touches[0].clientX;
     const Diff = currentX - startX;
-    const friction = 0.4; 
+    const friction = 0.4;
     const diff = Diff * friction;
     const maxSwipe = BUTTON_WIDTH + 40;
     const clampedDiff = Math.max(-maxSwipe, Math.min(maxSwipe, diff));
@@ -72,14 +76,14 @@ const SwipeableTaskCard = ({
     setIsDragging(false);
     if (Math.abs(swipeOffset) > SWIPE_THRESHOLD) {
       if (swipeOffset < 0) {
-        if(typeof triggerHaptic==='function') triggerHaptic('medium');
+        if (typeof triggerHaptic === 'function') triggerHaptic('medium');
         onDelete();
       } else {
         if (doneHere) {
-          if(typeof triggerHaptic==='function') triggerHaptic('light');
+          if (typeof triggerHaptic === 'function') triggerHaptic('light');
           onEdit();
         } else {
-          if(typeof triggerHaptic==='function') triggerHaptic('medium');
+          if (typeof triggerHaptic === 'function') triggerHaptic('medium');
           onToggleDone();
         }
       }
@@ -133,30 +137,55 @@ const SwipeableTaskCard = ({
 
   const isGlowingLive = liveNow && !doneHere && !isOverdue;
 
-  // PREMIUM "MIDNIGHT SLATE" REFINED AESTHETIC
+  // PREMIUM THEME LOGIC
   const cardBackground = `linear-gradient(165deg, color-mix(in srgb, var(--card) 95%, white 2%) 0%, var(--card) 100%)`;
-  const priorityColor = goal.priority === 'high' ? '#ff3b30' : goal.priority === 'medium' ? '#ff9500' : '#34c759';
-  const liveGlow = isGlowingLive ? `0 0 35px var(--accent-alpha, rgba(59, 130, 246, 0.6))` : '0 8px 30px rgba(0,0,0,0.4)';
+  const priorityColor = goal.priority === 'High' ? '#ff3b30' : goal.priority === 'Medium' ? '#ff9500' : '#34c759';
+
+  // Theme calculations
+  let appliedBorder = '1.5px solid var(--card-border)';
+  let appliedShadow = '0 8px 30px rgba(0,0,0,0.3)';
+  const accent = cardBorderColor || 'var(--accent)';
+
+  if (isGlowingLive) {
+    appliedBorder = `2.5px solid ${accent}`;
+    appliedShadow = `0 0 35px color-mix(in srgb, ${accent} 40%, transparent)`;
+  } else if (selected) {
+    appliedBorder = `2.5px solid ${accent}`;
+    appliedShadow = `0 12px 40px color-mix(in srgb, ${accent} 25%, transparent)`;
+  } else if (isOverdue && overdueEnabled) {
+    appliedBorder = '2.5px solid #ef4444';
+    appliedShadow = '0 12px 40px rgba(239, 68, 68, 0.25)';
+  } else {
+    // Standard themes
+    if (cardTheme === 'glow') {
+      appliedShadow = `0 4px 20px color-mix(in srgb, ${accent} 10%, transparent)`;
+    } else if (cardTheme === 'border') {
+      appliedBorder = `2px solid color-mix(in srgb, ${accent} 40%, var(--card-border))`;
+    } else if (cardTheme === 'minimal') {
+      appliedBorder = '1px solid var(--card-border)';
+      appliedShadow = '0 2px 10px rgba(0,0,0,0.1)';
+    }
+  }
 
   return (
-    <div 
-      className="swipeable-task-container" 
-      style={{ 
-        position: 'relative', 
+    <div
+      className="swipeable-task-container"
+      style={{
+        position: 'relative',
         marginBottom: '12px',
         borderRadius: '24px',
-        overflow: 'hidden', 
+        overflow: 'hidden',
         background: 'transparent'
       }}
     >
       {/* Action Backgrounds (Revealed on Swipe) */}
-      <div 
+      <div
         style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '100%', background: 'linear-gradient(90deg, #34c759, #28a745)', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', paddingLeft: '40px', zIndex: 1, opacity: Math.min(1, swipeOffset / 40) }}
       >
         <span style={{ fontSize: '28px' }}>{doneHere ? '✏️' : '✅'}</span>
       </div>
 
-      <div 
+      <div
         style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '100%', background: 'linear-gradient(270deg, #ff3b30, #d63031)', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: '40px', zIndex: 1, opacity: Math.min(1, -swipeOffset / 40) }}
       >
         <span style={{ fontSize: '28px' }}>🗑️</span>
@@ -174,14 +203,14 @@ const SwipeableTaskCard = ({
           position: 'relative',
           background: cardBackground,
           borderRadius: '24px',
-          border: isGlowingLive ? `2.5px solid var(--accent)` : (selected ? '2px solid var(--accent)' : '1.5px solid var(--card-border)'),
+          border: appliedBorder,
           padding: '28px 20px',
           display: 'flex',
           width: '100%',
           boxSizing: 'border-box',
           zIndex: 2,
           alignItems: 'center',
-          boxShadow: isGlowingLive ? liveGlow : (selected ? `0 12px 40px color-mix(in srgb, var(--accent) 30%, transparent)` : '0 8px 30px rgba(0,0,0,0.3)'),
+          boxShadow: appliedShadow,
         }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
@@ -193,37 +222,43 @@ const SwipeableTaskCard = ({
       >
         {/* Left Section: Dot + Checkbox */}
         <div style={{ display: 'flex', alignItems: 'center', marginRight: '20px', flexShrink: 0 }}>
-          <div style={{
-            width: '8px',
-            height: '8px',
-            borderRadius: '50%',
-            background: priorityColor,
-            marginRight: '14px',
-            boxShadow: `0 0 10px ${priorityColor}88`
-          }} />
-          <button 
-            className={`chk${doneHere ? " checked" : ""}`} 
-            onClick={handleToggleDone} 
-            onPointerDown={(e) => e.stopPropagation()} 
+          {showCardDot && (
+            <div style={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              background: priorityColor,
+              marginRight: '14px',
+              boxShadow: `0 0 10px ${priorityColor}88`
+            }} />
+          )}
+          <button
+            className={`chk${doneHere ? " checked" : ""}${liveNow ? " live-chk" : ""}`}
+            onClick={handleToggleDone}
+            onPointerDown={(e) => e.stopPropagation()}
             onTouchStart={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
-            style={{ width: '28px', height: '28px' }}
+            style={{
+              width: '32px', height: '32px',
+              borderColor: doneHere ? accent : 'var(--card-border)',
+              background: doneHere ? accent : 'transparent'
+            }}
           >
-            {doneHere && <span className="checkmark" style={{ fontSize: '14px' }}>✓</span>}
+            {doneHere && <span className="checkmark" style={{ fontSize: '16px', animation: 'chk-bounce 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}>{liveNow ? '🔥' : '✓'}</span>}
           </button>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, gap: '4px' }}>
           {/* Title Area */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%' }}>
-            <div 
-              className={`goal-text${doneHere ? " done" : ""}`} 
-              style={{ 
-                margin: 0, 
-                fontSize: '2.8rem', 
-                lineHeight: '1.2', 
-                fontWeight: 1000, 
-                color: doneHere ? 'var(--muted)' : 'var(--text)', 
+            <div
+              className={`goal-text${doneHere ? " done" : ""}`}
+              style={{
+                margin: 0,
+                fontSize: 'var(--task-font-size, 2.8rem)',
+                lineHeight: '1.2',
+                fontWeight: 'var(--global-font-weight, 1000)',
+                color: doneHere ? 'var(--muted)' : 'var(--text)',
                 letterSpacing: '-0.04em',
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
@@ -244,13 +279,13 @@ const SwipeableTaskCard = ({
               })()}
             </div>
           </div>
-          
+
           {/* Metadata Area: Time + Reminder */}
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-            <div style={{ 
-              display: 'inline-flex', 
-              padding: '4px 12px', 
-              fontSize: '0.78rem', 
+            <div style={{
+              display: 'inline-flex',
+              padding: '4px 12px',
+              fontSize: '0.78rem',
               fontWeight: 900,
               borderRadius: '12px',
               background: 'var(--chip)',
@@ -261,10 +296,10 @@ const SwipeableTaskCard = ({
             </div>
 
             {goal.reminder && (
-              <div style={{ 
-                display: 'inline-flex', 
-                padding: '4px 12px', 
-                fontSize: '0.78rem', 
+              <div style={{
+                display: 'inline-flex',
+                padding: '4px 12px',
+                fontSize: '0.78rem',
                 fontWeight: 900,
                 borderRadius: '12px',
                 background: 'rgba(245, 158, 11, 0.12)',
@@ -283,7 +318,7 @@ const SwipeableTaskCard = ({
         {/* Right Area: Live Badge + Edit Button */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
           {isGlowingLive && (
-            <div style={{ 
+            <div style={{
               background: 'var(--accent)',
               color: '#fff',
               fontSize: '0.68rem',
@@ -298,7 +333,7 @@ const SwipeableTaskCard = ({
               LIVE <span className="live-dot-pulse" />
             </div>
           )}
-          <button 
+          <button
             onClick={(e) => { e.stopPropagation(); onEdit(); }}
             className="card-edit-btn-v6"
             style={{
@@ -317,7 +352,21 @@ const SwipeableTaskCard = ({
           </button>
         </div>
 
-        <style dangerouslySetInnerHTML={{__html: `
+        <style dangerouslySetInnerHTML={{
+          __html: `
+          .chk.live-chk.checked {
+            animation: live-tik-bounce 0.6s ease;
+          }
+          @keyframes live-tik-bounce {
+            0% { transform: scale(1); }
+            30% { transform: scale(1.4) rotate(-10deg); }
+            60% { transform: scale(0.9) rotate(5deg); }
+            100% { transform: scale(1) rotate(0); }
+          }
+          @keyframes chk-bounce {
+            from { transform: scale(0) rotate(-45deg); opacity: 0; }
+            to { transform: scale(1) rotate(0); opacity: 1; }
+          }
           .live-dot-pulse {
             width: 5px;
             height: 5px;

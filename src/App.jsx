@@ -32,6 +32,7 @@ const ToolsView = lazy(() => import("./views/ToolsView"));
 const HabitsView = lazy(() => import("./views/HabitsView"));
 const JournalView = lazy(() => import("./views/JournalView"));
 const GoalsView = lazy(() => import("./views/GoalsView"));
+const ChatAssistantView = lazy(() => import("./views/ChatAssistantView"));
 
 import { REPEAT_OPTIONS, SESSION_OPTIONS, PRIORITY_OPTIONS, FONT_OPTIONS, TIME_FILTER_OPTIONS, DAY_NAMES, QUOTES, PRIORITY_RANK, JOURNAL_KEY, HABITS_KEY, GOALS_KEY, TOOLS_KEY, CAREER_KEY, APP_COPY } from "./utils/constants";
 import {
@@ -79,6 +80,11 @@ export default function App() {
   const [hapticEnabled, setHapticEnabled] = React.useState(true);
   const [liveHighlightEnabled, setLiveHighlightEnabled] = React.useState(true);
   
+  // NEW: Card & Board Themes
+  const [cardTheme, setCardTheme] = React.useState('glow'); // glow, border, minimal, colored-shadow
+  const [cardBorderColor, setCardBorderColor] = React.useState('#3b82f6');
+  const [showCardDot, setShowCardDot] = React.useState(true);
+  
   const [reminderPopup, setReminderPopup] = React.useState(null);
   const [liveTaskPopup, setLiveTaskPopup] = React.useState(null);
   const [nextTaskAlert, setNextTaskAlert] = React.useState(null);
@@ -103,16 +109,14 @@ export default function App() {
   const [showWeeklyWizard, setShowWeeklyWizard] = React.useState(false);
   const [habitsData, setHabitsData] = React.useState([]);
   const [goalsData, setGoalsData] = React.useState([]);
+  const [careerData, setCareerData] = React.useState({});
   const [tabSwitching, setTabSwitching] = React.useState(false);
   const [showMoreMenu, setShowMoreMenu] = React.useState(false);
   const [aiContext, setAiContext] = React.useState("");
-  const copy = React.useMemo(() => APP_COPY[appLanguage] || APP_COPY.en, [appLanguage]);
+  const [aiPersonalCoach, setAiPersonalCoach] = React.useState("");
+  const [isBriefingLoading, setIsBriefingLoading] = React.useState(false);
 
-  useMobileFeatures({ themeMode, activeView, setActiveView, setShowForm, setShowMoreMenu });
-
-  const { handleTouchStart, handleTouchEnd } = useSwipeTabSwitcher(activeView, setActiveView);
-
-
+  // Refs
   const pulseTimerRef = React.useRef(null);
   const celebrateTimerRef = React.useRef(null);
   const masterTimerRef = React.useRef(null);
@@ -122,22 +126,14 @@ export default function App() {
   const globalCelebrationTimerRef = React.useRef(null);
   const pendingWriteRef = React.useRef({ timer: null, last: "" });
 
-  const quote = React.useMemo(() => QUOTES[Math.floor((Date.now() / 86400000) % QUOTES.length)], []);
-
-  React.useEffect(() => {
-    const storedName = localStorage.getItem("taskPlanner_userName");
-    if (storedName) setUserName(storedName);
-    else setShowNameSetup(true);
+  const save = React.useCallback((updated) => {
+    setGoals(updated);
+    let serialized = "[]";
+    try { serialized = JSON.stringify(updated); } catch {}
+    pendingWriteRef.current.last = serialized;
+    if (pendingWriteRef.current.timer) clearTimeout(pendingWriteRef.current.timer);
+    pendingWriteRef.current.timer = setTimeout(() => { writeStorage(pendingWriteRef.current.last).catch(() => {}); }, 300);
   }, []);
-
-  const handleSaveName = () => {
-    if (tempName.trim()) {
-      localStorage.setItem("taskPlanner_userName", tempName.trim());
-      setUserName(tempName.trim());
-      setShowNameSetup(false);
-      playSuccessTone();
-    }
-  };
 
   const isEOD = React.useMemo(() => {
     const now = new Date(nowMinuteTick);
@@ -199,6 +195,122 @@ export default function App() {
   const weekly = React.useMemo(() => weeklyStats(goals), [goals]);
   const streakDays = React.useMemo(() => completionStreak(goals), [goals]);
 
+  const fetchAiBriefing = React.useCallback(async () => {
+    if (!userName || !loaded || isBriefingLoading) return;
+    setIsBriefingLoading(true);
+    try {
+      const response = await fetch('/api/briefing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userName,
+          language: appLanguage,
+          appData: {
+            total: goals.length,
+            done: goals.filter(g => isDoneOn(g, todayKey())).length,
+            streakDays,
+            highPriorityCount: goals.filter(g => g.priority === 'High' && !isDoneOn(g, todayKey())).length,
+            recentMood: Object.values(journalEntries).flat().slice(-1)[0]?.mood
+          }
+        })
+      });
+      const data = await response.json();
+      if (data.briefing) setAiPersonalCoach(data.briefing);
+    } catch (e) {
+      console.error('Briefing error:', e);
+    } finally {
+      setIsBriefingLoading(false);
+    }
+  }, [userName, loaded, appLanguage, goals, streakDays, journalEntries]);
+
+  React.useEffect(() => {
+    if (loaded && userName) {
+      const timer = setTimeout(fetchAiBriefing, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [loaded, userName, goals.length]);
+  const handleOptimizeSchedule = React.useCallback(async (tasksToOptimize) => {
+    if (!tasksToOptimize || tasksToOptimize.length === 0) return;
+    setAiLoading(true);
+    triggerHaptic('heavy');
+    try {
+      const response = await fetch('/api/optimize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tasks: tasksToOptimize, language: appLanguage })
+      });
+      const data = await response.json();
+      if (data.optimizedTasks) {
+        // Merge optimized tasks back into full goals list
+        const optimizedMap = new Map(data.optimizedTasks.map(t => [t.id, t]));
+        const updatedGoals = goals.map(g => optimizedMap.has(g.id) ? { ...g, ...optimizedMap.get(g.id) } : g);
+        save(updatedGoals);
+        window.alert(appLanguage === 'ta' ? "✅ அட்டவணை மேம்படுத்தப்பட்டது!" : "✅ Schedule optimized for maximum impact!");
+      }
+    } catch (e) {
+      console.error('Optimization error:', e);
+      window.alert('failed to optimize');
+    } finally {
+      setAiLoading(false);
+    }
+  }, [goals, appLanguage, save]);
+
+  const handleSmartTaskParse = React.useCallback(async (rawText) => {
+    if (!rawText.trim()) return;
+    setAiLoading(true);
+    triggerHaptic('medium');
+    try {
+      const response = await fetch('/api/parse-task', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: rawText, language: appLanguage })
+      });
+      const data = await response.json();
+      if (data.parsedTask) {
+        const { text, startTime, endTime, priority, date } = data.parsedTask;
+        setForm(p => ({
+          ...p,
+          text: text || rawText,
+          startTime: startTime || p.startTime,
+          endTime: endTime || p.endTime,
+          priority: priority || p.priority,
+          date: date || p.date
+        }));
+      }
+    } catch (e) {
+      console.error('Parse error:', e);
+      setForm(p => ({ ...p, text: rawText }));
+    } finally {
+      setAiLoading(false);
+    }
+  }, [appLanguage]);
+
+  const copy = React.useMemo(() => APP_COPY[appLanguage] || APP_COPY.en, [appLanguage]);
+
+  useMobileFeatures({ themeMode, activeView, setActiveView, setShowForm, setShowMoreMenu });
+
+  const { handleTouchStart, handleTouchEnd } = useSwipeTabSwitcher(activeView, setActiveView);
+
+
+
+  const quote = React.useMemo(() => QUOTES[Math.floor((Date.now() / 86400000) % QUOTES.length)], []);
+
+  React.useEffect(() => {
+    const storedName = localStorage.getItem("taskPlanner_userName");
+    if (storedName) setUserName(storedName);
+    else setShowNameSetup(true);
+  }, []);
+
+  const handleSaveName = () => {
+    if (tempName.trim()) {
+      localStorage.setItem("taskPlanner_userName", tempName.trim());
+      setUserName(tempName.trim());
+      setShowNameSetup(false);
+      playSuccessTone();
+    }
+  };
+
+
   React.useEffect(() => {
     masterTimerRef.current = setInterval(() => setNowTick(Date.now()), 1000);
     const minuteTimer = setInterval(() => setNowMinuteTick(Date.now()), 60000);
@@ -210,8 +322,8 @@ export default function App() {
 
   React.useEffect(() => {
     const loadInitData = async () => {
-      const [raw, uiState, prefs, journalRaw, habitsRaw, goalsRaw] = await Promise.all([
-        readStorage(), readUiState(), readPrefs(), readPersist(JOURNAL_KEY), readPersist(HABITS_KEY), readPersist(GOALS_KEY)
+      const [raw, uiState, prefs, journalRaw, habitsRaw, goalsRaw, careerRaw] = await Promise.all([
+        readStorage(), readUiState(), readPrefs(), readPersist(JOURNAL_KEY), readPersist(HABITS_KEY), readPersist(GOALS_KEY), readPersist(CAREER_KEY)
       ]);
       if (raw) { try { const parsed = JSON.parse(raw); if (Array.isArray(parsed)) setGoals(parsed.map(normalizeGoal)); } catch {} }
       if (uiState && typeof uiState === "object") {
@@ -234,36 +346,54 @@ export default function App() {
         if (prefs.soundTheme) setSoundTheme(prefs.soundTheme);
         if (typeof prefs.hapticEnabled === 'boolean') setHapticEnabled(prefs.hapticEnabled);
         if (typeof prefs.liveHighlightEnabled === "boolean") setLiveHighlightEnabled(prefs.liveHighlightEnabled);
+        
+        // Load NEW Card themes
+        if (prefs.cardTheme) setCardTheme(prefs.cardTheme);
+        if (prefs.cardBorderColor) setCardBorderColor(prefs.cardBorderColor);
+        if (typeof prefs.showCardDot === 'boolean') setShowCardDot(prefs.showCardDot);
       }
       if (journalRaw) { try { setJournalEntries(JSON.parse(journalRaw)); } catch{} }
       if (habitsRaw) { try { setHabitsData(JSON.parse(habitsRaw)); } catch{} }
       if (goalsRaw) { try { setGoalsData(JSON.parse(goalsRaw)); } catch{} }
+      if (careerRaw) { try { setCareerData(JSON.parse(careerRaw)); } catch{} }
       
       const urlParams = new URLSearchParams(window.location.search);
       if (urlParams.get('view') === 'tasks') setActiveView('tasks');
       setLoaded(true);
       
-      initializeNotifications().then(setNotifPerm);
-      if (getNotificationPermission() === "default") requestNotificationPermission().then(setNotifPerm);
+      // EXPLICIT PERMISSION REQUEST ON FIRST LAUNCH
+      const currentPerm = getNotificationPermission();
+      if (currentPerm === 'default' || currentPerm === 'denied') {
+        const result = await initializeNotifications();
+        setNotifPerm(result);
+        if (result !== 'granted' && currentPerm === 'default') {
+          requestNotificationPermission().then(setNotifPerm);
+        }
+      } else {
+        setNotifPerm(currentPerm);
+      }
     };
     loadInitData();
   }, []);
 
   React.useEffect(() => {
     if (!loaded) return;
-    writeUiState({ activeDate, activeView, searchTerm, priorityFilter, timeFilter, weekBase: weekBase instanceof Date ? weekBase.toISOString() : new Date().toISOString() });
-    writePrefs({ themeMode, autoThemeMode, appLanguage, taskFontSize, taskFontFamily, uiScale, overdueEnabled, fontWeight, soundTheme, hapticEnabled, liveHighlightEnabled });
-    scheduleTaskNotifications(goals); // ✅ Now strictly uses clean Local Notifications
-  }, [activeDate, activeView, loaded, priorityFilter, searchTerm, timeFilter, weekBase, themeMode, autoThemeMode, appLanguage, taskFontSize, taskFontFamily, uiScale, overdueEnabled, fontWeight, soundTheme, hapticEnabled, liveHighlightEnabled, goals]);
+    writePrefs({ 
+      themeMode, autoThemeMode, appLanguage, taskFontSize, taskFontFamily, uiScale, 
+      overdueEnabled, fontWeight, soundTheme, hapticEnabled, liveHighlightEnabled,
+      cardTheme, cardBorderColor, showCardDot
+    });
+    
+    // Inject CSS variables for global typography & Themes
+    const root = document.documentElement;
+    root.style.setProperty('--task-font-size', `${taskFontSize}px`);
+    root.style.setProperty('--task-font-family', taskFontFamily);
+    root.style.setProperty('--global-font-weight', fontWeight);
+    root.style.setProperty('--card-glow-color', cardBorderColor);
+    
+    scheduleTaskNotifications(goals); 
+  }, [activeDate, activeView, loaded, priorityFilter, searchTerm, timeFilter, weekBase, themeMode, autoThemeMode, appLanguage, taskFontSize, taskFontFamily, uiScale, overdueEnabled, fontWeight, soundTheme, hapticEnabled, liveHighlightEnabled, goals, cardTheme, cardBorderColor, showCardDot]);
 
-  const save = React.useCallback((updated) => {
-    setGoals(updated);
-    let serialized = "[]";
-    try { serialized = JSON.stringify(updated); } catch {}
-    pendingWriteRef.current.last = serialized;
-    if (pendingWriteRef.current.timer) clearTimeout(pendingWriteRef.current.timer);
-    pendingWriteRef.current.timer = setTimeout(() => { writeStorage(pendingWriteRef.current.last).catch(() => {}); }, 300);
-  }, []);
 
   React.useEffect(() => {
     if (!loaded || getNotificationPermission() !== "granted") return;
@@ -901,6 +1031,7 @@ export default function App() {
     { id: "habits", label: "Habits", icon: "🔁" },
     { id: "journal", label: "Journal", icon: "📓" },
     { id: "goals", label: "Goals", icon: "🎯" },
+    { id: "chat", label: "AI Chat", icon: "🤖" },
   ];
   const tabItems = [...mainTabItems.map(t => ({...t, icon: t.id === 'insights' ? '📊' : t.id === 'analytics' ? '📈' : t.icon})), ...moreTabItems];
 
@@ -969,7 +1100,17 @@ export default function App() {
                             <div className="fg">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                   <label className="fl" style={{ margin: 0 }}>{copy.taskForm.taskDescription}</label>
-                  <SpeechToTask onSpeechResult={(text) => onTaskTextChange(form.text ? form.text + '\n' + text : text)} />
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button 
+                      className="mini-btn" 
+                      onClick={() => handleSmartTaskParse(form.text)}
+                      disabled={!form.text.trim() || aiLoading}
+                      style={{ fontSize: '0.75rem', padding: '6px 10px', height: 'fit-content' }}
+                    >
+                      {aiLoading ? '...' : '✨ AI Auto-Fill'}
+                    </button>
+                    <SpeechToTask onSpeechResult={handleSmartTaskParse} />
+                  </div>
                 </div>
                 <textarea
                   className="fi task-box"
@@ -1089,7 +1230,44 @@ export default function App() {
             </div>
           )}
 
-          {activeView === "insights" && <div key="insights" className="view-transition"><DashboardView userName={userName} quote={quote} setActiveView={setActiveView} done={done} total={total} pct={pct} weekly={weekly} streakDays={streakDays} dueSoon={dueSoon} goals={goals} journalEntries={journalEntries} generateMonthlyReport={generateMonthlyReport} /></div>}
+          {activeView === "insights" && <div key="insights" className="view-transition"><DashboardView appLanguage={appLanguage} copy={copy} userName={userName} quote={quote} setActiveView={setActiveView} done={done} total={total} pct={pct} weekly={weekly} streakDays={streakDays} dueSoon={dueSoon} goals={goals} journalEntries={journalEntries} generateMonthlyReport={generateMonthlyReport} aiPersonalCoach={aiPersonalCoach} /></div>}
+          {activeView === "chat" && <div key="chat" className="view-transition">
+            <ChatAssistantView 
+              appLanguage={appLanguage} 
+              goals={goals} 
+              habits={habitsData} 
+              career={careerData} 
+              journalEntries={Object.values(journalEntries).flat()} 
+              onExecuteAction={(action) => {
+                if (!action) return;
+                switch (action.type) {
+                  case 'SET_LANGUAGE':
+                    if (action.value) setAppLanguage(action.value);
+                    break;
+                  case 'SET_THEME':
+                    if (action.value) setThemeMode(action.value);
+                    break;
+                  case 'SET_VIEW':
+                    if (action.value) setActiveView(action.value);
+                    break;
+                  case 'ADD_TASKS':
+                    if (action.tasks && Array.isArray(action.tasks)) {
+                      const tasksWithIds = action.tasks.map(t => ({
+                        ...t,
+                        id: Date.now() + Math.random().toString(36).substr(2, 9),
+                        done: false
+                      }));
+                      const updated = [...goals, ...tasksWithIds];
+                      save(updated);
+                      setActiveView('tasks');
+                    }
+                    break;
+                  default:
+                    console.log('Unknown AI action:', action);
+                }
+              }}
+            />
+          </div>}
           {activeView === "tasks" && (
             <div key="tasks" className="view-transition">
               <TasksView
@@ -1097,10 +1275,15 @@ export default function App() {
                 liveClockLabel={liveClockLabel} done={done} total={total} pct={pct} nextUpcomingGoal={nextUpcomingGoal} setForm={setForm} setEditingGoal={setEditingGoal} setShowForm={setShowForm}
                 liveCurrentGoal={liveCurrentGoal} liveCountdown={liveCountdown} focusMode={focusMode} setFocusMode={setFocusMode} showCelebration={showCelebration} setShowCelebration={setShowCelebration}
                 liveHighlightEnabled={liveHighlightEnabled} aiBriefing={aiBriefing} copy={copy} openAiPlanner={() => { setForm({ text: "", date: activeDate, reminder: "", startTime: "", endTime: "", repeat: "None", session: "Morning", priority: "Medium" }); setEditingGoal(null); setAiContext(""); setShowForm(true); }}
+                onOptimizeSchedule={handleOptimizeSchedule}
+                appLanguage={appLanguage}
                 goals={goals} dotsFor={dotsFor} priorityFilter={priorityFilter} setPriorityFilter={setPriorityFilter} timeFilter={timeFilter} setTimeFilter={setTimeFilter}
                 searchTerm={searchTerm} setSearchTerm={setSearchTerm} searchRef={searchRef} pendingGoals={pendingGoals} completedGoals={completedGoals} visibleGoals={visibleGoals}
                 selectedGoalIds={selectedGoalIds} selectedSet={selectedSet} selectAllVisibleGoals={selectAllVisibleGoals} deleteSelectedGoals={deleteSelectedGoals} clearSelectedGoals={clearSelectedGoals}
-                completedPulseId={completedPulseId} celebratingGoalId={celebratingGoalId} toggleDoneWithCelebration={toggleDoneWithCelebration} removeGoal={removeGoal} toggleSelectGoal={toggleSelectGoal}
+                overdueEnabled={overdueEnabled}
+                cardTheme={cardTheme} cardBorderColor={cardBorderColor} showCardDot={showCardDot}
+                completedPulseId={completedPulseId}
+                celebratingGoalId={celebratingGoalId} toggleDoneWithCelebration={toggleDoneWithCelebration} removeGoal={removeGoal} toggleSelectGoal={toggleSelectGoal}
                 markAllPendingDone={markAllPendingDone} duplicatePendingToTomorrow={duplicatePendingToTomorrow} reopenAllCompleted={reopenAllCompleted}
               />
             </div>
@@ -1141,6 +1324,9 @@ export default function App() {
                 onRefreshNotifications={() => scheduleTaskNotifications(goals)}
                 onOpenBatterySettings={openAndroidBatterySettings}
                 onOpenAppSettings={openAndroidAppSettings}
+                cardTheme={cardTheme} setCardTheme={setCardTheme}
+                cardBorderColor={cardBorderColor} setCardBorderColor={setCardBorderColor}
+                showCardDot={showCardDot} setShowCardDot={setShowCardDot}
               />
             </div>
           )}
@@ -1204,6 +1390,19 @@ export default function App() {
             ))}
           </div>
         </BottomSheet>
+
+        {activeView !== 'chat' && !focusMode && (
+          <div 
+            className="floating-ai-btn" 
+            onClick={() => {
+              if (typeof triggerHaptic === 'function') triggerHaptic('medium');
+              setActiveView('chat');
+            }}
+          >
+            🤖
+            {aiPersonalCoach && <div className="ai-badge">NEW</div>}
+          </div>
+        )}
       </div>
     </div>
   );

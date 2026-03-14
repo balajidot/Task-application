@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
 import { todayKey, toKey, goalVisibleOn, isDoneOn } from '../utils/helpers';
+import { AI_TIPS } from '../utils/constants';
 
-// 🔥 Added userName to props 🔥
-export default function DashboardView({ userName, quote, setActiveView, done, total, pct, weekly, streakDays, dueSoon, goals, journalEntries, generateMonthlyReport }) {
+export default function DashboardView({ appLanguage, copy, userName, quote, setActiveView, done, total, pct, weekly, streakDays, dueSoon, goals, journalEntries, generateMonthlyReport, aiPersonalCoach }) {
   // Time-of-day greeting
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -206,46 +206,78 @@ export default function DashboardView({ userName, quote, setActiveView, done, to
           </div>
           <span style={{ fontSize: '.7rem', fontWeight: 800, color: '#a855f7', background: 'rgba(139, 92, 246, 0.1)', padding: '4px 10px', borderRadius: '999px', border: '1px solid rgba(139, 92, 246, 0.2)' }}>SMART TIPS</span>
         </div>
+
+        {/* 🔥 NEW: Gemini Personal Coach Briefing 🔥 */}
+        {aiPersonalCoach && (
+          <div style={{ 
+            padding: '16px', 
+            borderRadius: '16px', 
+            background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(99, 102, 241, 0.1))',
+            border: '1px solid rgba(139, 92, 246, 0.2)',
+            marginBottom: '16px',
+            position: 'relative',
+            overflow: 'hidden'
+          }}>
+            <div style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--accent)', marginBottom: '8px', letterSpacing: '1px' }}>PERSONAL COACH BRIEFING</div>
+            <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text)', lineHeight: 1.6, fontStyle: 'italic' }}>
+              "{aiPersonalCoach}"
+            </div>
+            <div style={{ position: 'absolute', right: '-10px', bottom: '-10px', fontSize: '4rem', opacity: 0.05, transform: 'rotate(-15deg)' }}>🤖</div>
+          </div>
+        )}
+
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {(() => {
-            const tips = [];
+            const lang = appLanguage === 'ta' ? 'ta' : 'en';
+            const pool = AI_TIPS[lang] || AI_TIPS.en;
+            
+            // Generate dynamic tips based on state
+            const dynamicTips = [];
             if (todayGoals.high > 0) {
-              tips.push({ icon: '🔴', text: `You have ${todayGoals.high} high-priority task${todayGoals.high > 1 ? 's' : ''} pending. Tackle ${todayGoals.high > 1 ? 'them' : 'it'} first using the 2-minute rule — start with the smallest action.` });
+              const tip = pool.find(t => t.icon === '🔴');
+              if (tip) dynamicTips.push(tip.text.replace('{count}', todayGoals.high).replace('{s}', todayGoals.high > 1 ? 's' : '').replace('{target}', todayGoals.high > 1 ? (lang === 'ta' ? 'அவற்றை' : 'them') : (lang === 'ta' ? 'அதை' : 'it')));
             }
-            if (todayGoals.pending > 4) {
-              tips.push({ icon: '🍅', text: `${todayGoals.pending} tasks queued today. Consider using the Pomodoro Timer (25-min focus blocks) to maintain deep work without burnout.` });
+            if (todayGoals.pending > 3) {
+              const tip = pool.find(t => t.icon === '🍅');
+              if (tip) dynamicTips.push(tip.text.replace('{count}', todayGoals.pending));
             }
-            if (pct >= 75) {
-              tips.push({ icon: '🏆', text: `${pct}% done — excellent momentum! Research shows finishing strong boosts next-day motivation by 40%. Push to 100%.` });
-            } else if (pct >= 50) {
-              tips.push({ icon: '💪', text: `Halfway there at ${pct}%. The "progress principle" says visible progress is the strongest motivator. Keep it going!` });
+            if (pct >= 80) {
+              const tip = pool.find(t => t.icon === '🏆');
+              if (tip) dynamicTips.push(tip.text.replace('{pct}', pct));
+            } else if (pct >= 40) {
+              const tip = pool.find(t => t.icon === '💪');
+              if (tip) dynamicTips.push(tip.text.replace('{pct}', pct));
             } else if (total > 0) {
-              tips.push({ icon: '🚀', text: `Only ${pct}% done so far. Try the "5-minute rule" — commit to just 5 minutes on your next task. Momentum builds from starting.` });
+              const tip = pool.find(t => t.icon === '🚀');
+              if (tip) dynamicTips.push(tip.text.replace('{pct}', pct));
             }
-            const hour = new Date().getHours();
-            if (hour >= 14 && hour < 16) {
-              tips.push({ icon: '🫁', text: 'Post-lunch energy dip detected. Try a 4-4-4-4 Box Breathing session in the Tools tab to reset your focus.' });
+            if (streakDays >= 3) {
+              const tip = pool.find(t => t.icon === '🔥');
+              if (tip) dynamicTips.push(tip.text.replace('{count}', streakDays).replace('{next}', streakDays + 1));
             }
-            if (hour >= 20) {
-              tips.push({ icon: '📝', text: 'Evening reflection time. Use the Daily Review in the Tools tab to capture wins and plan tomorrow.' });
-            }
-            if (streakDays >= 7) {
-              tips.push({ icon: '🔥', text: `${streakDays}-day streak! You've built real consistency. Studies show habits solidify after 21 days — keep going.` });
-            }
-            if (tips.length === 0) {
-              tips.push({ icon: '💡', text: 'Add tasks with time blocks for personalized AI scheduling insights. Use "9:00 AM - 10:30 AM - Task" format.' });
-            }
-            return tips.slice(0, 3).map((tip, i) => (
-              <div key={i} style={{
-                display: 'flex', alignItems: 'flex-start', gap: '10px',
-                padding: '12px 14px', borderRadius: '10px',
-                background: 'var(--chip)', border: '1px solid var(--card-border)',
-                transition: 'all 0.2s ease',
-              }}>
-                <span style={{ fontSize: '1.1rem', flexShrink: 0, marginTop: '1px' }}>{tip.icon}</span>
-                <span style={{ fontSize: '.85rem', fontWeight: 700, color: 'var(--text)', lineHeight: 1.5 }}>{tip.text}</span>
-              </div>
-            ));
+            
+            // Add some random tips from the pool that aren't already included
+            const usedIcons = ['🔴', '🍅', '🏆', '💪', '🚀', '🔥'];
+            const others = pool.filter(t => !usedIcons.includes(t.icon));
+            const randomTips = others.sort(() => 0.5 - Math.random()).slice(0, 2).map(t => t.text);
+            
+            const finalTips = [...dynamicTips, ...randomTips].slice(0, 3);
+
+            return finalTips.map((text, i) => {
+              const tipObj = pool.find(t => t.text === text) || pool[0];
+              return (
+                <div key={i} style={{
+                  display: 'flex', alignItems: 'flex-start', gap: '12px',
+                  padding: '14px 16px', borderRadius: '12px',
+                  background: 'var(--chip)', border: '1px solid var(--card-border)',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+                  transition: 'all 0.2s ease',
+                }}>
+                  <span style={{ fontSize: '1.25rem', flexShrink: 0, marginTop: '2px' }}>{tipObj.icon}</span>
+                  <span style={{ fontSize: '.88rem', fontWeight: 700, color: 'var(--text)', lineHeight: 1.5 }}>{text}</span>
+                </div>
+              );
+            });
           })()}
         </div>
       </div>

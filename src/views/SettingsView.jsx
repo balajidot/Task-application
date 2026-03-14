@@ -109,6 +109,9 @@ export default function SettingsView({
   onRefreshNotifications,
   onOpenBatterySettings,
   onOpenAppSettings,
+  cardTheme, setCardTheme,
+  cardBorderColor, setCardBorderColor,
+  showCardDot, setShowCardDot
 }) {
   const [editingName, setEditingName] = useState(false);
   const [tempName, setTempName] = useState(userName || '');
@@ -129,14 +132,21 @@ export default function SettingsView({
   ];
 
 
+  const [appliedSection, setAppliedSection] = useState(null);
+
+  const triggerApply = (section) => {
+    if (typeof triggerHaptic === 'function') triggerHaptic('heavy');
+    setAppliedSection(section);
+    setTimeout(() => setAppliedSection(null), 2000);
+  };
+
   const saveName = () => {
     const name = tempName.trim();
     if (!name) return;
     setUserName(name);
     localStorage.setItem('taskPlanner_userName', name);
     setEditingName(false);
-    setJustSaved(true);
-    setTimeout(() => setJustSaved(false), 2000);
+    triggerApply('profile');
   };
 
   const isTamil = appLanguage === 'ta';
@@ -198,7 +208,7 @@ export default function SettingsView({
               {LANGUAGE_OPTIONS.map((option) => (
                 <button
                   key={option.value}
-                  onClick={() => setAppLanguage(option.value)}
+                  onClick={() => { setAppLanguage(option.value); triggerApply('language'); }}
                   style={{
                     padding: '12px 10px',
                     borderRadius: 10,
@@ -213,17 +223,7 @@ export default function SettingsView({
                 </button>
               ))}
             </div>
-          </div>
-        </Section>
-
-        <Section title={copy.settings.battery}>
-          <div style={{ padding: '14px', background: 'var(--chip)', borderRadius: 12, border: '1px solid var(--card-border)' }}>
-            <div style={{ fontWeight: 800, color: 'var(--text)', marginBottom: 6 }}>{copy.settings.batterySubtitle}</div>
-            <div style={{ color: 'var(--muted)', fontSize: '.82rem', lineHeight: 1.5 }}>{copy.settings.batteryGuide}</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 14 }}>
-              <button className="new-btn" onClick={onOpenBatterySettings}>{copy.settings.openBattery}</button>
-              <button className="hero-btn" onClick={onOpenAppSettings}>{copy.settings.openApp}</button>
-            </div>
+            {appliedSection === 'language' && <div style={{ color: '#10b981', fontSize: '.75rem', fontWeight: 800, textAlign: 'center', marginTop: 8 }}>App Language Applied</div>}
           </div>
         </Section>
 
@@ -249,7 +249,7 @@ export default function SettingsView({
                 </button>
               </div>
             )}
-            {justSaved && <div style={{ textAlign: 'center', color: '#10b981', fontWeight: 800, fontSize: '.85rem', marginTop: 8 }}>Saved</div>}
+            {appliedSection === 'profile' && <div style={{ textAlign: 'center', color: '#10b981', fontWeight: 800, fontSize: '.85rem', marginTop: 8 }}>Profile Updated</div>}
           </div>
         </Section>
 
@@ -285,11 +285,12 @@ export default function SettingsView({
             title="Sound Theme"
             subtitle="Reminder and completion sounds"
             right={
-              <select value={soundTheme} onChange={(e) => setSoundTheme(e.target.value)} onClick={(e) => e.stopPropagation()} style={{ padding: '7px 12px', borderRadius: 10, background: 'var(--card)', color: 'var(--text)', border: '1px solid var(--card-border)', fontWeight: 800, fontSize: '.82rem', cursor: 'pointer' }}>
+              <select value={soundTheme} onChange={(e) => { setSoundTheme(e.target.value); triggerApply('notif'); }} onClick={(e) => e.stopPropagation()} style={{ padding: '7px 12px', borderRadius: 10, background: 'var(--card)', color: 'var(--text)', border: '1px solid var(--card-border)', fontWeight: 800, fontSize: '.82rem', cursor: 'pointer' }}>
                 {SOUND_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
               </select>
             }
           />
+          {appliedSection === 'notif' && <div style={{ color: '#10b981', fontSize: '.75rem', fontWeight: 800, textAlign: 'center', padding: 8 }}>Preferences Applied</div>}
           <div style={{ marginTop: 8, padding: '12px', background: 'rgba(59,130,246,0.05)', borderRadius: 10, border: '1px dashed rgba(59,130,246,0.3)' }}>
              <div style={{ fontSize: '.72rem', fontWeight: 800, color: '#3b82f6', marginBottom: 8, textTransform: 'uppercase' }}>Troubleshooting</div>
              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -308,7 +309,7 @@ export default function SettingsView({
             <div style={{ fontWeight: 800, fontSize: '.88rem', color: 'var(--muted)', marginBottom: 8 }}>Auto Mode</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
               {AUTO_THEME_OPTIONS.map((option) => (
-                <button key={option.value} onClick={() => setAutoThemeMode(option.value)} style={{ padding: '10px 6px', borderRadius: 10, border: autoThemeMode === option.value ? '2px solid #10b981' : '1.5px solid var(--card-border)', background: autoThemeMode === option.value ? 'linear-gradient(135deg, rgba(16,185,129,0.18), rgba(59,130,246,0.12))' : 'var(--card)', color: autoThemeMode === option.value ? '#10b981' : 'var(--text)', fontWeight: autoThemeMode === option.value ? 900 : 700, fontSize: '.78rem', cursor: 'pointer' }}>
+                <button key={option.value} onClick={() => { setAutoThemeMode(option.value); triggerApply('theme'); }} style={{ padding: '10px 6px', borderRadius: 10, border: autoThemeMode === option.value ? '2px solid #10b981' : '1.5px solid var(--card-border)', background: autoThemeMode === option.value ? 'linear-gradient(135deg, rgba(16,185,129,0.18), rgba(59,130,246,0.12))' : 'var(--card)', color: autoThemeMode === option.value ? '#10b981' : 'var(--text)', fontWeight: autoThemeMode === option.value ? 900 : 700, fontSize: '.78rem', cursor: 'pointer' }}>
                   {option.label}
                 </button>
               ))}
@@ -316,17 +317,51 @@ export default function SettingsView({
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
             {THEME_OPTIONS.map((theme) => (
-              <button key={theme.value} onClick={() => { setAutoThemeMode('off'); setThemeMode(theme.value); }} style={{ padding: '10px 6px', borderRadius: 10, border: themeMode === theme.value ? '2px solid #3b82f6' : '1.5px solid var(--card-border)', background: themeMode === theme.value ? 'linear-gradient(135deg, rgba(59,130,246,0.18), rgba(16,185,129,0.12))' : 'var(--chip)', color: themeMode === theme.value ? '#3b82f6' : 'var(--text)', fontWeight: themeMode === theme.value ? 900 : 700, fontSize: '.78rem', cursor: 'pointer', textAlign: 'center', lineHeight: 1.3 }}>
+              <button key={theme.value} onClick={() => { setAutoThemeMode('off'); setThemeMode(theme.value); triggerApply('theme'); }} style={{ padding: '10px 6px', borderRadius: 10, border: themeMode === theme.value ? '2px solid #3b82f6' : '1.5px solid var(--card-border)', background: themeMode === theme.value ? 'linear-gradient(135deg, rgba(59,130,246,0.18), rgba(16,185,129,0.12))' : 'var(--chip)', color: themeMode === theme.value ? '#3b82f6' : 'var(--text)', fontWeight: themeMode === theme.value ? 900 : 700, fontSize: '.78rem', cursor: 'pointer', textAlign: 'center', lineHeight: 1.3 }}>
                 {theme.label}
               </button>
             ))}
+          </div>
+          {appliedSection === 'theme' && <div style={{ color: '#3b82f6', fontSize: '.75rem', fontWeight: 800, textAlign: 'center', marginTop: 8 }}>Theme Settings Applied</div>}
+        </Section>
+
+        <Section title="TASK CARD THEMES">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+              {['glow', 'border', 'minimal'].map(t => (
+                <button key={t} onClick={() => { setCardTheme(t); triggerApply('card'); }} style={{ 
+                  padding: '12px 6px', borderRadius: 10, textTransform: 'capitalize',
+                  border: cardTheme === t ? '2px solid var(--accent)' : '1px solid var(--card-border)',
+                  background: cardTheme === t ? 'var(--chip)' : 'var(--card)',
+                  color: cardTheme === t ? 'var(--accent)' : 'var(--text)',
+                  fontWeight: 800, fontSize: '.75rem'
+                }}>
+                  {t}
+                </button>
+              ))}
+            </div>
+            
+            <SettingRow icon="◎" title="Status Indicator Dot" subtitle="Show priority color dot on task cards" right={<Toggle value={showCardDot} onChange={(v) => { setShowCardDot(v); triggerApply('card'); }} color="#10b981" />} />
+
+            <div style={{ padding: '12px 14px', background: 'var(--chip)', borderRadius: 12, border: '1px solid var(--card-border)' }}>
+              <div style={{ fontWeight: 800, fontSize: '.8rem', color: 'var(--muted)', marginBottom: 10 }}>Card Accent Color</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                {['#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#8b5cf6', '#ec4899', '#ffffff'].map(c => (
+                  <button key={c} onClick={() => { setCardBorderColor(c); triggerApply('card'); }} style={{ 
+                    width: 32, height: 32, borderRadius: '50%', background: c, border: cardBorderColor === c ? '2.5px solid #fff' : '1px solid rgba(255,255,255,0.2)',
+                    boxShadow: cardBorderColor === c ? `0 0 10px ${c}` : 'none', cursor: 'pointer'
+                  }} />
+                ))}
+              </div>
+            </div>
+            {appliedSection === 'card' && <div style={{ color: '#10b981', fontSize: '.75rem', fontWeight: 800, textAlign: 'center' }}>Card Style Updated</div>}
           </div>
         </Section>
 
         <Section title={copy.settings.display}>
           <div style={{ padding: '12px 14px', background: 'var(--chip)', borderRadius: 12, border: '1px solid var(--card-border)' }}>
             <div style={{ fontWeight: 800, fontSize: '.88rem', color: 'var(--muted)', marginBottom: 8 }}>Font Style</div>
-            <select className="fi" value={taskFontFamily} onChange={(e) => setTaskFontFamily(e.target.value)} style={{ fontSize: '14px', width: '100%' }}>
+            <select className="fi" value={taskFontFamily} onChange={(e) => { setTaskFontFamily(e.target.value); triggerApply('display'); }} style={{ fontSize: '14px', width: '100%', background: 'var(--card)', border: '1px solid var(--card-border)' }}>
               {FONT_OPTIONS.map((font) => <option key={font.value} value={font.value}>{font.label}</option>)}
             </select>
           </div>
@@ -335,22 +370,23 @@ export default function SettingsView({
               <div style={{ fontWeight: 800, fontSize: '.88rem', color: 'var(--muted)' }}>Task Font Size</div>
               <span style={{ padding: '3px 10px', borderRadius: 8, background: 'linear-gradient(135deg, #10b981, #3b82f6)', color: '#fff', fontWeight: 900, fontSize: '.82rem' }}>{taskFontSize}px</span>
             </div>
-            <input type="range" min="12" max="32" value={taskFontSize} onChange={(e) => setTaskFontSize(Number(e.target.value))} style={{ width: '100%', accentColor: '#10b981' }} />
+            <input type="range" min="14" max="42" value={taskFontSize} onChange={(e) => { setTaskFontSize(Number(e.target.value)); }} onMouseUp={() => triggerApply('display')} onTouchEnd={() => triggerApply('display')} style={{ width: '100%', accentColor: '#10b981' }} />
           </div>
           <div style={{ padding: '12px 14px', background: 'var(--chip)', borderRadius: 12, border: '1px solid var(--card-border)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
               <div style={{ fontWeight: 800, fontSize: '.88rem', color: 'var(--muted)' }}>Font Weight</div>
               <span style={{ padding: '3px 10px', borderRadius: 8, background: 'var(--card)', color: 'var(--text)', fontWeight: 900, fontSize: '.82rem', border: '1px solid var(--card-border)' }}>{fontWeight}</span>
             </div>
-            <input type="range" min="400" max="900" step="100" value={fontWeight} onChange={(e) => setFontWeight(Number(e.target.value))} style={{ width: '100%', accentColor: '#6366f1' }} />
+            <input type="range" min="400" max="900" step="100" value={fontWeight} onChange={(e) => setFontWeight(Number(e.target.value))} onMouseUp={() => triggerApply('display')} onTouchEnd={() => triggerApply('display')} style={{ width: '100%', accentColor: '#6366f1' }} />
           </div>
           <div style={{ padding: '12px 14px', background: 'var(--chip)', borderRadius: 12, border: '1px solid var(--card-border)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
               <div style={{ fontWeight: 800, fontSize: '.88rem', color: 'var(--muted)' }}>UI Scale</div>
               <span style={{ padding: '3px 10px', borderRadius: 8, background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)', color: '#fff', fontWeight: 900, fontSize: '.82rem' }}>{uiScale}%</span>
             </div>
-            <input type="range" min="80" max="130" step="4" value={uiScale} onChange={(e) => setUiScale(Number(e.target.value))} style={{ width: '100%', accentColor: '#3b82f6' }} />
+            <input type="range" min="80" max="130" step="4" value={uiScale} onChange={(e) => setUiScale(Number(e.target.value))} onMouseUp={() => triggerApply('display')} onTouchEnd={() => triggerApply('display')} style={{ width: '100%', accentColor: '#3b82f6' }} />
           </div>
+          {appliedSection === 'display' && <div style={{ color: '#10b981', fontSize: '.75rem', fontWeight: 800, textAlign: 'center', marginTop: 8 }}>Display Settings Updated</div>}
         </Section>
 
         <Section title={copy.settings.behavior}>

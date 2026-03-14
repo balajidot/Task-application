@@ -98,10 +98,15 @@ export default function CareerView() {
         </div>
         <input 
           type="text" 
-          className="fs" 
+          className="fi" 
           value={goal} 
           onChange={(e) => setGoal(e.target.value)} 
-          style={{ fontSize: '1.5rem', fontWeight: 900, background: 'transparent', border: 'none', color: 'var(--text)', padding: 0, boxShadow: 'none', outline: 'none' }}
+          style={{ 
+            fontSize: '1.5rem', fontWeight: 'var(--global-font-weight, 900)', 
+            background: 'transparent', border: 'none', color: 'var(--text)', 
+            padding: 0, boxShadow: 'none', outline: 'none', 
+            fontFamily: 'var(--task-font-family)', width: '100%' 
+          }}
         />
       </div>
 
@@ -130,7 +135,7 @@ export default function CareerView() {
                 />
               </div>
             ))}
-            <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+            <div style={{ display: 'flex', gap: '8px', marginTop: '8px', alignItems: 'center' }}>
               <input
                 type="text"
                 className="fi"
@@ -138,9 +143,9 @@ export default function CareerView() {
                 value={newSkill}
                 onChange={(e) => setNewSkill(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && addSkill()}
-                style={{ flex: 1, padding: '8px 12px', fontSize: '.85rem' }}
+                style={{ flex: 1, padding: '10px 14px', fontSize: '.88rem' }}
               />
-              <button className="new-btn" onClick={addSkill} style={{ minWidth: 'auto', padding: '8px 14px', fontSize: '.85rem' }}>+</button>
+              <button className="new-btn" onClick={addSkill} style={{ minWidth: '44px', height: '44px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>+</button>
             </div>
           </div>
         </div>
@@ -166,7 +171,7 @@ export default function CareerView() {
 
       <div className="card">
         <div className="m-title" style={{ fontSize: '1.2rem', marginBottom: '16px' }}>📚 Learning Planner</div>
-        <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', alignItems: 'center' }}>
           <input 
              type="text" 
              className="fi" 
@@ -176,7 +181,7 @@ export default function CareerView() {
              onKeyDown={(e) => e.key === 'Enter' && addTask()}
              style={{ flex: 1 }}
           />
-          <button className="new-btn" onClick={addTask}>➕ Add</button>
+          <button className="new-btn" onClick={addTask} style={{ height: '48px', padding: '0 20px', whiteSpace: 'nowrap' }}>➕ Add</button>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {tasks.map(t => (
@@ -184,7 +189,7 @@ export default function CareerView() {
               <button className={`chk ${t.done ? 'checked' : ''}`} onClick={() => toggleTask(t.id)}>
                 {t.done && <span className="checkmark">✓</span>}
               </button>
-              <span className={`goal-text ${t.done ? 'done' : ''}`} style={{ fontSize: '1rem', flex: 1, margin: 0 }}>{t.text}</span>
+              <span className={`goal-text ${t.done ? 'done' : ''}`} style={{ fontSize: 'var(--task-font-size, 1rem)', fontWeight: 'var(--global-font-weight, 800)', fontFamily: 'var(--task-font-family)', flex: 1, margin: 0 }}>{t.text}</span>
               <button className="mini-btn warn" onClick={() => deleteTask(t.id)} style={{ padding: '4px 8px' }}>Delete</button>
             </div>
           ))}

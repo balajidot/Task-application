@@ -110,7 +110,7 @@ export default function JournalView() {
       {/* MOOD SELECTOR */}
       <div className="card" style={{ marginBottom: '16px' }}>
         <div style={{ fontWeight: 800, fontSize: '.95rem', color: 'var(--text)', marginBottom: '12px' }}>How are you feeling?</div>
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px' }}>
           {MOODS.map(mood => {
             const isActive = entry.mood === mood.label;
             return (
@@ -118,16 +118,18 @@ export default function JournalView() {
                 key={mood.label}
                 onClick={() => updateEntry('mood', mood.label)}
                 style={{
-                  padding: '10px 18px', borderRadius: '12px', cursor: 'pointer',
-                  background: isActive ? `linear-gradient(135deg, ${mood.color}22, ${mood.color}11)` : 'var(--chip)',
+                  padding: '12px 14px', borderRadius: '14px', cursor: 'pointer',
+                  background: isActive ? `linear-gradient(135deg, ${mood.color}, color-mix(in srgb, ${mood.color} 80%, black))` : 'var(--chip)',
                   border: `2px solid ${isActive ? mood.color : 'transparent'}`,
-                  color: isActive ? mood.color : 'var(--muted)',
+                  color: isActive ? '#fff' : 'var(--muted)',
                   fontWeight: 800, fontSize: '.85rem',
-                  transition: 'all 0.2s ease',
-                  display: 'flex', alignItems: 'center', gap: '6px',
+                  transition: 'all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                  boxShadow: isActive ? `0 4px 12px ${mood.color}44` : 'none',
+                  transform: isActive ? 'scale(1.02)' : 'scale(1)',
                 }}
               >
-                <span style={{ fontSize: '1.3rem' }}>{mood.emoji}</span>
+                <span style={{ fontSize: '1.4rem' }}>{mood.emoji}</span>
                 {mood.label}
               </button>
             );

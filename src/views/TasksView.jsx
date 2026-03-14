@@ -14,10 +14,12 @@ export default function TasksView({
   showCelebration, setShowCelebration, liveHighlightEnabled, aiBriefing, copy, openAiPlanner, goals, dotsFor,
   priorityFilter, setPriorityFilter, timeFilter, setTimeFilter,
   searchTerm, setSearchTerm, searchRef,
-  pendingGoals, completedGoals, visibleGoals, selectedGoalIds, selectedSet,
-  selectAllVisibleGoals, deleteSelectedGoals, clearSelectedGoals,
+  pendingGoals, completedGoals, visibleGoals,
+  selectedGoalIds, selectedSet, selectAllVisibleGoals, deleteSelectedGoals, clearSelectedGoals,
   completedPulseId, celebratingGoalId, toggleDoneWithCelebration, removeGoal, toggleSelectGoal,
-  markAllPendingDone, duplicatePendingToTomorrow, reopenAllCompleted
+  markAllPendingDone, duplicatePendingToTomorrow, reopenAllCompleted, overdueEnabled,
+  cardTheme, cardBorderColor, showCardDot,
+  appLanguage, onOptimizeSchedule
 }) {
   const [completedTasksCollapsed, setCompletedTasksCollapsed] = React.useState(false);
   const [liveStripVisible, setLiveStripVisible] = React.useState(true);
@@ -75,8 +77,7 @@ export default function TasksView({
 
     longPressTimer.current = setTimeout(() => {
       if (window.navigator?.vibrate) window.navigator.vibrate(50);
-      setModalPos(coords);
-      setActionTask(goal);
+      toggleSelectGoal(goal.id);
     }, 450);
   };
 
@@ -115,6 +116,10 @@ export default function TasksView({
         countdownText={liveCurrentGoal?.id === goal.id ? liveCountdown : null}
         selected={selectedSet.has(goal.id)}
         activeDate={activeDate}
+        overdueEnabled={overdueEnabled}
+        cardTheme={cardTheme}
+        cardBorderColor={cardBorderColor}
+        showCardDot={showCardDot}
         onToggleDone={() => toggleDoneWithCelebration(goal)}
         onEdit={() => {
           setEditingGoal(goal.id);
@@ -238,7 +243,27 @@ export default function TasksView({
         </div>
       </div>
 
-      <div className="card tasks-panel" style={{ marginTop: 8 }}>
+    <div className="card tasks-panel" style={{ marginTop: 8 }}>
+        <div style={{ padding: '0 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <button 
+            className="hero-btn" 
+            onClick={() => onOptimizeSchedule(visibleGoals)}
+            disabled={visibleGoals.length === 0}
+            style={{ 
+              background: 'linear-gradient(135deg, #a855f7, #6366f1)', 
+              color: 'white', 
+              border: 'none',
+              padding: '10px 16px',
+              fontSize: '0.82rem',
+              boxShadow: '0 4px 15px rgba(139, 92, 246, 0.3)',
+              flex: 1,
+              marginRight: '8px'
+            }}
+          >
+            ✨ {appLanguage === 'ta' ? 'அட்டவணைப்படுத்து' : 'Optimize Schedule'}
+          </button>
+        </div>
+
         <div className="tasks-panel-head">
           <div className="focus-title">{copy.tasksView.aiCoach}</div>
           <div className="task-summary-chip">

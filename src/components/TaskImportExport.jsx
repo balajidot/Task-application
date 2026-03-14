@@ -3,17 +3,36 @@ import React, { useState } from 'react';
 const TaskImportExport = ({ goals, onImport }) => {
   const [importData, setImportData] = useState('');
 
-  const exportTasks = () => {
-    const dataStr = JSON.stringify(goals, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `task-planner-backup-${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+  const exportTasks = async () => {
+    try {
+      const dataStr = JSON.stringify(goals, null, 2);
+      
+      // Try navigator.share first for mobile/native feel if supported
+      if (typeof navigator !== 'undefined' && navigator.share && navigator.canShare) {
+        const file = new File([dataStr], 'task-planner-backup.json', { type: 'application/json' });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            title: 'Task Planner Backup',
+            files: [file]
+          });
+          return;
+        }
+      }
+
+      // Fallback to standard download
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `task-planner-backup-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.setTimeout(() => URL.revokeObjectURL(url), 100);
+    } catch (err) {
+      console.error('Export failed:', err);
+      alert('Export failed. Please try again.');
+    }
   };
 
   const importTasks = () => {
