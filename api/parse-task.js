@@ -28,7 +28,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'GEMINI_API_KEY is not set in Vercel environment variables. Please add it to your project settings.' });
   }
 
-  const { text, language = 'en' } = req.body;
+  const { text = '', language = 'en' } = req.body || {};
   const outputLanguage = language === 'ta' ? 'Tamil' : 'English';
 
   const prompt = `You are an AI Task Analyst. Extract task details from the following input: "${text}".

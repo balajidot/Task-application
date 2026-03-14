@@ -28,7 +28,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'GEMINI_API_KEY is not set in Vercel environment variables. Please add it to your project settings.' });
   }
 
-  const { message, appData, language = 'en' } = req.body;
+  const { message, appData = {}, language = 'en' } = req.body || {};
 
   const outputLanguage = language === 'ta' ? 'Tamil' : 'English';
 
@@ -74,7 +74,7 @@ RESPONSE:`;
             maxOutputTokens: 1024,
           },
         }),
-        signal: AbortSignal.timeout(25000),
+        signal: AbortSignal.timeout(9000),
       }
     );
 

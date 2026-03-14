@@ -52,11 +52,11 @@ export default function ChatAssistantView({ appLanguage, goals, habits, career, 
         })
       });
 
-      if (!response.ok) {
-        throw new Error(`Server responded with ${response.status}`);
-      }
-
       const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || data.error || `Server Error ${response.status}`);
+      }
       
       if (data.response) {
         // Immediate actions (non-task additions)
@@ -79,12 +79,10 @@ export default function ChatAssistantView({ appLanguage, goals, habits, career, 
       }
     } catch (error) {
       console.error('Gemini Error:', error);
-      const isNetworkError = !error.response && error.message.includes('fetch') || error.message.includes('Network');
-      const statusText = error.message.includes('responded with') ? ` (${error.message.split('responded with ')[1]})` : "";
       
       const errorMsg = appLanguage === 'ta' 
-        ? `⚠️ (இணைப்பு பிழை${statusText}) ` 
-        : `⚠️ (Connectivity Issue${statusText}) `;
+        ? `⚠️ (பிழை: ${error.message}) ` 
+        : `⚠️ (Error: ${error.message}) `;
         
       const aiResponse = getAssistantResponse(userMsg, appData, appLanguage);
       setMessages(prev => [...prev, { 

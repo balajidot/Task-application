@@ -165,7 +165,7 @@ Rules:
             maxOutputTokens: 320,
           },
         }),
-        signal: AbortSignal.timeout(20000),
+        signal: AbortSignal.timeout(9000),
       }
     );
 

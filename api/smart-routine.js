@@ -29,7 +29,7 @@ export default async function handler(req, res) {
   }
 
   // Frontend-ல் இருந்து வரும் தரவுகள்
-  const { userName, goals, flexibleBlocks, fixedRoutine } = req.body;
+  const { userName, goals, flexibleBlocks, fixedRoutine } = req.body || {};
   if (typeof goals !== 'string' && goals != null) {
     return res.status(400).json({ error: 'goals must be a string when provided' });
   }
@@ -76,7 +76,7 @@ EXPECTED JSON FORMAT:
             responseMimeType: "application/json"
           }
         }),
-        signal: AbortSignal.timeout(20000)
+        signal: AbortSignal.timeout(9000)
       }
     );
 

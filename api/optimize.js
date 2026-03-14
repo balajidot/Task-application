@@ -28,7 +28,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'GEMINI_API_KEY is not set in Vercel environment variables. Please add it to your project settings.' });
   }
 
-  const { tasks, language = 'en' } = req.body;
+  const { tasks = [], language = 'en' } = req.body || {};
   const outputLanguage = language === 'ta' ? 'Tamil' : 'English';
 
   const prompt = `You are a productivity expert. Re-sequence these tasks for a person to have a perfect daily flow. 
