@@ -1,4 +1,5 @@
 import React, { Suspense, lazy } from "react";
+import { getApiUrl } from "./utils/apiConfig";
 import PomodoroTimer from "./components/PomodoroTimer";
 import TaskImportExport from "./components/TaskImportExport";
 import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts";
@@ -199,7 +200,7 @@ export default function App() {
     if (!userName || !loaded || isBriefingLoading) return;
     setIsBriefingLoading(true);
     try {
-      const response = await fetch('/api/briefing', {
+      const response = await fetch(getApiUrl('/api/briefing'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -234,7 +235,7 @@ export default function App() {
     setAiLoading(true);
     triggerHaptic('heavy');
     try {
-      const response = await fetch('/api/optimize', {
+      const response = await fetch(getApiUrl('/api/optimize'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tasks: tasksToOptimize, language: appLanguage })
@@ -260,7 +261,7 @@ export default function App() {
     setAiLoading(true);
     triggerHaptic('medium');
     try {
-      const response = await fetch('/api/parse-task', {
+      const response = await fetch(getApiUrl('/api/parse-task'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: rawText, language: appLanguage })

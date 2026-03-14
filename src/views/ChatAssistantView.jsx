@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getAssistantResponse } from '../utils/aiAssistant';
 import { triggerHaptic } from '../hooks/useMobileFeatures';
+import { getApiUrl } from '../utils/apiConfig';
 
 export default function ChatAssistantView({ appLanguage, goals, habits, career, journalEntries, onExecuteAction }) {
   const [messages, setMessages] = useState([
@@ -34,7 +35,7 @@ export default function ChatAssistantView({ appLanguage, goals, habits, career, 
     setIsTyping(true);
 
     try {
-      const response = await fetch('/api/chat', {
+      const response = await fetch(getApiUrl('/api/chat'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -125,7 +126,7 @@ export default function ChatAssistantView({ appLanguage, goals, habits, career, 
             whiteSpace: 'pre-wrap'
           }}>
             {m.text}
-            {m.actions && m.actions.find(a => a.type === 'ADD_TASKS') && (
+            {Array.isArray(m.actions) && m.actions.find(a => a.type === 'ADD_TASKS') && (
               <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
                 <button 
                   className="new-btn" 

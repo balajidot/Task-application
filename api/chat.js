@@ -91,7 +91,8 @@ RESPONSE:`;
     const actionsMatch = aiText.match(/<ACTIONS_JSON>([\s\S]*?)<\/ACTIONS_JSON>/);
     if (actionsMatch) {
       try {
-        actions = JSON.parse(actionsMatch[1].trim());
+        const parsed = JSON.parse(actionsMatch[1].trim());
+        actions = Array.isArray(parsed) ? parsed : [parsed];
       } catch (e) {
         console.error('Failed to parse suggested actions:', e);
       }
