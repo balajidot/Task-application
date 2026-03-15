@@ -35,6 +35,7 @@ const JournalView = lazy(() => import("./views/JournalView"));
 const GoalsView = lazy(() => import("./views/GoalsView"));
 const ChatAssistantView = lazy(() => import("./views/ChatAssistantView"));
 const InstructionsView = lazy(() => import("./views/InstructionsView"));
+const FeedbackView = lazy(() => import("./views/FeedbackView"));
 
 import { REPEAT_OPTIONS, SESSION_OPTIONS, PRIORITY_OPTIONS, FONT_OPTIONS, TIME_FILTER_OPTIONS, DAY_NAMES, QUOTES, PRIORITY_RANK, JOURNAL_KEY, HABITS_KEY, GOALS_KEY, TOOLS_KEY, CAREER_KEY, APP_COPY } from "./utils/constants";
 import {
@@ -925,10 +926,7 @@ export default function App() {
     if (!goal) return;
     setAiLoading(true);
     try {
-      const API_URL = (typeof window !== 'undefined' && window.Capacitor)
-        ? 'https://task-application-sigma.vercel.app/api/decompose'
-        : '/api/decompose';
-      const response = await fetch(API_URL, {
+      const response = await fetch(getApiUrl('/api/decompose'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ taskText: goal.text, language: appLanguage })
@@ -1132,6 +1130,7 @@ export default function App() {
     { id: "goals", label: "Goals", icon: "🎯" },
     { id: "chat", label: "AI Chat", icon: "🤖" },
     { id: "instructions", label: "Instructions", icon: "📖" },
+    { id: "feedback", label: "Feedback", icon: "✉️" },
   ];
   const tabItems = [...mainTabItems.map(t => ({...t, icon: t.id === 'insights' ? '📊' : t.id === 'analytics' ? '📈' : t.icon})), ...moreTabItems];
 
@@ -1502,6 +1501,7 @@ export default function App() {
           {activeView === "habits" && <div key="habits" className="view-transition"><HabitsView /></div>}
           {activeView === "journal" && <div key="journal" className="view-transition"><JournalView /></div>}
           {activeView === "goals" && <div key="goals" className="view-transition"><GoalsView /></div>}
+          {activeView === "feedback" && <div key="feedback" className="view-transition"><FeedbackView appLanguage={appLanguage} /></div>}
         </Suspense>
 
         {showPomodoro && (

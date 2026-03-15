@@ -89,6 +89,7 @@ export const APP_COPY = {
       goals: "Goals",
       chat: "AI Chat",
       instructions: "Instructions",
+      feedback: "Feedback",
       more: "More",
     },
     common: {
@@ -250,6 +251,7 @@ export const APP_COPY = {
       goals: "இலக்குகள்",
       chat: "AI அரட்டை",
       instructions: "வழிமுறைகள்",
+      feedback: "கருத்துக்கள்",
       more: "மேலும்",
     },
     common: {
