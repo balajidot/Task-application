@@ -9,35 +9,24 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const rateLimit = enforceRateLimit(getClientKey(req));
-  if (!rateLimit.allowed) {
-    return res.status(429).json({ error: 'Too many requests.' });
-  }
+  if (!rateLimit.allowed) return res.status(429).json({ error: 'Too many requests.' });
 
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    return res.status(500).json({ error: 'GEMINI_API_KEY is not set.' });
-  }
+  if (!apiKey) return res.status(500).json({ error: 'GEMINI_API_KEY is not set.' });
 
   const { tasks = [], language = 'en' } = req.body || {};
   const outputLanguage = language === 'ta' ? 'Tamil' : 'English';
 
-  const prompt = `Re-sequence these tasks for optimal flow. Return ONLY a valid JSON array inside <OPTIMIZED_JSON> tags.
-TASKS: ${JSON.stringify(tasks)}
-Language: ${outputLanguage}`;
+  const prompt = `Re-sequence these tasks for optimal flow. Return ONLY a valid JSON array inside <OPTIMIZED_JSON> tags. TASKS: ${JSON.stringify(tasks)}. Language: ${outputLanguage}`;
 
   const models = [
-    { version: 'v1beta', name: 'gemini-2.0-flash' },
-    { version: 'v1beta', name: 'gemini-1.5-flash' }
+    { version: 'v1beta', name: 'gemini-flash-latest' },
+    { version: 'v1beta', name: 'gemini-pro-latest' },
+    { version: 'v1beta', name: 'gemini-2.0-flash-lite' }
   ];
 
   for (const model of models) {
@@ -62,12 +51,12 @@ Language: ${outputLanguage}`;
         const optimizedTasks = jsonMatch ? JSON.parse(jsonMatch[1].trim()) : null;
         if (optimizedTasks) return res.status(200).json({ optimizedTasks });
       }
-      if (response.status === 404) continue;
+      if (response.status === 404 || response.status === 429 || response.status === 403) continue;
       break;
     } catch (e) {
       continue;
     }
   }
 
-  return res.status(500).json({ error: 'Optimization failed' });
+  return res.status(500).json({ error: 'Optimization currently unavailable.' });
 }

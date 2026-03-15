@@ -25,31 +25,18 @@ export default async function handler(req, res) {
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: 'GEMINI_API_KEY is not set in Vercel. Please check Project Settings.' });
+    return res.status(500).json({ error: 'GEMINI_API_KEY is not set.' });
   }
 
   const { message, appData = {}, language = 'en' } = req.body || {};
   const outputLanguage = language === 'ta' ? 'Tamil' : 'English';
 
-  const prompt = `You are an elite AI Productivity Coach.
-  
-USER DATA:
-- Tasks: ${JSON.stringify(appData.goals || [])}
-- Habits: ${JSON.stringify(appData.habits || [])}
-- Career: ${JSON.stringify(appData.career || {})}
+  const prompt = `You are an AI Personal Assistant. Respond to: "${message}". Data: ${JSON.stringify(appData)}. Respond in ${outputLanguage}. Use emojis. Use <ACTIONS_JSON>[...]</ACTIONS_JSON> for app actions.`;
 
-USER MESSAGE: "${message}"
-
-INSTRUCTIONS:
-1. Respond in ${outputLanguage}. Use emojis.
-2. For app actions (Language/Theme/View/Tasks), use <ACTIONS_JSON>[...]</ACTIONS_JSON> tags.
-3. Current Date: ${new Date().toISOString().split('T')[0]}
-
-RESPONSE:`;
-
-  // Standardized Models based on discovery list (Gemini 2.0 Flash is verified)
+  // Standardized Models with specific focus on stability (Aliases are usually best)
   const models = [
-    { version: 'v1beta', name: 'gemini-2.0-flash' },
+    { version: 'v1beta', name: 'gemini-flash-latest' },
+    { version: 'v1beta', name: 'gemini-pro-latest' },
     { version: 'v1beta', name: 'gemini-2.0-flash-lite' },
     { version: 'v1beta', name: 'gemini-1.5-flash' }
   ];
@@ -86,8 +73,15 @@ RESPONSE:`;
         const cleanText = aiText.replace(/<ACTIONS_JSON>[\s\S]*?<\/ACTIONS_JSON>/, '').trim();
         return res.status(200).json({ response: cleanText, actions });
       } else {
-        lastError = data.error?.message || response.status;
-        if (response.status === 404) continue;
+        lastError = data.error?.message || `Status ${response.status}`;
+        
+        // If Model Not Found (404) OR Quota Exceeded (429/403) or Limit 0, try next model
+        const errLower = lastError.toLowerCase();
+        if (response.status === 404 || response.status === 429 || response.status === 403 || errLower.includes('quota') || errLower.includes('found')) {
+          console.log(`Model ${model.name} failed (${response.status}), trying next...`);
+          continue;
+        }
+        
         return res.status(500).json({ error: 'Gemini API failed', message: lastError });
       }
     } catch (e) {
@@ -96,5 +90,9 @@ RESPONSE:`;
     }
   }
 
-  return res.status(500).json({ error: 'All models failed', message: lastError });
+  // If all failed, return a helpful error instead of raw technical one
+  return res.status(500).json({ 
+    error: 'AI Services Busy', 
+    message: 'Google Gemini API list is busy or reaching free tier limits. Please wait 1 minute and try again.' 
+  });
 }

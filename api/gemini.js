@@ -3,23 +3,7 @@
 
 import { enforceRateLimit, getClientKey } from './_rateLimit.js';
 
-const TASK_BANK = [
-  'Deep work on your most important goal',
-  'Review pending tasks and set priorities',
-  'Follow-up messages and admin cleanup',
-  'Learning block for skill growth',
-  'Project execution sprint',
-  'Planning and reflection session',
-  'Exercise or recharge break',
-  'Documentation or note organization',
-  'Interview or communication practice',
-  'Coding and debugging sprint',
-  'Revision and recall practice',
-  'Creative thinking and problem solving',
-];
-
-function sanitizeLines(text, existingTasks = []) {
-  const existingSet = new Set(existingTasks.map((task) => String(task?.text || '').trim().toLowerCase()));
+function sanitizeLines(text) {
   return String(text || '')
     .trim()
     .split(/\r?\n/)
@@ -41,18 +25,17 @@ export default async function handler(req, res) {
   if (!rateLimit.allowed) return res.status(429).json({ error: 'Too many requests.' });
 
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return res.status(500).json({ error: 'GEMINI_API_KEY is not set.' });
+  if (!apiKey) return res.status(500).json({ error: 'GEMINI_API_KEY already shared.' });
 
-  const { userName = 'Friend', existingTasks = [], date, context = '', language = 'en' } = req.body || {};
+  const { userName = 'Friend', date, context = '', language = 'en' } = req.body || {};
   const outputLanguage = language === 'ta' ? 'Tamil' : 'English';
 
-  const prompt = `Create a daily plan for ${userName} on ${date}. 
-  Context: ${context}. Respond in ${outputLanguage}.
-  Format: HH:MM - HH:MM - Task description (Exactly 6 lines).`;
+  const prompt = `Create a daily plan for ${userName} on ${date}. Context: ${context}. Respond in ${outputLanguage}. Format: HH:MM - HH:MM - Task description (Exactly 6 lines).`;
 
   const models = [
-    { version: 'v1beta', name: 'gemini-2.0-flash' },
-    { version: 'v1beta', name: 'gemini-1.5-flash' }
+    { version: 'v1beta', name: 'gemini-flash-latest' },
+    { version: 'v1beta', name: 'gemini-pro-latest' },
+    { version: 'v1beta', name: 'gemini-2.0-flash-lite' }
   ];
 
   for (const model of models) {
@@ -73,13 +56,13 @@ export default async function handler(req, res) {
       const data = await response.json();
       if (response.ok) {
         const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-        const lines = sanitizeLines(text, existingTasks);
+        const lines = sanitizeLines(text);
         if (lines.length >= 4) return res.status(200).json({ schedule: lines.join('\n') });
       }
-      if (response.status === 404) continue;
+      if (response.status === 404 || response.status === 429 || response.status === 403) continue;
       break;
     } catch (e) { continue; }
   }
 
-  return res.status(200).json({ schedule: "08:30 - 09:30 - Update your goals\n09:30 - 11:00 - High focus work session\n11:30 - 13:00 - Learning and study block\n14:00 - 15:30 - Project execution sprint" });
+  return res.status(200).json({ schedule: "08:30 - 09:30 - Plan the day\n09:30 - 11:30 - Deep focus session\n12:30 - 14:00 - Skill learning block\n15:00 - 16:30 - Project execution sprint" });
 }
