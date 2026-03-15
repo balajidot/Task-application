@@ -63,7 +63,7 @@ export default function App() {
   const [editingGoal, setEditingGoal] = React.useState(null);
   const [activeDate, setActiveDate] = React.useState(todayKey());
   const [weekBase, setWeekBase] = React.useState(new Date());
-  const [activeView, setActiveView] = React.useState("tasks");
+  const [activeView, setActiveView] = React.useState("insights");
   const [notifPerm, setNotifPerm] = React.useState("default");
   const [priorityFilter, setPriorityFilter] = React.useState("All");
   const [timeFilter, setTimeFilter] = React.useState("All Times");
@@ -126,6 +126,7 @@ export default function App() {
   const nextAlertShownRef = React.useRef({});
   const globalCelebrationTimerRef = React.useRef(null);
   const pendingWriteRef = React.useRef({ timer: null, last: "" });
+  const isFirstRunRef = React.useRef(true);
 
   const save = React.useCallback((updated) => {
     setGoals(updated);
@@ -329,7 +330,8 @@ export default function App() {
       if (raw) { try { const parsed = JSON.parse(raw); if (Array.isArray(parsed)) setGoals(parsed.map(normalizeGoal)); } catch {} }
       if (uiState && typeof uiState === "object") {
         setActiveDate(todayKey());
-        if (uiState.activeView) setActiveView(uiState.activeView);
+        // REMOVED: Restore last used view - User wants Dashboard (insights) by default on launch
+        // if (uiState.activeView) setActiveView(uiState.activeView);
         if (uiState.searchTerm) setSearchTerm(uiState.searchTerm);
         if (uiState.priorityFilter) setPriorityFilter(uiState.priorityFilter);
         if (uiState.timeFilter) setTimeFilter(uiState.timeFilter);
@@ -448,7 +450,12 @@ export default function App() {
     liveTaskRef.current = liveCurrentGoal.id;
     
     if (idChanged) {
-      setLiveTaskPopup(liveCurrentGoal);
+      // Don't show popup automatically on first app load
+      if (!isFirstRunRef.current) {
+        setLiveTaskPopup(liveCurrentGoal);
+      }
+      isFirstRunRef.current = false;
+      
       electronIpc?.send?.("notify-task-shift", {
         text: liveCurrentGoal.text,
         startTime: liveCurrentGoal.startTime,
