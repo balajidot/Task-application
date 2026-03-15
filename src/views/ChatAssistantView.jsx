@@ -200,15 +200,11 @@ export default function ChatAssistantView({ appLanguage, goals, habits, career, 
 
       {/* Bottom Area (Quick Actions + Input) */}
       <div style={{ 
-        position: 'absolute', 
-        bottom: 'var(--keyboard-height, 0px)', 
-        left: 0, 
-        right: 0, 
         background: 'var(--card)', 
         zIndex: 10,
         boxShadow: '0 -4px 20px rgba(0,0,0,0.3)',
-        transition: 'bottom 0.1s ease-out',
-        paddingBottom: 'env(safe-area-inset-bottom, 10px)'
+        paddingBottom: 'calc(var(--keyboard-height, 0px) + env(safe-area-inset-bottom, 10px))',
+        flexShrink: 0
       }}>
         {/* Quick Actions */}
         <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', padding: '10px 16px', borderBottom: '1px solid var(--card-border)' }} className="no-scrollbar">
