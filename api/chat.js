@@ -1,4 +1,4 @@
-// Gemini AI — Conversational Analysis Chat
+// Gemini AI — Conversational Analysis Chat (SUPER DEBUGGER MODE)
 // File location: api/chat.js
 
 import { enforceRateLimit, getClientKey } from './_rateLimit.js';
@@ -25,61 +25,40 @@ export default async function handler(req, res) {
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: 'GEMINI_API_KEY is not set in Vercel environment variables. Please add it to your project settings.' });
+    return res.status(500).json({ error: 'GEMINI_API_KEY is not set in Vercel. Please check Project Settings > Environment Variables.' });
   }
 
   const { message, appData = {}, language = 'en' } = req.body || {};
   const outputLanguage = language === 'ta' ? 'Tamil' : 'English';
 
-  const prompt = `You are an elite AI Productivity Coach. You have full access to the user's productivity data and app settings.
-  
-USER DATA ANALYSIS:
-- Tasks: ${JSON.stringify(appData.goals || [])}
-- Habits: ${JSON.stringify(appData.habits || [])}
-- Career Goal: ${JSON.stringify(appData.career || {})}
-- Journal/Mindset: ${JSON.stringify(appData.journalEntries || [])}
+  const prompt = `You are an AI Coach. Respond to: "${message}". Data: ${JSON.stringify(appData)}. Respond in ${outputLanguage}. 
+  If taking app actions, use <ACTIONS_JSON>[...]</ACTIONS_JSON>. 
+  (KEEP IT SHORT FOR DEBUGGING)`;
 
-APP SETTINGS:
-- Current Language: ${language}
-
-USER MESSAGE: "${message}"
-
-INSTRUCTIONS:
-1. Analyze the user's message. If they ask to change an app setting (Language, Theme, or Switch View), you must perform the action.
-2. If the user asks for a "Schedule" or "Today's plan", suggest tasks.
-3. CRITICAL: For any app actions or task additions, you MUST provide a structured JSON block inside <ACTIONS_JSON>[...]</ACTIONS_JSON> tags at the END of your response.
-   - For Language: {"type": "SET_LANGUAGE", "value": "ta" | "en"}
-   - For Theme: {"type": "SET_THEME", "value": "dark" | "ocean-dark" | "midnight" | "cyber-neon" | "sunset-light" | etc}
-   - For View: {"type": "SET_VIEW", "value": "tasks" | "insights" | "planner" | "analytics" | "habits" | "journal" | "career" | "settings"}
-   - For Tasks: {"type": "ADD_TASKS", "tasks": [{"text": "...", "startTime": "...", "endTime": "...", "session": "...", "priority": "...", "date": "${new Date().toISOString().split('T')[0]}"}]}
-4. Be encouraging but professional.
-5. Respond ONLY in ${outputLanguage}.
-6. Use emojis to make the chat engaging.
-
-RESPONSE:`;
-
-  // Fallback Logic: Try 1.5-flash, then 1.0-pro
-  const models = [
-    { version: 'v1beta', name: 'gemini-1.5-flash' },
-    { version: 'v1beta', name: 'gemini-pro' }
+  // EXHAUSTIVE LIST OF MODELS AND VERSIONS
+  const modelsToTry = [
+    { v: 'v1beta', m: 'gemini-1.5-flash' },
+    { v: 'v1', m: 'gemini-1.5-flash' },
+    { v: 'v1beta', m: 'gemini-1.5-pro' },
+    { v: 'v1', m: 'gemini-1.5-pro' },
+    { v: 'v1beta', m: 'gemini-pro' },
+    { v: 'v1', m: 'gemini-pro' },
+    { v: 'v1beta', m: 'gemini-1.0-pro' },
+    { v: 'v1', m: 'gemini-1.0-pro' }
   ];
 
-  let lastError = null;
+  let errors = [];
 
-  for (const model of models) {
+  for (const {v, m} of modelsToTry) {
     try {
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/${model.version}/models/${model.name}:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/${v}/models/${m}:generateContent?key=${apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-              temperature: 0.8,
-              topP: 0.95,
-              maxOutputTokens: 1024,
-            },
+            generationConfig: { temperature: 0.7, maxOutputTokens: 500 },
           }),
           signal: AbortSignal.timeout(9000),
         }
@@ -87,44 +66,43 @@ RESPONSE:`;
 
       const data = await response.json();
 
-      if (!response.ok) {
-        lastError = data.error?.message || `Status ${response.status}`;
-        // If it's a "model not found" error, continue to next model
-        if (response.status === 404 || lastError.toLowerCase().includes('not found')) {
-          continue;
+      if (response.ok) {
+        const aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "Empty AI Response";
+        let actions = [];
+        const actionsMatch = aiText.match(/<ACTIONS_JSON>([\s\S]*?)<\/ACTIONS_JSON>/);
+        if (actionsMatch) {
+          try {
+            const parsed = JSON.parse(actionsMatch[1].trim());
+            actions = Array.isArray(parsed) ? parsed : [parsed];
+          } catch (e) {}
         }
-        // For other errors (like 429), stop and report
-        return res.status(500).json({ error: 'Gemini API failed', message: lastError });
+        const cleanText = aiText.replace(/<ACTIONS_JSON>[\s\S]*?<\/ACTIONS_JSON>/, '').trim();
+        return res.status(200).json({ response: cleanText, actions, debug: `Worked with ${m} (${v})` });
+      } else {
+        errors.push(`${m}(${v}): ${data.error?.message || response.status}`);
       }
-
-      const aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "I'm sorry, I couldn't generate a response.";
-      
-      // Extract structured actions
-      let actions = [];
-      const actionsMatch = aiText.match(/<ACTIONS_JSON>([\s\S]*?)<\/ACTIONS_JSON>/);
-      if (actionsMatch) {
-        try {
-          const parsed = JSON.parse(actionsMatch[1].trim());
-          actions = Array.isArray(parsed) ? parsed : [parsed];
-        } catch (e) {
-          console.error('Failed to parse suggested actions:', e);
-        }
-      }
-
-      const cleanText = aiText.replace(/<ACTIONS_JSON>[\s\S]*?<\/ACTIONS_JSON>/, '').trim();
-      return res.status(200).json({ response: cleanText, actions });
-
-    } catch (error) {
-      lastError = error.message;
-      if (error.name === 'TimeoutError' || error.message.includes('timeout')) {
-        return res.status(504).json({ error: 'Server Timeout', message: 'AI took too long to respond. Please try again.' });
-      }
-      continue; // Try next model on other fetch errors
+    } catch (e) {
+      errors.push(`${m}(${v}): EXCEPTION ${e.message}`);
     }
   }
 
+  // DISCOVERY STEP: If all failed, list available models
+  let availableModels = "Unknown";
+  try {
+    const listResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+    if (listResponse.ok) {
+      const listData = await listResponse.json();
+      availableModels = listData.models?.map(m => m.name.replace('models/', '')).join(', ') || "No models listed";
+    } else {
+      const listErr = await listResponse.json();
+      availableModels = `List Error: ${listErr.error?.message || listResponse.status}`;
+    }
+  } catch (e) {
+    availableModels = `List Exception: ${e.message}`;
+  }
+
   return res.status(500).json({ 
-    error: 'All Gemini models failed', 
-    message: lastError 
+    error: 'All Models Failed', 
+    message: `Available Models for this Key: [${availableModels}]. Errors encountered: ${errors.join(' | ')}`
   });
 }
