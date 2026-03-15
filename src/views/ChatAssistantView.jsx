@@ -4,16 +4,30 @@ import { triggerHaptic } from '../hooks/useMobileFeatures';
 import { getApiUrl } from '../utils/apiConfig';
 
 export default function ChatAssistantView({ appLanguage, goals, habits, career, journalEntries, onExecuteAction }) {
-  const [messages, setMessages] = useState([
-    { 
+  const [messages, setMessages] = useState(() => {
+    const saved = localStorage.getItem('taskPlanner_chatMessages');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return parsed.map(m => ({ ...m, time: new Date(m.time) }));
+      } catch (e) {
+        return [{ id: 1, text: appLanguage === 'ta' ? "வணக்கம்! நான் உங்கள் AI ஆலோசகர்..." : "Hello! I'm your AI Coach...", sender: 'ai', time: new Date() }];
+      }
+    }
+    return [{ 
       id: 1, 
       text: appLanguage === 'ta' 
         ? "வணக்கம்! நான் உங்கள் AI ஆலோசகர். உங்கள் புள்ளிவிவரங்களை நான் ஆராய்ந்துவிட்டேன். நான் உங்களுக்கு எப்படி உதவட்டும்?"
         : "Hello! I'm your AI Coach. I've analyzed your data. How can I help you optimize your productivity?", 
       sender: 'ai', 
       time: new Date() 
-    }
-  ]);
+    }];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('taskPlanner_chatMessages', JSON.stringify(messages));
+  }, [messages]);
+
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const scrollRef = useRef(null);
@@ -21,12 +35,27 @@ export default function ChatAssistantView({ appLanguage, goals, habits, career, 
   const appData = { goals, habits, career, journalEntries };
 
   useEffect(() => {
-    scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
+    scrollToBottom();
   }, [messages, isTyping]);
   
-  // Also scroll when keyboard opens
+  const scrollToBottom = () => {
+    setTimeout(() => {
+      scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+  };
+
+  // Keyboard height handling optimization: 
+  // We use absolute positioning but wrap everything in a container that reacts to the keyboard.
+  const [keyboardHeight, setKbHeight] = useState(0);
+
   useEffect(() => {
-    const handleResize = () => scrollToBottom();
+    const handleResize = () => {
+      if (window.visualViewport) {
+        const height = window.innerHeight - window.visualViewport.height;
+        setKbHeight(Math.max(0, height));
+        scrollToBottom();
+      }
+    };
     window.visualViewport?.addEventListener('resize', handleResize);
     return () => window.visualViewport?.removeEventListener('resize', handleResize);
   }, []);
@@ -59,12 +88,15 @@ export default function ChatAssistantView({ appLanguage, goals, habits, career, 
       }
       
       if (data.response) {
-        // Immediate actions (non-task additions)
+        // Immediate actions
         if (data.actions && Array.isArray(data.actions)) {
-          const nonTaskActions = data.actions.filter(a => a.type !== 'ADD_TASKS');
-          if (nonTaskActions.length > 0 && onExecuteAction) {
-            nonTaskActions.forEach(action => onExecuteAction(action));
-          }
+          // If it's a SET_LANGUAGE or SET_THEME, we execute immediately
+          // Note: REPLACE_TASKS and ADD_TASKS usually need the user to see the button or it happens via onExecuteAction
+          data.actions.forEach(action => {
+            if (['SET_LANGUAGE', 'SET_THEME', 'SET_VIEW'].includes(action.type)) {
+               onExecuteAction(action);
+            }
+          });
         }
 
         setMessages(prev => [...prev, { 
@@ -119,6 +151,12 @@ export default function ChatAssistantView({ appLanguage, goals, habits, career, 
         { label: "🧠 Mindset Insight", val: "analyze my mindset and mood" }
       ];
 
+  const clearChat = () => {
+    if (window.confirm(appLanguage === 'ta' ? "உரையாடலை அழிக்கவா?" : "Clear history?")) {
+      setMessages([{ id: 1, text: appLanguage === 'ta' ? "வணக்கம்! நான் உங்கள் AI உதவியாளர்." : "Hello! I'm your AI Assistant.", sender: 'ai', time: new Date() }]);
+    }
+  };
+
   return (
     <div className="chat-view animate-fade-in" style={{ 
       display: 'flex', 
@@ -129,7 +167,7 @@ export default function ChatAssistantView({ appLanguage, goals, habits, career, 
       margin: '0 auto', 
       background: 'var(--bg)',
       position: 'relative',
-      overflow: 'hidden' // Prevent double scrollbars
+      overflow: 'hidden'
     }}>
       {/* Header - Fixed at top */}
       <div style={{ 
@@ -139,14 +177,17 @@ export default function ChatAssistantView({ appLanguage, goals, habits, career, 
         borderRadius: '20px 20px 0 0', 
         display: 'flex', 
         alignItems: 'center', 
-        gap: '12px',
+        justifyContent: 'space-between',
         flexShrink: 0
       }}>
-        <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(135deg, #10b981, #3b82f6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>🤖</div>
-        <div>
-          <div style={{ fontWeight: 900, fontSize: '1.1rem' }}>{appLanguage === 'ta' ? 'AI உதவியாளர்' : 'AI Assistant'}</div>
-          <div style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 700 }}>● Online Analysis Active</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(135deg, #10b981, #3b82f6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>🤖</div>
+          <div>
+            <div style={{ fontWeight: 900, fontSize: '1.1rem' }}>{appLanguage === 'ta' ? 'AI உதவியாளர்' : 'AI Assistant'}</div>
+            <div style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 700 }}>● Online Active</div>
+          </div>
         </div>
+        <button className="mini-btn" onClick={clearChat} style={{ opacity: 0.7 }}>🧹</button>
       </div>
 
       {/* Messages */}
@@ -158,7 +199,7 @@ export default function ChatAssistantView({ appLanguage, goals, habits, career, 
         flexDirection: 'column', 
         gap: '12px',
         WebkitOverflowScrolling: 'touch',
-        paddingBottom: '100px' // Space for fixed input area
+        paddingBottom: '20px'
       }} className="no-scrollbar">
         {messages.map(m => (
           <div key={m.id} style={{
@@ -175,17 +216,19 @@ export default function ChatAssistantView({ appLanguage, goals, habits, career, 
             whiteSpace: 'pre-wrap'
           }}>
             {m.text}
-            {Array.isArray(m.actions) && m.actions.find(a => a.type === 'ADD_TASKS') && (
-              <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-                <button 
-                  className="new-btn" 
-                  onClick={() => handleApplyAction(m.actions.find(a => a.type === 'ADD_TASKS'))}
-                  style={{ width: '100%', padding: '8px', fontSize: '0.85rem', background: 'rgba(255,255,255,0.2)' }}
-                >
-                  ✨ {appLanguage === 'ta' ? 'இன்றைய பட்டியலில் சேர்' : 'Add to Today\'s Board'}
-                </button>
-              </div>
-            )}
+            {Array.isArray(m.actions) && m.actions.map((action, idx) => (
+              (action.type === 'ADD_TASKS' || action.type === 'REPLACE_TASKS') && (
+                <div key={idx} style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                  <button 
+                    className="new-btn" 
+                    onClick={() => handleApplyAction(action)}
+                    style={{ width: '100%', padding: '8px', fontSize: '0.85rem', background: 'rgba(255,255,255,0.2)' }}
+                  >
+                    ✨ {action.type === 'REPLACE_TASKS' ? (appLanguage === 'ta' ? 'அட்டவணையை மாற்றுக' : 'Replace Schedule') : (appLanguage === 'ta' ? 'பட்டியலில் சேர்' : 'Add to Board')}
+                  </button>
+                </div>
+              )
+            ))}
           </div>
         ))}
         {isTyping && (
@@ -203,8 +246,10 @@ export default function ChatAssistantView({ appLanguage, goals, habits, career, 
         background: 'var(--card)', 
         zIndex: 10,
         boxShadow: '0 -4px 20px rgba(0,0,0,0.3)',
-        paddingBottom: 'calc(var(--keyboard-height, 0px) + env(safe-area-inset-bottom, 10px))',
-        flexShrink: 0
+        // IMPORTANT: We use internal keyboardHeight state which is from visualViewport for most accurate mobile placement
+        paddingBottom: `calc(${keyboardHeight}px + env(safe-area-inset-bottom, 10px))`,
+        flexShrink: 0,
+        transition: 'padding-bottom 0.15s ease-out'
       }}>
         {/* Quick Actions */}
         <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', padding: '10px 16px', borderBottom: '1px solid var(--card-border)' }} className="no-scrollbar">

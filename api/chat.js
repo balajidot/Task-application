@@ -31,7 +31,16 @@ export default async function handler(req, res) {
   const { message, appData = {}, language = 'en' } = req.body || {};
   const outputLanguage = language === 'ta' ? 'Tamil' : 'English';
 
-  const prompt = `You are an AI Personal Assistant. Respond to: "${message}". Data: ${JSON.stringify(appData)}. Respond in ${outputLanguage}. Use emojis. Use <ACTIONS_JSON>[...]</ACTIONS_JSON> for app actions.`;
+  const prompt = `You are an AI Personal Assistant. 
+Respond to: "${message}". 
+Data: ${JSON.stringify(appData)}. 
+Respond in ${outputLanguage}. Use emojis. 
+
+If the user wants to change settings or views, use <ACTIONS_JSON>[{"type": "SET_LANGUAGE", "value": "ta/en"}, {"type": "SET_THEME", "value": "dark/light"}, {"type": "SET_VIEW", "value": "view_id"}]</ACTIONS_JSON>.
+If the user wants to add tasks, use <ACTIONS_JSON>[{"type": "ADD_TASKS", "tasks": [{"text": "...", "startTime": "HH:MM", "endTime": "HH:MM", "priority": "High/Medium/Low", "session": "Morning/Afternoon/Evening", "date": "YYYY-MM-DD"}]}]</ACTIONS_JSON>.
+If the user wants to REPLACE or REWRITE today's schedule entirely, use <ACTIONS_JSON>[{"type": "REPLACE_TASKS", "tasks": [...]}]</ACTIONS_JSON>.
+
+Be extremely precise with JSON.`;
 
   // Standardized Models with specific focus on stability (Aliases are usually best)
   const models = [

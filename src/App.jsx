@@ -1259,9 +1259,28 @@ export default function App() {
                       const tasksWithIds = action.tasks.map(t => ({
                         ...t,
                         id: Date.now() + Math.random().toString(36).substr(2, 9),
-                        done: false
+                        done: false,
+                        doneOn: {}
                       }));
                       const updated = [...goals, ...tasksWithIds];
+                      save(updated);
+                      setActiveView('tasks');
+                    }
+                    break;
+                  case 'REPLACE_TASKS':
+                    if (action.tasks && Array.isArray(action.tasks)) {
+                      const today = todayKey();
+                      const tasksWithIds = action.tasks.map(t => ({
+                        ...t,
+                        id: Date.now() + Math.random().toString(36).substr(2, 9),
+                        done: false,
+                        doneOn: {},
+                        date: t.date || today
+                      }));
+                      // Keep recurring/future tasks, but replace tasks for the target date(s)
+                      const targetDates = new Set(tasksWithIds.map(t => t.date));
+                      const preserved = goals.filter(g => !targetDates.has(g.date) || g.repeat !== 'None');
+                      const updated = [...preserved, ...tasksWithIds];
                       save(updated);
                       setActiveView('tasks');
                     }
