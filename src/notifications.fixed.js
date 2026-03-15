@@ -178,18 +178,24 @@ export async function requestNotificationPermission() {
 
 export async function initializeNotifications() {
   if (electronIpc) return 'granted';
-  if (!isCapacitor()) return requestNotificationPermission();
+  
+  // For PWA/Web, we follow the standard request flow
+  if (!isCapacitor()) return await requestNotificationPermission();
 
   try {
     const { LocalNotifications } = await import('@capacitor/local-notifications');
+    
+    // 1. Ensure the channel exists first (Android requirement)
     await ensureNotificationChannel(LocalNotifications);
-    const access = await ensureCapacitorNotificationAccess(LocalNotifications);
+    
+    // 2. Proactively prompt for permission if it hasn't been decided yet
+    const access = await ensureCapacitorNotificationAccess(LocalNotifications, { prompt: true });
 
     if (access.exactAlarm === 'denied') {
-      console.warn('Exact alarms are disabled in Android settings. Terminated-state reminders may not fire exactly on time.');
+      console.warn('Exact alarms are disabled. Reminders may be delayed.');
     }
 
-    return access.display === 'granted' && access.enabled ? 'granted' : 'denied';
+    return (access.display === 'granted' && access.enabled) ? 'granted' : 'denied';
   } catch (error) {
     console.error('Notification initialization failed:', error);
     return 'denied';

@@ -364,9 +364,12 @@ export default function App() {
       
       // EXPLICIT PERMISSION REQUEST ON FIRST LAUNCH
       const currentPerm = getNotificationPermission();
-      if (currentPerm === 'default' || currentPerm === 'denied') {
+      // On Capacitor, currentPerm is 'capacitor'. We MUST initialize to trigger the prompt.
+      if (currentPerm === 'default' || currentPerm === 'denied' || currentPerm === 'capacitor') {
         const result = await initializeNotifications();
         setNotifPerm(result);
+        
+        // Secondary prompt for PWA specifically if first attempt was just a check
         if (result !== 'granted' && currentPerm === 'default') {
           requestNotificationPermission().then(setNotifPerm);
         }
