@@ -1,4 +1,4 @@
-package com.balaji.taskplanner;
+package com.digiturning.taskplanner;
 
 import com.getcapacitor.BridgeActivity;
 import android.os.Bundle;

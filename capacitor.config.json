@@ -1,5 +1,5 @@
 {
-  "appId": "com.balaji.taskplanner",
+  "appId": "com.digiturning.taskplanner",
   "appName": "Task Planner",
   "webDir": "dist",
   "plugins": {
