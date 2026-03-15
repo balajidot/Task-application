@@ -1,4 +1,4 @@
-// Gemini AI — Conversational Analysis Chat (SUPER DEBUGGER MODE)
+// Gemini AI — Conversational Analysis Chat
 // File location: api/chat.js
 
 import { enforceRateLimit, getClientKey } from './_rateLimit.js';
@@ -25,40 +25,47 @@ export default async function handler(req, res) {
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: 'GEMINI_API_KEY is not set in Vercel. Please check Project Settings > Environment Variables.' });
+    return res.status(500).json({ error: 'GEMINI_API_KEY is not set in Vercel. Please check Project Settings.' });
   }
 
   const { message, appData = {}, language = 'en' } = req.body || {};
   const outputLanguage = language === 'ta' ? 'Tamil' : 'English';
 
-  const prompt = `You are an AI Coach. Respond to: "${message}". Data: ${JSON.stringify(appData)}. Respond in ${outputLanguage}. 
-  If taking app actions, use <ACTIONS_JSON>[...]</ACTIONS_JSON>. 
-  (KEEP IT SHORT FOR DEBUGGING)`;
+  const prompt = `You are an elite AI Productivity Coach.
+  
+USER DATA:
+- Tasks: ${JSON.stringify(appData.goals || [])}
+- Habits: ${JSON.stringify(appData.habits || [])}
+- Career: ${JSON.stringify(appData.career || {})}
 
-  // EXHAUSTIVE LIST OF MODELS AND VERSIONS
-  const modelsToTry = [
-    { v: 'v1beta', m: 'gemini-1.5-flash' },
-    { v: 'v1', m: 'gemini-1.5-flash' },
-    { v: 'v1beta', m: 'gemini-1.5-pro' },
-    { v: 'v1', m: 'gemini-1.5-pro' },
-    { v: 'v1beta', m: 'gemini-pro' },
-    { v: 'v1', m: 'gemini-pro' },
-    { v: 'v1beta', m: 'gemini-1.0-pro' },
-    { v: 'v1', m: 'gemini-1.0-pro' }
+USER MESSAGE: "${message}"
+
+INSTRUCTIONS:
+1. Respond in ${outputLanguage}. Use emojis.
+2. For app actions (Language/Theme/View/Tasks), use <ACTIONS_JSON>[...]</ACTIONS_JSON> tags.
+3. Current Date: ${new Date().toISOString().split('T')[0]}
+
+RESPONSE:`;
+
+  // Standardized Models based on discovery list (Gemini 2.0 Flash is verified)
+  const models = [
+    { version: 'v1beta', name: 'gemini-2.0-flash' },
+    { version: 'v1beta', name: 'gemini-2.0-flash-lite' },
+    { version: 'v1beta', name: 'gemini-1.5-flash' }
   ];
 
-  let errors = [];
+  let lastError = null;
 
-  for (const {v, m} of modelsToTry) {
+  for (const model of models) {
     try {
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/${v}/models/${m}:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/${model.version}/models/${model.name}:generateContent?key=${apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.7, maxOutputTokens: 500 },
+            generationConfig: { temperature: 0.8, maxOutputTokens: 1024 },
           }),
           signal: AbortSignal.timeout(9000),
         }
@@ -67,7 +74,7 @@ export default async function handler(req, res) {
       const data = await response.json();
 
       if (response.ok) {
-        const aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "Empty AI Response";
+        const aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
         let actions = [];
         const actionsMatch = aiText.match(/<ACTIONS_JSON>([\s\S]*?)<\/ACTIONS_JSON>/);
         if (actionsMatch) {
@@ -77,32 +84,17 @@ export default async function handler(req, res) {
           } catch (e) {}
         }
         const cleanText = aiText.replace(/<ACTIONS_JSON>[\s\S]*?<\/ACTIONS_JSON>/, '').trim();
-        return res.status(200).json({ response: cleanText, actions, debug: `Worked with ${m} (${v})` });
+        return res.status(200).json({ response: cleanText, actions });
       } else {
-        errors.push(`${m}(${v}): ${data.error?.message || response.status}`);
+        lastError = data.error?.message || response.status;
+        if (response.status === 404) continue;
+        return res.status(500).json({ error: 'Gemini API failed', message: lastError });
       }
     } catch (e) {
-      errors.push(`${m}(${v}): EXCEPTION ${e.message}`);
+      lastError = e.message;
+      continue;
     }
   }
 
-  // DISCOVERY STEP: If all failed, list available models
-  let availableModels = "Unknown";
-  try {
-    const listResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-    if (listResponse.ok) {
-      const listData = await listResponse.json();
-      availableModels = listData.models?.map(m => m.name.replace('models/', '')).join(', ') || "No models listed";
-    } else {
-      const listErr = await listResponse.json();
-      availableModels = `List Error: ${listErr.error?.message || listResponse.status}`;
-    }
-  } catch (e) {
-    availableModels = `List Exception: ${e.message}`;
-  }
-
-  return res.status(500).json({ 
-    error: 'All Models Failed', 
-    message: `Available Models for this Key: [${availableModels}]. Errors encountered: ${errors.join(' | ')}`
-  });
+  return res.status(500).json({ error: 'All models failed', message: lastError });
 }

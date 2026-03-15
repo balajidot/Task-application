@@ -30,22 +30,14 @@ export default async function handler(req, res) {
 
   const { userName, goals, flexibleBlocks, fixedRoutine } = req.body || {};
 
-  const prompt = `You are an elite productivity engineer. Fill the user's empty time blocks.
-USER: ${userName || 'The User'}
-GOALS: ${goals || 'Coding, Learning'}
-FIXED: ${fixedRoutine || 'Unknown'}
-EMPTY BLOCKS: ${flexibleBlocks || 'None'}
-
-Generate exactly ONE task for EACH flexible block.
-Return ONLY valid JSON array of objects inside <ROUTINE_JSON> tags.
-Format: [{"time_slot": "...", "task_title": "...", "why_it_matters": "..."}]`;
+  const prompt = `Fill these time slots: ${flexibleBlocks}. User goals: ${goals}. 
+  Return ONLY JSON array inside <ROUTINE_JSON> tags.
+  Format: [{"time_slot": "...", "task_title": "...", "why_it_matters": "..."}]`;
 
   const models = [
-    { version: 'v1beta', name: 'gemini-1.5-flash' },
-    { version: 'v1beta', name: 'gemini-pro' }
+    { version: 'v1beta', name: 'gemini-2.0-flash' },
+    { version: 'v1beta', name: 'gemini-2.0-flash-lite' }
   ];
-
-  let lastError = null;
 
   for (const model of models) {
     try {
@@ -56,33 +48,25 @@ Format: [{"time_slot": "...", "task_title": "...", "why_it_matters": "..."}]`;
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-              temperature: 0.7,
-              responseMimeType: "application/json"
-            }
+            generationConfig: { temperature: 0.7 }
           }),
           signal: AbortSignal.timeout(9000)
         }
       );
 
       const data = await response.json();
-
-      if (!response.ok) {
-        lastError = data.error?.message || `Status ${response.status}`;
-        if (response.status === 404) continue;
-        break;
+      if (response.ok) {
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        const routineMatch = text.match(/<ROUTINE_JSON>([\s\S]*?)<\/ROUTINE_JSON>/) || { 1: text };
+        const suggestions = JSON.parse(routineMatch[1].trim());
+        return res.status(200).json({ suggestions });
       }
-
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      const suggestedTasks = typeof text === 'string' ? JSON.parse(text) : text;
-
-      return res.status(200).json({ suggestions: suggestedTasks });
-
-    } catch (error) {
-      lastError = error.message;
+      if (response.status === 404) continue;
+      break;
+    } catch (e) {
       continue;
     }
   }
 
-  return res.status(500).json({ error: 'All models failed', message: lastError });
+  return res.status(500).json({ error: 'Routine generation failed' });
 }
