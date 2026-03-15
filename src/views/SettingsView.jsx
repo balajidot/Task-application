@@ -111,45 +111,95 @@ export default function SettingsView({
   onOpenAppSettings,
   cardTheme, setCardTheme,
   cardBorderColor, setCardBorderColor,
-  showCardDot, setShowCardDot
+  showCardDot, setShowCardDot,
+  cardDensity, setCardDensity,
+  cardCornerRadius, setCardCornerRadius,
+  bgTheme, setBgTheme
 }) {
   const [editingName, setEditingName] = useState(false);
   const [tempName, setTempName] = useState(userName || '');
   const [confirmClear, setConfirmClear] = useState(null);
-  const [justSaved, setJustSaved] = useState(false);
+  const [appliedMessage, setAppliedMessage] = useState('');
 
-  const SOUND_OPTIONS = [
-    { label: 'Default', value: 'default' },
-    { label: 'Gentle', value: 'gentle' },
-    { label: 'Chime', value: 'chime' },
-    { label: 'Silent', value: 'silent' },
-  ];
+  // Local state for buffered settings
+  const [localSettings, setLocalSettings] = useState({
+    themeMode,
+    taskFontFamily,
+    taskFontSize,
+    uiScale,
+    fontWeight,
+    overdueEnabled,
+    soundTheme,
+    hapticEnabled,
+    autoThemeMode,
+    liveHighlightEnabled,
+    appLanguage,
+    cardTheme,
+    cardBorderColor,
+    showCardDot,
+    cardDensity,
+    cardCornerRadius,
+    userName,
+    bgTheme
+  });
 
-  const AUTO_THEME_OPTIONS = [
-    { label: 'Manual', value: 'off' },
-    { label: 'System', value: 'system' },
-    { label: 'Day/Night', value: 'time' },
-  ];
+  const hasChanges = JSON.stringify(localSettings) !== JSON.stringify({
+    themeMode,
+    taskFontFamily,
+    taskFontSize,
+    uiScale,
+    fontWeight,
+    overdueEnabled,
+    soundTheme,
+    hapticEnabled,
+    autoThemeMode,
+    liveHighlightEnabled,
+    appLanguage,
+    cardTheme,
+    cardBorderColor,
+    showCardDot,
+    cardDensity,
+    cardCornerRadius,
+    userName,
+    bgTheme
+  });
 
+  const handleLocalChange = (key, value) => {
+    setLocalSettings(prev => ({ ...prev, [key]: value }));
+  };
 
-  const [appliedSection, setAppliedSection] = useState(null);
-
-  const triggerApply = (section) => {
+  const applyAll = () => {
     if (typeof triggerHaptic === 'function') triggerHaptic('heavy');
-    setAppliedSection(section);
-    setTimeout(() => setAppliedSection(null), 2000);
+    
+    // Apply all local settings to main state
+    setThemeMode(localSettings.themeMode);
+    setTaskFontFamily(localSettings.taskFontFamily);
+    setTaskFontSize(localSettings.taskFontSize);
+    setUiScale(localSettings.uiScale);
+    setFontWeight(localSettings.fontWeight);
+    setOverdueEnabled(localSettings.overdueEnabled);
+    setSoundTheme(localSettings.soundTheme);
+    setHapticEnabled?.(localSettings.hapticEnabled);
+    setAutoThemeMode(localSettings.autoThemeMode);
+    setLiveHighlightEnabled(localSettings.liveHighlightEnabled);
+    setAppLanguage(localSettings.appLanguage);
+    setCardTheme(localSettings.cardTheme);
+    setCardBorderColor(localSettings.cardBorderColor);
+    setShowCardDot(localSettings.showCardDot);
+    setCardDensity(localSettings.cardDensity);
+    setCardCornerRadius(localSettings.cardCornerRadius);
+    setBgTheme(localSettings.bgTheme);
+    
+    if (localSettings.userName !== userName) {
+      setUserName(localSettings.userName);
+      localStorage.setItem('taskPlanner_userName', localSettings.userName);
+    }
+
+    setAppliedMessage('All changes applied successfully!');
+    setTimeout(() => setAppliedMessage(''), 3000);
   };
 
-  const saveName = () => {
-    const name = tempName.trim();
-    if (!name) return;
-    setUserName(name);
-    localStorage.setItem('taskPlanner_userName', name);
-    setEditingName(false);
-    triggerApply('profile');
-  };
-
-  const isTamil = appLanguage === 'ta';
+  const isTamil = localSettings.appLanguage === 'ta';
   const notifLabel = notifPerm === 'granted' 
     ? (isTamil ? 'அனுமதிக்கப்பட்டது' : 'Enabled') 
     : notifPerm === 'denied' 
@@ -158,36 +208,54 @@ export default function SettingsView({
   
   const notifColor = notifPerm === 'granted' ? '#10b981' : notifPerm === 'denied' ? '#ef4444' : '#f59e0b';
 
-  const clearCompleted = useCallback(() => {
-    const updated = goals.filter((goal) => {
-      if (goal.repeat === 'None') return !goal.done;
-      return !Object.keys(goal.doneOn || {}).length;
-    });
-    onReplaceGoals(updated);
-    setConfirmClear(null);
-  }, [goals, onReplaceGoals]);
-
-  const clearAllTasks = useCallback(() => {
-    onReplaceGoals([]);
-    setConfirmClear(null);
-  }, [onReplaceGoals]);
-
-  const resetSettings = () => {
-    setThemeMode('dark');
-    setAutoThemeMode('off');
-    setAppLanguage('en');
-    setTaskFontSize(18);
-    setTaskFontFamily(FONT_OPTIONS[0].value);
-    setUiScale(96);
-    setFontWeight(500);
-    setSoundTheme('default');
-    setHapticEnabled?.(true);
-    setOverdueEnabled(true);
-    setLiveHighlightEnabled(true);
-  };
-
   return (
-    <div className="animate-fade-in" style={{ paddingBottom: 40 }}>
+    <div className="animate-fade-in" style={{ paddingBottom: 100 }}>
+      {hasChanges && (
+        <div style={{
+          position: 'fixed',
+          bottom: 100,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 4000,
+          width: '94%',
+          maxWidth: 420,
+          background: 'rgba(37,99,235,0.98)',
+          backdropFilter: 'blur(12px)',
+          padding: '14px 22px',
+          borderRadius: 20,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          boxShadow: '0 12px 40px rgba(37,99,235,0.45)',
+          border: '1.5px solid rgba(255,255,255,0.25)',
+          animation: 'slideUp 0.3s cubic-bezier(0.19, 1, 0.22, 1)'
+        }}>
+          <div style={{ color: '#fff', fontWeight: 900, fontSize: '.95rem', letterSpacing: '-0.01em' }}>Unsaved Changes</div>
+          <button onClick={applyAll} className="new-btn" style={{ background: '#fff', color: '#2563eb', padding: '8px 20px', fontSize: '.9rem', minHeight: 44, borderRadius: 14, border: 'none', fontWeight: 900 }}>
+            Apply Changes
+          </button>
+        </div>
+      )}
+
+      {appliedMessage && (
+        <div style={{
+          position: 'fixed',
+          top: 20,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 3000,
+          background: 'linear-gradient(135deg, #10b981, #059669)',
+          padding: '10px 20px',
+          borderRadius: 99,
+          color: '#fff',
+          fontWeight: 900,
+          boxShadow: '0 10px 30px rgba(16,185,129,0.3)',
+          animation: 'fadeUp 0.3s ease'
+        }}>
+          {appliedMessage}
+        </div>
+      )}
+
       <div className="hero">
         <div className="topbar">
           <div>
@@ -200,20 +268,19 @@ export default function SettingsView({
         </div>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '0 4px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '10px 4px' }}>
         <Section title={copy.settings.language}>
           <div style={{ padding: '12px 14px', background: 'var(--chip)', borderRadius: 12, border: '1px solid var(--card-border)' }}>
-            <div style={{ fontWeight: 800, fontSize: '.88rem', color: 'var(--muted)', marginBottom: 8 }}>{copy.settings.languageSubtitle}</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
               {LANGUAGE_OPTIONS.map((option) => (
                 <button
                   key={option.value}
-                  onClick={() => { setAppLanguage(option.value); triggerApply('language'); }}
+                  onClick={() => handleLocalChange('appLanguage', option.value)}
                   style={{
                     padding: '12px 10px',
                     borderRadius: 10,
-                    border: appLanguage === option.value ? '2px solid #10b981' : '1px solid var(--card-border)',
-                    background: appLanguage === option.value ? 'linear-gradient(135deg, rgba(16,185,129,0.18), rgba(59,130,246,0.10))' : 'var(--card)',
+                    border: localSettings.appLanguage === option.value ? '2px solid #10b981' : '1px solid var(--card-border)',
+                    background: localSettings.appLanguage === option.value ? 'linear-gradient(135deg, rgba(16,185,129,0.18), rgba(59,130,246,0.10))' : 'var(--card)',
                     color: 'var(--text)',
                     fontWeight: 800,
                     cursor: 'pointer',
@@ -223,7 +290,6 @@ export default function SettingsView({
                 </button>
               ))}
             </div>
-            {appliedSection === 'language' && <div style={{ color: '#10b981', fontSize: '.75rem', fontWeight: 800, textAlign: 'center', marginTop: 8 }}>App Language Applied</div>}
           </div>
         </Section>
 
@@ -234,82 +300,30 @@ export default function SettingsView({
                 {userName ? userName[0].toUpperCase() : '?'}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 900, fontSize: '1rem', color: 'var(--text)' }}>{userName || 'Set your name'}</div>
-                <div style={{ fontSize: '.75rem', color: 'var(--muted)', fontWeight: 600, marginTop: 2 }}>Task Planner profile</div>
+                <div style={{ fontWeight: 900, fontSize: '1rem', color: 'var(--text)' }}>{localSettings.userName || 'Set your name'}</div>
               </div>
-              <button onClick={() => { setEditingName(!editingName); setTempName(userName || ''); }} style={{ padding: '7px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', background: editingName ? 'var(--card-border)' : 'linear-gradient(135deg, #10b981, #3b82f6)', color: '#fff', fontWeight: 800, fontSize: '.8rem' }}>
-                {editingName ? copy.common.cancel : 'Edit'}
+              <button onClick={() => setEditingName(!editingName)} style={{ padding: '7px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', background: editingName ? 'var(--card-border)' : 'linear-gradient(135deg, #10b981, #3b82f6)', color: '#fff', fontWeight: 800, fontSize: '.8rem' }}>
+                {editingName ? 'Done' : 'Edit'}
               </button>
             </div>
             {editingName && (
               <div style={{ display: 'flex', gap: 8 }}>
-                <input type="text" value={tempName} onChange={(e) => setTempName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && saveName()} autoFocus placeholder="Enter your name..." maxLength={30} style={{ flex: 1, padding: '11px 14px', borderRadius: 10, border: '2px solid rgba(59,130,246,0.35)', background: 'var(--card)', color: 'var(--text)', fontSize: '1rem', outline: 'none' }} />
-                <button onClick={saveName} disabled={!tempName.trim()} style={{ padding: '11px 18px', borderRadius: 10, border: 'none', cursor: tempName.trim() ? 'pointer' : 'not-allowed', background: tempName.trim() ? 'linear-gradient(135deg, #10b981, #059669)' : 'var(--card-border)', color: '#fff', fontWeight: 800, fontSize: '.9rem', opacity: tempName.trim() ? 1 : 0.5 }}>
-                  {copy.common.save}
-                </button>
+                <input type="text" value={localSettings.userName} onChange={(e) => handleLocalChange('userName', e.target.value)} onKeyDown={(e) => e.key === 'Enter' && setEditingName(false)} autoFocus placeholder="Enter your name..." maxLength={30} className="fi" style={{ flex: 1 }} />
               </div>
             )}
-            {appliedSection === 'profile' && <div style={{ textAlign: 'center', color: '#10b981', fontWeight: 800, fontSize: '.85rem', marginTop: 8 }}>Profile Updated</div>}
           </div>
         </Section>
-
-        <Section title={copy.settings.notifications}>
-          <div style={{ padding: '13px 14px', background: 'var(--chip)', borderRadius: 12, border: '1px solid var(--card-border)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-              <div>
-                <div style={{ fontWeight: 800, fontSize: '.92rem', color: 'var(--text)' }}>Reminder Notifications</div>
-                <div style={{ fontSize: '.75rem', fontWeight: 700, marginTop: 3, color: notifColor }}>{notifLabel}</div>
-              </div>
-              {notifPerm === 'granted' ? (
-                <button className="mini-btn" onClick={onRefreshNotifications}>
-                  {isTamil ? 'புதுப்பி' : copy.common.refresh}
-                </button>
-              ) : notifPerm === 'denied' ? (
-                <button onClick={() => onOpenAppSettings?.()} className="new-btn" style={{ background: '#ef4444' }}>
-                  {isTamil ? 'அமைப்புகள்' : 'Settings'}
-                </button>
-              ) : (
-                <button onClick={() => {
-                  if (typeof triggerHaptic === 'function') triggerHaptic('medium');
-                  requestNotifPerm?.();
-                }} className="new-btn">
-                  {isTamil ? 'இயக்கு' : copy.common.enable}
-                </button>
-              )}
-            </div>
-          </div>
-          <SettingRow icon="V" title="Haptic Feedback" subtitle="Vibration on key task actions" right={<Toggle value={hapticEnabled ?? true} onChange={(value) => setHapticEnabled?.(value)} color="#6366f1" />} />
-          <SettingRow icon="L" title="Live Task Highlight" subtitle="Auto-popup and stronger highlight for the current task" right={<Toggle value={liveHighlightEnabled ?? true} onChange={(value) => setLiveHighlightEnabled?.(value)} color="#10b981" />} />
-          <SettingRow
-            icon="S"
-            title="Sound Theme"
-            subtitle="Reminder and completion sounds"
-            right={
-              <select value={soundTheme} onChange={(e) => { setSoundTheme(e.target.value); triggerApply('notif'); }} onClick={(e) => e.stopPropagation()} style={{ padding: '7px 12px', borderRadius: 10, background: 'var(--card)', color: 'var(--text)', border: '1px solid var(--card-border)', fontWeight: 800, fontSize: '.82rem', cursor: 'pointer' }}>
-                {SOUND_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-              </select>
-            }
-          />
-          {appliedSection === 'notif' && <div style={{ color: '#10b981', fontSize: '.75rem', fontWeight: 800, textAlign: 'center', padding: 8 }}>Preferences Applied</div>}
-          <div style={{ marginTop: 8, padding: '12px', background: 'rgba(59,130,246,0.05)', borderRadius: 10, border: '1px dashed rgba(59,130,246,0.3)' }}>
-             <div style={{ fontSize: '.72rem', fontWeight: 800, color: '#3b82f6', marginBottom: 8, textTransform: 'uppercase' }}>Troubleshooting</div>
-             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                <button className="tool-btn" style={{ padding: '8px', fontSize: '.75rem' }} onClick={onRefreshNotifications}>Force Refresh Schedule</button>
-                <button className="tool-btn" style={{ padding: '8px', fontSize: '.75rem' }} onClick={onOpenAppSettings}>Open Device Settings</button>
-             </div>
-             <div style={{ fontSize: '.68rem', color: 'var(--muted)', marginTop: 8, fontWeight: 600 }}>
-                If reminders stop when app is closed, ensure "Exact Alarms" and "Unrestricted Battery" are enabled in App Settings.
-             </div>
-          </div>
-        </Section>
-
 
         <Section title={copy.settings.theme}>
-          <div style={{ padding: '12px 14px', background: 'var(--chip)', borderRadius: 12, border: '1px solid var(--card-border)' }}>
-            <div style={{ fontWeight: 800, fontSize: '.88rem', color: 'var(--muted)', marginBottom: 8 }}>Auto Mode</div>
+          <div style={{ padding: '12px 14px', background: 'var(--chip)', borderRadius: 12, border: '1px solid var(--card-border)', marginBottom: 12 }}>
+            <div style={{ fontWeight: 800, fontSize: '.88rem', color: 'var(--muted)', marginBottom: 8 }}>Auto Switch Mode</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-              {AUTO_THEME_OPTIONS.map((option) => (
-                <button key={option.value} onClick={() => { setAutoThemeMode(option.value); triggerApply('theme'); }} style={{ padding: '10px 6px', borderRadius: 10, border: autoThemeMode === option.value ? '2px solid #10b981' : '1.5px solid var(--card-border)', background: autoThemeMode === option.value ? 'linear-gradient(135deg, rgba(16,185,129,0.18), rgba(59,130,246,0.12))' : 'var(--card)', color: autoThemeMode === option.value ? '#10b981' : 'var(--text)', fontWeight: autoThemeMode === option.value ? 900 : 700, fontSize: '.78rem', cursor: 'pointer' }}>
+              {[
+                { label: 'Manual', value: 'off' },
+                { label: 'System', value: 'system' },
+                { label: 'Time', value: 'time' }
+              ].map((option) => (
+                <button key={option.value} onClick={() => handleLocalChange('autoThemeMode', option.value)} style={{ padding: '10px 6px', borderRadius: 10, border: localSettings.autoThemeMode === option.value ? '2px solid #10b981' : '1.5px solid var(--card-border)', background: localSettings.autoThemeMode === option.value ? 'linear-gradient(135deg, rgba(16,185,129,0.18), rgba(59,130,246,0.12))' : 'var(--card)', color: localSettings.autoThemeMode === option.value ? '#10b981' : 'var(--text)', fontWeight: localSettings.autoThemeMode === option.value ? 900 : 700, fontSize: '.78rem', cursor: 'pointer' }}>
                   {option.label}
                 </button>
               ))}
@@ -317,125 +331,218 @@ export default function SettingsView({
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
             {THEME_OPTIONS.map((theme) => (
-              <button key={theme.value} onClick={() => { setAutoThemeMode('off'); setThemeMode(theme.value); triggerApply('theme'); }} style={{ padding: '10px 6px', borderRadius: 10, border: themeMode === theme.value ? '2px solid #3b82f6' : '1.5px solid var(--card-border)', background: themeMode === theme.value ? 'linear-gradient(135deg, rgba(59,130,246,0.18), rgba(16,185,129,0.12))' : 'var(--chip)', color: themeMode === theme.value ? '#3b82f6' : 'var(--text)', fontWeight: themeMode === theme.value ? 900 : 700, fontSize: '.78rem', cursor: 'pointer', textAlign: 'center', lineHeight: 1.3 }}>
+              <button key={theme.value} onClick={() => { handleLocalChange('autoThemeMode', 'off'); handleLocalChange('themeMode', theme.value); }} style={{ padding: '10px 6px', borderRadius: 10, border: localSettings.themeMode === theme.value ? '2px solid #3b82f6' : '1.5px solid var(--card-border)', background: localSettings.themeMode === theme.value ? 'linear-gradient(135deg, rgba(59,130,246,0.18), rgba(16,185,129,0.12))' : 'var(--chip)', color: localSettings.themeMode === theme.value ? '#3b82f6' : 'var(--text)', fontWeight: localSettings.themeMode === theme.value ? 900 : 700, fontSize: '.78rem', cursor: 'pointer', textAlign: 'center', lineHeight: 1.3 }}>
                 {theme.label}
               </button>
             ))}
           </div>
-          {appliedSection === 'theme' && <div style={{ color: '#3b82f6', fontSize: '.75rem', fontWeight: 800, textAlign: 'center', marginTop: 8 }}>Theme Settings Applied</div>}
         </Section>
 
-        <Section title="TASK CARD THEMES">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-              {['glow', 'border', 'minimal'].map(t => (
-                <button key={t} onClick={() => { setCardTheme(t); triggerApply('card'); }} style={{ 
-                  padding: '12px 6px', borderRadius: 10, textTransform: 'capitalize',
-                  border: cardTheme === t ? '2px solid var(--accent)' : '1px solid var(--card-border)',
-                  background: cardTheme === t ? 'var(--chip)' : 'var(--card)',
-                  color: cardTheme === t ? 'var(--accent)' : 'var(--text)',
-                  fontWeight: 800, fontSize: '.75rem'
+        <Section title="BACKGROUND STYLE">
+          <div style={{ background: 'var(--chip)', padding: '14px', borderRadius: 12, border: '1px solid var(--card-border)' }}>
+            <div style={{ fontWeight: 800, fontSize: '.8rem', color: 'var(--muted)', marginBottom: 12 }}>Choose Dynamic Background</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+              {[
+                { id: 'none', label: 'Solid Color', icon: '🎨' },
+                { id: 'mesh', label: 'Mesh Gradient', icon: '🌀' },
+                { id: 'aurora', label: 'Aurora Flow', icon: '🌌' },
+                { id: 'blobs', label: 'Floating Blobs', icon: '🫧' }
+              ].map(b => (
+                <button key={b.id} onClick={() => handleLocalChange('bgTheme', b.id)} style={{ 
+                  padding: '16px 8px', borderRadius: 14, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+                  border: localSettings.bgTheme === b.id ? '2px solid #3b82f6' : '1px solid var(--card-border)',
+                  background: localSettings.bgTheme === b.id ? 'rgba(59,130,246,0.15)' : 'var(--card)',
+                  color: localSettings.bgTheme === b.id ? '#3b82f6' : 'var(--text)',
+                  fontWeight: 900, fontSize: '.78rem', transition: 'all 0.2s ease',
+                  boxShadow: localSettings.bgTheme === b.id ? '0 4px 15px rgba(59,130,246,0.2)' : 'none'
                 }}>
-                  {t}
+                  <span style={{ fontSize: '1.4rem' }}>{b.icon}</span>
+                  {b.label}
                 </button>
               ))}
             </div>
+          </div>
+        </Section>
+
+        <Section title="CARD PERSONALIZATION">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ background: 'var(--chip)', padding: '14px', borderRadius: 12, border: '1px solid var(--card-border)' }}>
+              <div style={{ fontWeight: 800, fontSize: '.8rem', color: 'var(--muted)', marginBottom: 12 }}>Layout Density (Reduced Gaps)</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                {[
+                  { id: 'compact', label: 'Compact', icon: '◾' },
+                  { id: 'balanced', label: 'Balanced', icon: '▫️' },
+                  { id: 'spacious', label: 'Spacious', icon: '◻️' }
+                ].map(d => (
+                  <button key={d.id} onClick={() => handleLocalChange('cardDensity', d.id)} style={{ 
+                    padding: '12px 4px', borderRadius: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                    border: localSettings.cardDensity === d.id ? '2px solid #3b82f6' : '1px solid var(--card-border)',
+                    background: localSettings.cardDensity === d.id ? 'rgba(59,130,246,0.1)' : 'var(--card)',
+                    color: localSettings.cardDensity === d.id ? '#3b82f6' : 'var(--text)',
+                    fontWeight: 800, fontSize: '.72rem'
+                  }}>
+                    <span>{d.icon}</span>
+                    {d.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ background: 'var(--chip)', padding: '14px', borderRadius: 12, border: '1px solid var(--card-border)' }}>
+              <div style={{ fontWeight: 800, fontSize: '.8rem', color: 'var(--muted)', marginBottom: 12 }}>Visual Style</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                {[
+                  { id: 'glass', label: 'Glass' },
+                  { id: 'solid', label: 'Solid' },
+                  { id: 'minimal', label: 'Minimal' },
+                  { id: 'glow', label: 'Glow' }
+                ].map(s => (
+                  <button key={s.id} onClick={() => handleLocalChange('cardTheme', s.id)} style={{ 
+                    padding: '12px 4px', borderRadius: 10,
+                    border: localSettings.cardTheme === s.id ? '2px solid #3b82f6' : '1px solid var(--card-border)',
+                    background: localSettings.cardTheme === s.id ? 'rgba(59,130,246,0.1)' : 'var(--card)',
+                    color: localSettings.cardTheme === s.id ? '#3b82f6' : 'var(--text)',
+                    fontWeight: 800, fontSize: '.75rem'
+                  }}>
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ background: 'var(--chip)', padding: '14px', borderRadius: 12, border: '1px solid var(--card-border)' }}>
+              <div style={{ fontWeight: 800, fontSize: '.8rem', color: 'var(--muted)', marginBottom: 12 }}>Corner Rounding</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+                {[8, 12, 18, 26].map(r => (
+                  <button key={r} onClick={() => handleLocalChange('cardCornerRadius', r)} style={{ 
+                    padding: '10px 4px', borderRadius: Math.min(r, 12),
+                    border: localSettings.cardCornerRadius === r ? '2px solid #3b82f6' : '1px solid var(--card-border)',
+                    background: localSettings.cardCornerRadius === r ? 'rgba(59,130,246,0.1)' : 'var(--card)',
+                    color: localSettings.cardCornerRadius === r ? '#3b82f6' : 'var(--text)',
+                    fontWeight: 800, fontSize: '.75rem'
+                  }}>
+                    {r}px
+                  </button>
+                ))}
+              </div>
+            </div>
             
-            <SettingRow icon="◎" title="Status Indicator Dot" subtitle="Show priority color dot on task cards" right={<Toggle value={showCardDot} onChange={(v) => { setShowCardDot(v); triggerApply('card'); }} color="#10b981" />} />
+            <SettingRow icon="◎" title="Priority Dot" subtitle="Show color dot on cards" right={<Toggle value={localSettings.showCardDot} onChange={(v) => handleLocalChange('showCardDot', v)} color="#10b981" />} />
 
             <div style={{ padding: '12px 14px', background: 'var(--chip)', borderRadius: 12, border: '1px solid var(--card-border)' }}>
-              <div style={{ fontWeight: 800, fontSize: '.8rem', color: 'var(--muted)', marginBottom: 10 }}>Card Accent Color</div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+              <div style={{ fontWeight: 800, fontSize: '.8rem', color: 'var(--muted)', marginBottom: 10 }}>Accent Color</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6 }}>
                 {['#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#8b5cf6', '#ec4899', '#ffffff'].map(c => (
-                  <button key={c} onClick={() => { setCardBorderColor(c); triggerApply('card'); }} style={{ 
-                    width: 32, height: 32, borderRadius: '50%', background: c, border: cardBorderColor === c ? '2.5px solid #fff' : '1px solid rgba(255,255,255,0.2)',
-                    boxShadow: cardBorderColor === c ? `0 0 10px ${c}` : 'none', cursor: 'pointer'
+                  <button key={c} onClick={() => handleLocalChange('cardBorderColor', c)} style={{ 
+                    width: 30, height: 30, borderRadius: '50%', background: c, border: localSettings.cardBorderColor === c ? '2.5px solid #fff' : '1px solid rgba(255,255,255,0.2)',
+                    boxShadow: localSettings.cardBorderColor === c ? `0 0 10px ${c}` : 'none', cursor: 'pointer'
                   }} />
                 ))}
               </div>
             </div>
-            {appliedSection === 'card' && <div style={{ color: '#10b981', fontSize: '.75rem', fontWeight: 800, textAlign: 'center' }}>Card Style Updated</div>}
           </div>
         </Section>
 
         <Section title={copy.settings.display}>
-          <div style={{ padding: '12px 14px', background: 'var(--chip)', borderRadius: 12, border: '1px solid var(--card-border)' }}>
-            <div style={{ fontWeight: 800, fontSize: '.88rem', color: 'var(--muted)', marginBottom: 8 }}>Font Style</div>
-            <select className="fi" value={taskFontFamily} onChange={(e) => { setTaskFontFamily(e.target.value); triggerApply('display'); }} style={{ fontSize: '14px', width: '100%', background: 'var(--card)', border: '1px solid var(--card-border)' }}>
-              {FONT_OPTIONS.map((font) => <option key={font.value} value={font.value}>{font.label}</option>)}
-            </select>
-          </div>
-          <div style={{ padding: '12px 14px', background: 'var(--chip)', borderRadius: 12, border: '1px solid var(--card-border)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-              <div style={{ fontWeight: 800, fontSize: '.88rem', color: 'var(--muted)' }}>Task Font Size</div>
-              <span style={{ padding: '3px 10px', borderRadius: 8, background: 'linear-gradient(135deg, #10b981, #3b82f6)', color: '#fff', fontWeight: 900, fontSize: '.82rem' }}>{taskFontSize}px</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div>
+              <div className="fl">Font Family</div>
+              <select className="fi" value={localSettings.taskFontFamily} onChange={(e) => handleLocalChange('taskFontFamily', e.target.value)}>
+                {FONT_OPTIONS.map((font) => <option key={font.value} value={font.value}>{font.label}</option>)}
+              </select>
             </div>
-            <input type="range" min="14" max="42" value={taskFontSize} onChange={(e) => { setTaskFontSize(Number(e.target.value)); }} onMouseUp={() => triggerApply('display')} onTouchEnd={() => triggerApply('display')} style={{ width: '100%', accentColor: '#10b981' }} />
-          </div>
-          <div style={{ padding: '12px 14px', background: 'var(--chip)', borderRadius: 12, border: '1px solid var(--card-border)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-              <div style={{ fontWeight: 800, fontSize: '.88rem', color: 'var(--muted)' }}>Font Weight</div>
-              <span style={{ padding: '3px 10px', borderRadius: 8, background: 'var(--card)', color: 'var(--text)', fontWeight: 900, fontSize: '.82rem', border: '1px solid var(--card-border)' }}>{fontWeight}</span>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                <span className="fl">Font Size</span>
+                <span style={{ fontWeight: 900, color: '#10b981' }}>{localSettings.taskFontSize}px</span>
+              </div>
+              <input type="range" min="14" max="42" value={localSettings.taskFontSize} onChange={(e) => handleLocalChange('taskFontSize', Number(e.target.value))} style={{ width: '100%', accentColor: '#10b981' }} />
             </div>
-            <input type="range" min="400" max="900" step="100" value={fontWeight} onChange={(e) => setFontWeight(Number(e.target.value))} onMouseUp={() => triggerApply('display')} onTouchEnd={() => triggerApply('display')} style={{ width: '100%', accentColor: '#6366f1' }} />
-          </div>
-          <div style={{ padding: '12px 14px', background: 'var(--chip)', borderRadius: 12, border: '1px solid var(--card-border)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-              <div style={{ fontWeight: 800, fontSize: '.88rem', color: 'var(--muted)' }}>UI Scale</div>
-              <span style={{ padding: '3px 10px', borderRadius: 8, background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)', color: '#fff', fontWeight: 900, fontSize: '.82rem' }}>{uiScale}%</span>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                <span className="fl">Font Weight</span>
+                <span style={{ fontWeight: 900, color: '#6366f1' }}>{localSettings.fontWeight}</span>
+              </div>
+              <input type="range" min="400" max="900" step="100" value={localSettings.fontWeight} onChange={(e) => handleLocalChange('fontWeight', Number(e.target.value))} style={{ width: '100%', accentColor: '#6366f1' }} />
             </div>
-            <input type="range" min="80" max="130" step="4" value={uiScale} onChange={(e) => setUiScale(Number(e.target.value))} onMouseUp={() => triggerApply('display')} onTouchEnd={() => triggerApply('display')} style={{ width: '100%', accentColor: '#3b82f6' }} />
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                <span className="fl">UI Scale</span>
+                <span style={{ fontWeight: 900, color: '#3b82f6' }}>{localSettings.uiScale}%</span>
+              </div>
+              <input type="range" min="80" max="130" step="4" value={localSettings.uiScale} onChange={(e) => handleLocalChange('uiScale', Number(e.target.value))} style={{ width: '100%', accentColor: '#3b82f6' }} />
+            </div>
           </div>
-          {appliedSection === 'display' && <div style={{ color: '#10b981', fontSize: '.75rem', fontWeight: 800, textAlign: 'center', marginTop: 8 }}>Display Settings Updated</div>}
         </Section>
 
-        <Section title={copy.settings.behavior}>
-          <SettingRow icon="!" title="Overdue Alerts" subtitle="Show warning styling when tasks pass their end time" right={<Toggle value={overdueEnabled} onChange={setOverdueEnabled} color="#f59e0b" />} />
+        <Section title="BEHAVIOR">
+          <SettingRow icon="!" title="Overdue Alerts" subtitle="Show warning color when time passes" right={<Toggle value={localSettings.overdueEnabled} onChange={(v) => handleLocalChange('overdueEnabled', v)} color="#f59e0b" />} />
+        </Section>
+
+        <Section title={copy.settings.notifications}>
+          <SettingRow icon="V" title="Haptic Feedback" subtitle="Vibrate on actions" right={<Toggle value={localSettings.hapticEnabled ?? true} onChange={(v) => handleLocalChange('hapticEnabled', v)} color="#6366f1" />} />
+          <SettingRow icon="L" title="Live Highlight" subtitle="Auto-popup current task" right={<Toggle value={localSettings.liveHighlightEnabled ?? true} onChange={(v) => handleLocalChange('liveHighlightEnabled', v)} color="#10b981" />} />
+          <SettingRow
+            icon="S"
+            title="Sound Theme"
+            right={
+              <select value={localSettings.soundTheme} onChange={(e) => handleLocalChange('soundTheme', e.target.value)} className="fs" style={{ width: 'auto', padding: '6px 12px' }}>
+                {['default', 'gentle', 'chime', 'silent'].map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            }
+          />
         </Section>
 
         <Section title={copy.settings.storage}>
-          <SettingRow icon="C" title="Clear Completed Tasks" subtitle="Remove finished tasks but keep pending work" onClick={() => setConfirmClear('completed')} right={<span style={{ color: 'var(--muted)', fontSize: '1rem' }}>{'>'}</span>} />
-          <SettingRow icon="K" title="Clear Cache" subtitle="Remove service worker and cached files" onClick={onClearCache} right={<span style={{ color: 'var(--muted)', fontSize: '1rem' }}>{copy.common.run}</span>} />
-          <SettingRow icon="W" title="Delete All Tasks" subtitle="Wipe the whole task list" onClick={() => setConfirmClear('all')} danger right={<span style={{ color: '#ef4444', fontSize: '1rem' }}>{'>'}</span>} />
-          <SettingRow icon="R" title="Reset Full App Data" subtitle="Clear tasks, prefs, habits, journal, and profile" onClick={onClearLocalData} danger right={<span style={{ color: '#ef4444', fontSize: '1rem' }}>{copy.common.run}</span>} />
-
-          {confirmClear === 'completed' && (
-            <div style={{ padding: '14px', background: 'rgba(239,68,68,0.08)', borderRadius: 12, border: '1px solid rgba(239,68,68,0.25)' }}>
-              <div style={{ fontWeight: 800, color: '#ef4444', marginBottom: 10, fontSize: '.9rem' }}>Remove all completed tasks?</div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={clearCompleted} style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', cursor: 'pointer', background: '#ef4444', color: '#fff', fontWeight: 800, fontSize: '.85rem' }}>Yes</button>
-                <button onClick={() => setConfirmClear(null)} style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', cursor: 'pointer', background: 'var(--card-border)', color: 'var(--text)', fontWeight: 800, fontSize: '.85rem' }}>{copy.common.cancel}</button>
-              </div>
-            </div>
-          )}
-
-          {confirmClear === 'all' && (
-            <div style={{ padding: '14px', background: 'rgba(239,68,68,0.12)', borderRadius: 12, border: '1.5px solid rgba(239,68,68,0.4)' }}>
-              <div style={{ fontWeight: 900, color: '#ef4444', marginBottom: 6, fontSize: '.95rem' }}>Delete all tasks?</div>
-              <div style={{ fontSize: '.8rem', color: 'var(--muted)', fontWeight: 600, marginBottom: 12 }}>This cannot be undone.</div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={clearAllTasks} style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg, #dc2626, #b91c1c)', color: '#fff', fontWeight: 900, fontSize: '.85rem' }}>Delete</button>
-                <button onClick={() => setConfirmClear(null)} style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', cursor: 'pointer', background: 'var(--card-border)', color: 'var(--text)', fontWeight: 800, fontSize: '.85rem' }}>{copy.common.cancel}</button>
-              </div>
-            </div>
-          )}
-        </Section>
-
-        <Section title={copy.settings.preview}>
-          <div style={{ padding: '16px', background: 'var(--chip)', borderRadius: 12, border: '1px solid var(--card-border)' }}>
-            <div style={{ fontSize: '.78rem', fontWeight: 800, color: 'var(--muted)', marginBottom: 10 }}>Sample task with your current settings:</div>
-            <div style={{ padding: '12px 14px', background: 'var(--card)', borderRadius: 10, border: '1px solid var(--card-border)', fontFamily: taskFontFamily, fontSize: taskFontSize, fontWeight: fontWeight, color: 'var(--text)', lineHeight: 1.5 }}>
-              Prepare client update - 10:00 AM
-            </div>
-          </div>
+          <SettingRow icon="C" title="Clear Completed" onClick={() => setConfirmClear('completed')} right={<span>&gt;</span>} />
+          <SettingRow icon="W" title="Delete All Tasks" onClick={() => setConfirmClear('all')} danger right={<span>&gt;</span>} />
+          <button className="tool-btn" onClick={onOpenAppSettings} style={{ width: '100%' }}>Open App Settings</button>
         </Section>
 
         <Section title={copy.settings.reset}>
-          <button onClick={resetSettings} style={{ width: '100%', padding: '13px', borderRadius: 12, border: '1px solid var(--card-border)', cursor: 'pointer', background: 'var(--chip)', color: 'var(--text)', fontWeight: 800, fontSize: '.92rem' }}>
-            Reset settings to default
+          <button onClick={() => { 
+            if (window.confirm('Reset all settings to default?')) {
+               setLocalSettings({
+                 themeMode: 'dark',
+                 taskFontFamily: FONT_OPTIONS[0].value,
+                 taskFontSize: 18,
+                 uiScale: 96,
+                 fontWeight: 500,
+                 overdueEnabled: true,
+                 soundTheme: 'default',
+                 hapticEnabled: true,
+                 autoThemeMode: 'off',
+                 liveHighlightEnabled: true,
+                 appLanguage: 'en',
+                 cardTheme: 'glow',
+                 cardBorderColor: '#3b82f6',
+                 showCardDot: true,
+                 cardDensity: 'balanced',
+                 cardCornerRadius: 18,
+                 bgTheme: 'none'
+               });
+            }
+          }} style={{ width: '100%', padding: '13px', borderRadius: 12, border: '1px solid var(--card-border)', background: 'var(--chip)', color: 'var(--text)', fontWeight: 800 }}>
+            Reset Settings Defaults
           </button>
         </Section>
       </div>
+
+      {confirmClear && (
+        <div className="overlay" style={{ zIndex: 5000 }}>
+          <div className="modal">
+            <div className="m-title">Confirm {confirmClear === 'all' ? 'Full Delete' : 'Clear'}</div>
+            <div style={{ marginBottom: 20, color: 'var(--muted)', fontWeight: 600 }}>
+              Are you sure you want to {confirmClear === 'all' ? 'delete ALL tasks' : 'clear completed tasks'}? This cannot be undone.
+            </div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button onClick={() => { if(confirmClear==='all') onClearLocalData(); else onReplaceGoals([]); setConfirmClear(null); }} className="new-btn btn-block" style={{ background: '#ef4444' }}>Yes, Delete</button>
+              <button onClick={() => setConfirmClear(null)} className="hero-btn btn-block">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

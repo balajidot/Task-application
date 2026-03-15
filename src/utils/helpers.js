@@ -281,6 +281,58 @@ export const completionStreak = (goals) => {
   return streak;
 };
 
+export const generateHeatmapData = (goals, daysCount = 90) => {
+  const data = [];
+  const now = new Date();
+  for (let i = daysCount - 1; i >= 0; i -= 1) {
+    const d = new Date(now);
+    d.setDate(now.getDate() - i);
+    const key = toKey(d);
+    const visible = goals.filter((g) => goalVisibleOn(g, key));
+    const done = visible.filter((g) => isDoneOn(g, key)).length;
+    data.push({ date: key, count: done, dayName: d.toLocaleDateString('en-US', { weekday: 'short' }) });
+  }
+  return data;
+};
+
+export const analyzeHabits = (goals) => {
+  if (!goals || goals.length === 0) return [];
+  
+  const habitMap = {}; // { taskName: [minutesList] }
+  
+  goals.forEach(g => {
+    if (!g.text || !g.startTime) return;
+    const cleanText = g.text.trim().toLowerCase();
+    const mins = timeToMinutes(g.startTime);
+    if (mins === Number.MAX_SAFE_INTEGER) return;
+    
+    if (!habitMap[cleanText]) habitMap[cleanText] = [];
+    habitMap[cleanText].push(mins);
+  });
+  
+  const suggestions = [];
+  const now = new Date();
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+  
+  Object.entries(habitMap).forEach(([text, times]) => {
+    if (times.length < 2) return; // Need at least 2 occurrences to call it a habit
+    
+    // Simple average of times for now
+    const avgMins = times.reduce((a, b) => a + b, 0) / times.length;
+    
+    // If current time is within 60 minutes of the habit time
+    if (Math.abs(nowMins - avgMins) < 60) {
+      suggestions.push({
+        text: text.charAt(0).toUpperCase() + text.slice(1),
+        avgMins,
+        timeStr: `${Math.floor(avgMins / 60)}:${String(Math.floor(avgMins % 60)).padStart(2, '0')}`
+      });
+    }
+  });
+  
+  return suggestions;
+};
+
 export const parseTimeToken = (token) => {
   const match = String(token || "").trim().match(/^(\d{1,2}):(\d{2})(?:\s*([AaPp][Mm]))?$/);
   if (!match) return "";

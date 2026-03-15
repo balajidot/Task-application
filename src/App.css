@@ -36,6 +36,11 @@ body, html {
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
   --keyboard-height: 0px;
+
+  /* New Styling Variables */
+  --card-radius: 18px;
+  --card-padding: 12px 14px;
+  --card-gap: 8px;
 }
 
 .page {
@@ -44,7 +49,7 @@ body, html {
   overflow-y: auto;
   display: flex;
   justify-content: center;
-  padding: calc(16px + var(--safe-top)) calc(16px + var(--safe-right)) calc(80px + var(--safe-bottom)) calc(16px + var(--safe-left));
+  padding: calc(12px + var(--safe-top)) calc(12px + var(--safe-right)) calc(80px + var(--safe-bottom)) calc(12px + var(--safe-left));
   background:
     radial-gradient(circle at top, rgba(59, 130, 246, 0.1), transparent 32%),
     var(--bg);
@@ -107,7 +112,7 @@ body, html {
 /* ============================================
    TYPOGRAPHY
    ============================================ */
-.title { font-size: 20px !important; font-weight: 800; line-height: 1.2; letter-spacing: -0.5px; }
+.title { font-size: 19px !important; font-weight: 800; line-height: 1.2; letter-spacing: -0.5px; }
 .title .brand { font-size: 18px !important; color: #2563eb; }
 .tip { margin-top: 6px; color: var(--muted); font-size: 14px !important; font-weight: 500; }
 .focus-title { font-size: 20px !important; font-weight: 900; color: var(--text); letter-spacing: -0.5px; }
@@ -232,7 +237,7 @@ body, html {
    ============================================ */
 .new-btn {
   border: none; border-radius: 12px !important; padding: 14px 24px;
-  background: linear-gradient(135deg, #3b82f6, #2563eb); color: #fff !important;
+  background: linear-gradient(135deg, #3b82f6, #2563eb); color: #fff;
   font-size: 16px; font-weight: 800; cursor: pointer;
   min-height: 48px !important; transition: all .2s ease;
   box-shadow: 0 4px 12px rgba(37,99,235,0.3);
@@ -349,13 +354,38 @@ body, html {
    CARDS
    ============================================ */
 .card {
-  background: var(--card); border-radius: 16px; padding: 16px 18px;
-  border: 1px solid var(--card-border); box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+  background: var(--card); border-radius: 12px; padding: 14px 16px;
+  border: 1px solid var(--card-border); box-shadow: 0 4px 15px rgba(0,0,0,0.03);
   transition: box-shadow .3s ease, border-color .3s ease;
   /* ✅ PERF FIX: Removed backdrop-filter:blur(8px) — was creating GPU layer per card */
   width: 100%; overflow: hidden;
 }
 .card:hover { box-shadow: 0 8px 30px rgba(0,0,0,0.06); }
+
+/* Card Styles */
+.card-style-glass {
+  background: color-mix(in srgb, var(--card) 85%, transparent) !important;
+  backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(255,255,255,0.1) !important;
+}
+
+.card-style-solid {
+  background: var(--card) !important;
+  border: 1.5px solid var(--card-border) !important;
+  box-shadow: none !important;
+}
+
+.card-style-minimal {
+  background: transparent !important;
+  border: 1px solid var(--card-border) !important;
+  box-shadow: none !important;
+}
+
+/* Card Density */
+.density-compact .goal-item { padding: 10px 12px; min-height: 48px; }
+.density-compact .swipeable-task-container { margin-bottom: 6px; }
+.density-spacious .goal-item { padding: 18px 20px; min-height: 68px; }
+.density-spacious .swipeable-task-container { margin-bottom: 14px; }
 
 /* ============================================
    CALENDAR
@@ -405,7 +435,7 @@ body, html {
 }
 
 .tasks-panel {
-  padding: 14px 14px 16px;
+  padding: 12px 12px 14px;
 }
 
 .tasks-section {
@@ -482,15 +512,15 @@ body, html {
 
 .swipeable-task-container {
   position: relative;
-  margin-bottom: 12px;
-  border-radius: 24px;
+  margin-bottom: 8px;
+  border-radius: 20px;
 }
 
 .goal-item {
   background: var(--chip); border: 1.5px solid var(--card-border); border-radius: 12px;
-  padding: 16px; animation: fadeUp .3s ease both; transition: all .2s ease;
+  padding: 12px 14px; animation: fadeUp .3s ease both; transition: all .2s ease;
   box-shadow: 0 2px 5px rgba(0,0,0,0.02); width: 100%; position: relative;
-  overflow: hidden; min-height: 60px;
+  overflow: hidden; min-height: 52px;
   /* ✅ PERF FIX: Removed translateZ(0) — only keep contain for layout performance */
   contain: layout style paint;
 }
@@ -1205,4 +1235,84 @@ body.keyboard-open .page { padding-bottom: calc(var(--keyboard-height) + 16px) !
   padding: 2px 6px;
   border-radius: 999px;
   border: 2px solid var(--bg);
+}
+/* ============================================
+   ADVANCED ANIMATED BACKGROUNDS
+   ============================================ */
+
+/* Mesh Gradient Animation */
+@keyframes meshShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.bg-anim-mesh {
+  background: linear-gradient(-45deg, #0f172a, #1e293b, #0c4a6e, #020617);
+  background-size: 400% 400%;
+  animation: meshShift 15s ease infinite;
+}
+
+/* Aurora Animation */
+@keyframes aurora {
+  from { filter: hue-rotate(0deg); }
+  to { filter: hue-rotate(360deg); }
+}
+
+.bg-anim-aurora {
+  background: 
+    radial-gradient(circle at 20% 30%, rgba(59, 130, 246, 0.15), transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(139, 92, 246, 0.15), transparent 50%),
+    radial-gradient(circle at 50% 50%, rgba(16, 185, 129, 0.1), transparent 50%),
+    var(--bg);
+  animation: aurora 20s linear infinite;
+}
+
+/* Floating Blobs (requires extra elements, but we can simulate with pseudo) */
+@keyframes blobFloat {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -50px) scale(1.1); }
+  66% { transform: translate(-20px, 20px) scale(0.9); }
+}
+
+.bg-anim-blobs::before,
+.bg-anim-blobs::after {
+  content: "";
+  position: fixed;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  filter: blur(80px);
+  z-index: -1;
+  opacity: 0.15;
+  pointer-events: none;
+}
+
+.bg-anim-blobs::before {
+  background: var(--accent);
+  top: 10%;
+  left: 10%;
+  animation: blobFloat 10s infinite ease-in-out;
+}
+
+.bg-anim-blobs::after {
+  background: #a855f7;
+  bottom: 10%;
+  right: 10%;
+  animation: blobFloat 12s infinite ease-in-out reverse;
+}
+
+/* Glassmorphism for containers when animated bg is active */
+body[class*="bg-anim-"] .page {
+  background: transparent !important;
+}
+
+body[class*="bg-anim-"] .card {
+  backdrop-filter: blur(12px);
+  background: color-mix(in srgb, var(--card) 80%, transparent);
+}
+
+body[class*="bg-anim-"] .hero {
+  backdrop-filter: blur(16px);
+  background: color-mix(in srgb, var(--hero) 85%, transparent);
 }

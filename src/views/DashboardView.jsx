@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
-import { todayKey, toKey, goalVisibleOn, isDoneOn } from '../utils/helpers';
+import { todayKey, toKey, goalVisibleOn, isDoneOn, analyzeHabits, formatTimeRange } from '../utils/helpers';
 import { AI_TIPS } from '../utils/constants';
+import ProductivityHeatmap from '../components/ProductivityHeatmap';
 
 export default function DashboardView({ appLanguage, copy, userName, quote, setActiveView, done, total, pct, weekly, streakDays, dueSoon, goals, journalEntries, generateMonthlyReport, aiPersonalCoach }) {
   // Time-of-day greeting
@@ -13,32 +14,6 @@ export default function DashboardView({ appLanguage, copy, userName, quote, setA
     return { text: "Good Night", icon: "🌙", sub: "Rest well. Tomorrow awaits." };
   }, []);
 
-  // 30-day heatmap data
-  const heatmapData = useMemo(() => {
-    if (!goals) return [];
-    const data = [];
-    const today = new Date();
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(today.getDate() - i);
-      const key = toKey(d);
-      const visible = goals.filter(g => goalVisibleOn(g, key));
-      const doneCount = visible.filter(g => isDoneOn(g, key)).length;
-      const totalCount = visible.length;
-      const pctDay = totalCount ? Math.round((doneCount / totalCount) * 100) : -1;
-      data.push({ key, day: d.getDate(), pct: pctDay, done: doneCount, total: totalCount });
-    }
-    return data;
-  }, [goals]);
-
-  const heatmapColor = (pctVal) => {
-    if (pctVal === -1) return 'var(--chip)';
-    if (pctVal === 0) return 'rgba(239, 68, 68, 0.2)';
-    if (pctVal < 50) return 'rgba(245, 158, 11, 0.35)';
-    if (pctVal < 100) return 'rgba(16, 185, 129, 0.4)';
-    return 'rgba(16, 185, 129, 0.8)';
-  };
-
   // Quick stats
   const todayGoals = useMemo(() => {
     if (!goals) return { high: 0, pending: 0 };
@@ -47,6 +22,10 @@ export default function DashboardView({ appLanguage, copy, userName, quote, setA
     const high = visible.filter(g => g.priority === 'High' && !isDoneOn(g, today)).length;
     const pending = visible.filter(g => !isDoneOn(g, today)).length;
     return { high, pending };
+  }, [goals]);
+
+  const smartSuggestions = useMemo(() => {
+    return analyzeHabits(goals);
   }, [goals]);
 
   return (
@@ -166,36 +145,8 @@ export default function DashboardView({ appLanguage, copy, userName, quote, setA
         </div>
       </div>
 
-      {/* 🔥 30-DAY ACTIVITY HEATMAP 🔥 */}
-      <div className="card" style={{ marginBottom: '16px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-          <div style={{ fontWeight: 900, fontSize: '1.1rem', color: 'var(--text)' }}>🗓 30-Day Activity</div>
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', fontSize: '.7rem', color: 'var(--muted)', fontWeight: 700 }}>
-            <span>Less</span>
-            {[0, 25, 50, 75, 100].map(v => (
-              <div key={v} style={{ width: '12px', height: '12px', borderRadius: '3px', background: heatmapColor(v) }}></div>
-            ))}
-            <span>More</span>
-          </div>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: '4px' }}>
-          {heatmapData.map((d, i) => (
-            <div key={d.key} title={`${d.key}: ${d.done}/${d.total} done`} style={{
-              aspectRatio: '1', borderRadius: '4px',
-              background: heatmapColor(d.pct),
-              border: d.key === todayKey() ? '2px solid #3b82f6' : '1px solid var(--card-border)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '.6rem', fontWeight: 800, color: 'var(--muted)',
-              cursor: 'pointer', transition: 'transform .2s ease',
-            }}
-              onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.15)'}
-              onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-            >
-              {d.day}
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* 🔥 ADVANCED HEATMAP 🔥 */}
+      <ProductivityHeatmap goals={goals} />
 
       {/* 🔥 AI INSIGHTS & CAREER TIPS 🔥 */}
       <div className="card" style={{ marginBottom: '16px', border: '1px solid rgba(139, 92, 246, 0.3)', background: 'linear-gradient(135deg, var(--card) 0%, rgba(139, 92, 246, 0.06) 100%)' }}>
@@ -206,6 +157,36 @@ export default function DashboardView({ appLanguage, copy, userName, quote, setA
           </div>
           <span style={{ fontSize: '.7rem', fontWeight: 800, color: '#a855f7', background: 'rgba(139, 92, 246, 0.1)', padding: '4px 10px', borderRadius: '999px', border: '1px solid rgba(139, 92, 246, 0.2)' }}>SMART TIPS</span>
         </div>
+
+        {/* 🔥 NEW: Smart AI Habit Suggestions 🔥 */}
+        {smartSuggestions.length > 0 && (
+          <div style={{ marginBottom: '16px' }}>
+            {smartSuggestions.map((s, si) => (
+              <div key={si} style={{
+                padding: '16px',
+                borderRadius: '16px',
+                background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(16, 185, 129, 0.08))',
+                border: '1.5px solid rgba(37, 99, 235, 0.2)',
+                marginBottom: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px'
+              }}>
+                <div style={{ fontSize: '1.8rem' }}>🧠</div>
+                <div>
+                  <div style={{ fontSize: '0.92rem', fontWeight: 800, color: 'var(--text)', marginBottom: '4px' }}>
+                    {appLanguage === 'ta' 
+                      ? `நீங்கள் வழக்கமாக ${s.timeStr}-க்கு "${s.text}" செய்வீர்கள்.` 
+                      : `You usually do "${s.text}" around ${s.timeStr}.`}
+                  </div>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--accent)' }}>
+                    {appLanguage === 'ta' ? 'இப்போது அதைத் தொடங்கலாமா?' : 'Should we start it now?'}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* 🔥 NEW: Gemini Personal Coach Briefing 🔥 */}
         {aiPersonalCoach && (

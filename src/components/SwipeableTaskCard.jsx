@@ -202,9 +202,9 @@ const SwipeableTaskCard = ({
           userSelect: 'none',
           position: 'relative',
           background: cardBackground,
-          borderRadius: '24px',
+          borderRadius: 'var(--card-radius, 18px)',
           border: appliedBorder,
-          padding: '28px 20px',
+          padding: 'var(--card-padding, 12px 14px)',
           display: 'flex',
           width: '100%',
           boxSizing: 'border-box',
@@ -221,14 +221,14 @@ const SwipeableTaskCard = ({
         onMouseLeave={handleMouseUp}
       >
         {/* Left Section: Dot + Checkbox */}
-        <div style={{ display: 'flex', alignItems: 'center', marginRight: '20px', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', marginRight: '14px', flexShrink: 0 }}>
           {showCardDot && (
             <div style={{
               width: '8px',
               height: '8px',
               borderRadius: '50%',
               background: priorityColor,
-              marginRight: '14px',
+              marginRight: '12px',
               boxShadow: `0 0 10px ${priorityColor}88`
             }} />
           )}
@@ -239,12 +239,13 @@ const SwipeableTaskCard = ({
             onTouchStart={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
             style={{
-              width: '32px', height: '32px',
+              width: '28px', height: '28px',
+              borderWidth: '2px',
               borderColor: doneHere ? accent : 'var(--card-border)',
               background: doneHere ? accent : 'transparent'
             }}
           >
-            {doneHere && <span className="checkmark" style={{ fontSize: '16px', animation: 'chk-bounce 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}>{liveNow ? '🔥' : '✓'}</span>}
+            {doneHere && <span className="checkmark" style={{ fontSize: '14px', animation: 'chk-bounce 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}>{liveNow ? '🔥' : '✓'}</span>}
           </button>
         </div>
 
@@ -255,11 +256,11 @@ const SwipeableTaskCard = ({
               className={`goal-text${doneHere ? " done" : ""}`}
               style={{
                 margin: 0,
-                fontSize: 'var(--task-font-size, 2.8rem)',
+                fontSize: 'var(--task-font-size, 1.1rem)',
                 lineHeight: '1.2',
-                fontWeight: 'var(--global-font-weight, 1000)',
+                fontWeight: 'var(--global-font-weight, 800)',
                 color: doneHere ? 'var(--muted)' : 'var(--text)',
-                letterSpacing: '-0.04em',
+                letterSpacing: '-0.02em',
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis'

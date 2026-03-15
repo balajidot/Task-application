@@ -82,9 +82,12 @@ export default function App() {
   const [liveHighlightEnabled, setLiveHighlightEnabled] = React.useState(true);
   
   // NEW: Card & Board Themes
-  const [cardTheme, setCardTheme] = React.useState('glow'); // glow, border, minimal, colored-shadow
+  const [cardTheme, setCardTheme] = React.useState('glow'); // glow, border, minimal
   const [cardBorderColor, setCardBorderColor] = React.useState('#3b82f6');
   const [showCardDot, setShowCardDot] = React.useState(true);
+  const [cardDensity, setCardDensity] = React.useState('balanced'); // compact, balanced, spacious
+  const [cardCornerRadius, setCardCornerRadius] = React.useState(18); // 8, 12, 18, 24
+  const [bgTheme, setBgTheme] = React.useState('none'); // none, mesh, aurora, blobs
   
   const [reminderPopup, setReminderPopup] = React.useState(null);
   const [liveTaskPopup, setLiveTaskPopup] = React.useState(null);
@@ -354,6 +357,8 @@ export default function App() {
         if (prefs.cardTheme) setCardTheme(prefs.cardTheme);
         if (prefs.cardBorderColor) setCardBorderColor(prefs.cardBorderColor);
         if (typeof prefs.showCardDot === 'boolean') setShowCardDot(prefs.showCardDot);
+        if (prefs.cardDensity) setCardDensity(prefs.cardDensity);
+        if (Number(prefs.cardCornerRadius)) setCardCornerRadius(Number(prefs.cardCornerRadius));
       }
       if (journalRaw) { try { setJournalEntries(JSON.parse(journalRaw)); } catch{} }
       if (habitsRaw) { try { setHabitsData(JSON.parse(habitsRaw)); } catch{} }
@@ -387,7 +392,8 @@ export default function App() {
     writePrefs({ 
       themeMode, autoThemeMode, appLanguage, taskFontSize, taskFontFamily, uiScale, 
       overdueEnabled, fontWeight, soundTheme, hapticEnabled, liveHighlightEnabled,
-      cardTheme, cardBorderColor, showCardDot
+      cardTheme, cardBorderColor, showCardDot, cardDensity, cardCornerRadius,
+      bgTheme
     });
     
     // Inject CSS variables for global typography & Themes
@@ -396,9 +402,12 @@ export default function App() {
     root.style.setProperty('--task-font-family', taskFontFamily);
     root.style.setProperty('--global-font-weight', fontWeight);
     root.style.setProperty('--card-glow-color', cardBorderColor);
+    root.style.setProperty('--card-radius', `${cardCornerRadius}px`);
+    root.style.setProperty('--ui-scale', uiScale / 100);
     
+    document.body.className = `theme-${themeMode} density-${cardDensity} style-${cardTheme}${bgTheme !== 'none' ? ` bg-anim-${bgTheme}` : ''}`;
     scheduleTaskNotifications(goals); 
-  }, [activeDate, activeView, loaded, priorityFilter, searchTerm, timeFilter, weekBase, themeMode, autoThemeMode, appLanguage, taskFontSize, taskFontFamily, uiScale, overdueEnabled, fontWeight, soundTheme, hapticEnabled, liveHighlightEnabled, goals, cardTheme, cardBorderColor, showCardDot]);
+  }, [loaded, themeMode, autoThemeMode, appLanguage, taskFontSize, taskFontFamily, uiScale, overdueEnabled, fontWeight, soundTheme, hapticEnabled, liveHighlightEnabled, goals, cardTheme, cardBorderColor, showCardDot, cardDensity, cardCornerRadius, bgTheme]);
 
 
   React.useEffect(() => {
@@ -1357,6 +1366,9 @@ export default function App() {
                 cardTheme={cardTheme} setCardTheme={setCardTheme}
                 cardBorderColor={cardBorderColor} setCardBorderColor={setCardBorderColor}
                 showCardDot={showCardDot} setShowCardDot={setShowCardDot}
+                cardDensity={cardDensity} setCardDensity={setCardDensity}
+                cardCornerRadius={cardCornerRadius} setCardCornerRadius={setCardCornerRadius}
+                bgTheme={bgTheme} setBgTheme={setBgTheme}
               />
             </div>
           )}
