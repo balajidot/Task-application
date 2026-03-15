@@ -34,6 +34,7 @@ const HabitsView = lazy(() => import("./views/HabitsView"));
 const JournalView = lazy(() => import("./views/JournalView"));
 const GoalsView = lazy(() => import("./views/GoalsView"));
 const ChatAssistantView = lazy(() => import("./views/ChatAssistantView"));
+const InstructionsView = lazy(() => import("./views/InstructionsView"));
 
 import { REPEAT_OPTIONS, SESSION_OPTIONS, PRIORITY_OPTIONS, FONT_OPTIONS, TIME_FILTER_OPTIONS, DAY_NAMES, QUOTES, PRIORITY_RANK, JOURNAL_KEY, HABITS_KEY, GOALS_KEY, TOOLS_KEY, CAREER_KEY, APP_COPY } from "./utils/constants";
 import {
@@ -1130,6 +1131,7 @@ export default function App() {
     { id: "journal", label: "Journal", icon: "📓" },
     { id: "goals", label: "Goals", icon: "🎯" },
     { id: "chat", label: "AI Chat", icon: "🤖" },
+    { id: "instructions", label: "Instructions", icon: "📖" },
   ];
   const tabItems = [...mainTabItems.map(t => ({...t, icon: t.id === 'insights' ? '📊' : t.id === 'analytics' ? '📈' : t.icon})), ...moreTabItems];
 
@@ -1149,42 +1151,56 @@ export default function App() {
         </div>
 
         {showNameSetup && (
-          <div className="overlay" style={{ zIndex: 99999, backdropFilter: 'blur(8px)', background: 'rgba(0,0,0,0.7)' }}>
-            <div className="modal" style={{ 
-              textAlign: 'center', padding: '30px 20px', background: 'var(--card)', 
-              border: '1px solid rgba(99, 102, 241, 0.4)', boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
-              transform: 'scale(1)', transition: 'all 0.3s ease-out'
+          <div className="overlay" style={{ zIndex: 99999, backdropFilter: 'blur(20px)', background: 'rgba(0,0,0,0.85)' }}>
+            <div className="modal onboarding-modal" style={{ 
+              textAlign: 'center', padding: '40px 30px', background: 'var(--card)', 
+              border: '2px solid var(--accent)', boxShadow: '0 0 60px rgba(59, 130, 246, 0.4)',
+              maxWidth: '450px', width: '90%', borderRadius: '32px'
             }}>
-              <div style={{ fontSize: '3.5rem', marginBottom: '10px', animation: 'pulse 2s infinite' }}>👋</div>
-              <h2 style={{ margin: '0 0 10px 0', color: 'var(--text)', fontSize: '1.5rem', fontWeight: '800' }}>Welcome to Task Planner!</h2>
-              <p style={{ color: 'var(--muted)', fontSize: '0.95rem', marginBottom: '24px', lineHeight: '1.4' }}>
-                Let's make today productive. <br/>What should I call you?
+              <div style={{ fontSize: '4rem', marginBottom: '20px', animation: 'float 3s infinite ease-in-out' }}>🏆</div>
+              <h2 style={{ margin: '0 0 16px 0', color: 'var(--text)', fontSize: '1.8rem', fontWeight: '900', letterSpacing: '-0.03em' }}>
+                {appLanguage === 'ta' ? 'நீங்கள் தயாரா?' : 'Are you Ready?'}
+              </h2>
+              <p style={{ color: 'var(--muted)', fontSize: '1rem', marginBottom: '32px', lineHeight: '1.6', fontWeight: 600 }}>
+                {appLanguage === 'ta' 
+                  ? 'இனிமேல் நீங்கள் அதிக உற்பத்தித் திறனுடனும் (Productive) மற்றும் ஒழுக்கத்துடனும் (Disciplined) இருக்கத் தயாரா?' 
+                  : 'Are you ready to be productive and disciplined from now on?'}
               </p>
-              <input
-                type="text"
-                placeholder="Enter your name..."
-                value={tempName}
-                onChange={(e) => setTempName(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleSaveName(); }}
-                autoFocus
-                style={{ 
-                  width: '100%', padding: '14px', borderRadius: '10px', 
-                  border: '2px solid rgba(99, 102, 241, 0.3)', background: 'var(--chip)', 
-                  color: 'var(--text)', fontSize: '1.1rem', marginBottom: '20px', 
-                  textAlign: 'center', outline: 'none', boxSizing: 'border-box'
-                }}
-              />
+              
+              <div style={{ textAlign: 'left', marginBottom: '24px' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 900, color: 'var(--accent)', marginLeft: '4px', textTransform: 'uppercase' }}>
+                  {appLanguage === 'ta' ? 'உங்கள் பெயர்:' : 'YOUR NAME:'}
+                </label>
+                <input
+                  type="text"
+                  placeholder={appLanguage === 'ta' ? 'பெயரை உள்ளிடவும்...' : 'Enter your name...'}
+                  value={tempName}
+                  onChange={(e) => setTempName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleSaveName(); }}
+                  autoFocus
+                  style={{ 
+                    width: '100%', padding: '16px', borderRadius: '16px', marginTop: '8px',
+                    border: '2px solid var(--card-border)', background: 'rgba(255,255,255,0.03)', 
+                    color: 'var(--text)', fontSize: '1.2rem', outline: 'none', boxSizing: 'border-box',
+                    textAlign: 'center', fontWeight: '800'
+                  }}
+                />
+              </div>
+
               <button
                 onClick={handleSaveName}
                 disabled={!tempName.trim()}
                 style={{ 
-                  width: '100%', padding: '14px', fontSize: '1.1rem', fontWeight: 'bold',
-                  borderRadius: '10px', color: '#fff', border: 'none', cursor: tempName.trim() ? 'pointer' : 'not-allowed',
-                  background: tempName.trim() ? 'linear-gradient(135deg, #a855f7, #6366f1)' : '#475569',
-                  opacity: tempName.trim() ? 1 : 0.5, transition: 'all 0.2s'
+                  width: '100%', padding: '18px', fontSize: '1.2rem', fontWeight: '900',
+                  borderRadius: '16px', color: '#fff', border: 'none', cursor: tempName.trim() ? 'pointer' : 'not-allowed',
+                  background: tempName.trim() ? 'linear-gradient(135deg, var(--accent), #6366f1)' : '#334155',
+                  boxShadow: tempName.trim() ? '0 10px 30px rgba(59, 130, 246, 0.4)' : 'none',
+                  transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
                 }}
+                onMouseEnter={(e) => { if(tempName.trim()) e.currentTarget.style.transform = 'scale(1.02) translateY(-2px)'; }}
+                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
               >
-                Start Planning 🚀
+                {appLanguage === 'ta' ? 'ஆம், நான் தயார்! 🚀' : "YES, I'M READY! 🚀"}
               </button>
             </div>
           </div>
@@ -1482,6 +1498,7 @@ export default function App() {
               />
             </div>
           )}
+          {activeView === "instructions" && <div key="instructions" className="view-transition"><InstructionsView appLanguage={appLanguage} /></div>}
           {activeView === "habits" && <div key="habits" className="view-transition"><HabitsView /></div>}
           {activeView === "journal" && <div key="journal" className="view-transition"><JournalView /></div>}
           {activeView === "goals" && <div key="goals" className="view-transition"><GoalsView /></div>}

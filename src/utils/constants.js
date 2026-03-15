@@ -88,6 +88,7 @@ export const APP_COPY = {
       journal: "Journal",
       goals: "Goals",
       chat: "AI Chat",
+      instructions: "Instructions",
       more: "More",
     },
     common: {
@@ -248,6 +249,7 @@ export const APP_COPY = {
       journal: "ஜர்னல்",
       goals: "இலக்குகள்",
       chat: "AI அரட்டை",
+      instructions: "வழிமுறைகள்",
       more: "மேலும்",
     },
     common: {
