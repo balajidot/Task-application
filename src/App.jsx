@@ -119,6 +119,7 @@ export default function App() {
   const [aiContext, setAiContext] = React.useState("");
   const [aiPersonalCoach, setAiPersonalCoach] = React.useState("");
   const [isBriefingLoading, setIsBriefingLoading] = React.useState(false);
+  const [smartNotice, setSmartNotice] = React.useState(null);
 
   // Refs
   const pulseTimerRef = React.useRef(null);
@@ -917,6 +918,45 @@ export default function App() {
   const markAllPendingDone = () => { const pendingIds = new Set(pendingGoals.map((g) => g.id)); save(goals.map((g) => { if (!pendingIds.has(g.id)) return g; if (g.repeat === "None") return { ...g, done: true }; return { ...g, doneOn: { ...(g.doneOn || {}), [activeDate]: true } }; })); };
   const reopenAllCompleted = () => { const completedIds = new Set(completedGoals.map((g) => g.id)); save(goals.map((g) => { if (!completedIds.has(g.id)) return g; if (g.repeat === "None") return { ...g, done: false }; const nextDoneOn = { ...(g.doneOn || {}) }; delete nextDoneOn[activeDate]; return { ...g, doneOn: nextDoneOn }; })); };
   const duplicatePendingToTomorrow = () => { const d = new Date(`${activeDate}T00:00:00`); d.setDate(d.getDate() + 1); const nextKey = toKey(d); const copies = pendingGoals.map((g, idx) => normalizeGoal({ ...g, id: Date.now() + idx, date: nextKey, done: false, doneOn: {}, repeat: "None" })); if (copies.length) save([...goals, ...copies]); };
+
+  const handleDecomposeTask = async (goalId) => {
+    const goal = goals.find(g => g.id === goalId);
+    if (!goal) return;
+    setAiLoading(true);
+    try {
+      const API_URL = (typeof window !== 'undefined' && window.Capacitor)
+        ? 'https://task-application-sigma.vercel.app/api/decompose'
+        : '/api/decompose';
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskText: goal.text, language: appLanguage })
+      });
+      const data = await response.json();
+      if (data.subtasks) {
+        const subtasks = data.subtasks.map(text => ({ text, done: false }));
+        save(goals.map(g => g.id === goalId ? { ...g, subtasks } : g));
+        if (typeof triggerHaptic === 'function') triggerHaptic('success');
+      }
+    } catch (e) {
+      console.error("Decomposition failed", e);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const toggleSubtask = (goalId, subtaskIdx) => {
+    save(goals.map(g => {
+      if (g.id !== goalId) return g;
+      const subtasks = [...(g.subtasks || [])];
+      if (subtasks[subtaskIdx]) {
+        subtasks[subtaskIdx] = { ...subtasks[subtaskIdx], done: !subtasks[subtaskIdx].done };
+      }
+      return { ...g, subtasks };
+    }));
+    if (typeof triggerHaptic === 'function') triggerHaptic('light');
+  };
+
   const handleApplyTemplate = React.useCallback((tasks) => { const today = todayKey(); const newGoals = tasks.map(text => ({ id: Date.now() + Math.random(), text: text.trim(), date: today, reminder: '', startTime: '', endTime: '', repeat: 'None', session: 'Morning', priority: 'Medium', doneOn: {} })); save([...goals, ...newGoals]); }, [goals, save]);
 
   const clearAppCache = React.useCallback(async () => {
@@ -994,6 +1034,44 @@ export default function App() {
     setAiContext("");
     setShowNameSetup(true);
   }, []);
+
+  // ✅ Phase 4: Smart Context Engine
+  React.useEffect(() => {
+    if (!loaded) return;
+    const checkSmartContext = () => {
+      const now = new Date();
+      const mins = now.getHours() * 60 + now.getMinutes();
+      
+      // 1. Overdue Alert
+      const overdue = goals.filter(g => goalVisibleOn(g, todayKey()) && !isDoneOn(g, todayKey()) && g.endTime && timeToMinutes(g.endTime) < mins);
+      if (overdue.length > 0) {
+        setSmartNotice({
+          id: 'overdue-' + overdue.length,
+          text: appLanguage === 'ta' ? `${overdue.length} வேலைகள் தாமதமாகின்றன. இப்போதே முடிப்போம்!` : `${overdue.length} tasks are overdue. Let's finish them!`,
+          icon: '⚠️',
+          type: 'warning'
+        });
+        return;
+      }
+
+      // 2. Habit Suggestion
+      const habits = analyzeHabits(goals);
+      const currentHabit = habits.find(h => Math.abs(h.avgMins - mins) < 20);
+      if (currentHabit) {
+        setSmartNotice({
+          id: 'habit-' + currentHabit.text,
+          text: appLanguage === 'ta' ? `வழக்கமான நேரமாகிய இப்போது "${currentHabit.text}" பணியைச் செய்யலாமா?` : `Time for your habit: "${currentHabit.text}". Start now?`,
+          icon: '🤖',
+          type: 'habit'
+        });
+        return;
+      }
+    };
+
+    const iv = setInterval(checkSmartContext, 15 * 60 * 1000); 
+    const timer = setTimeout(checkSmartContext, 5000);
+    return () => { clearInterval(iv); clearTimeout(timer); };
+  }, [loaded, goals, appLanguage]);
 
   const generateMonthlyReport = React.useCallback(() => {
     const now = new Date(); const monthName = now.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
@@ -1307,6 +1385,36 @@ export default function App() {
               }}
             />
           </div>}
+
+          {/* 🔥 NEW: Smart Context Banner 🔥 */}
+          {smartNotice && (
+            <div 
+              className="view-transition"
+              style={{
+                margin: '0 16px 16px',
+                padding: '16px 20px',
+                borderRadius: '20px',
+                background: smartNotice.type === 'warning' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(59, 130, 246, 0.1)',
+                border: `1.5px solid ${smartNotice.type === 'warning' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(59, 130, 246, 0.2)'}`,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '14px',
+                animation: 'slideDown 0.5s cubic-bezier(0.18, 0.89, 0.32, 1.28)',
+                position: 'relative'
+              }}
+            >
+              <span style={{ fontSize: '1.5rem' }}>{smartNotice.icon}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '0.65rem', fontWeight: 900, opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>AI SMART TIP</div>
+                <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text)', lineHeight: 1.3 }}>{smartNotice.text}</div>
+              </div>
+              <button 
+                onClick={() => setSmartNotice(null)}
+                style={{ background: 'transparent', border: 'none', color: 'var(--muted)', fontSize: '1.2rem', padding: '4px' }}
+              >✕</button>
+            </div>
+          )}
+
           {activeView === "tasks" && (
             <div key="tasks" className="view-transition">
               <TasksView
@@ -1324,6 +1432,8 @@ export default function App() {
                 completedPulseId={completedPulseId}
                 celebratingGoalId={celebratingGoalId} toggleDoneWithCelebration={toggleDoneWithCelebration} removeGoal={removeGoal} toggleSelectGoal={toggleSelectGoal}
                 markAllPendingDone={markAllPendingDone} duplicatePendingToTomorrow={duplicatePendingToTomorrow} reopenAllCompleted={reopenAllCompleted}
+                handleDecomposeTask={handleDecomposeTask}
+                toggleSubtask={toggleSubtask}
               />
             </div>
           )}

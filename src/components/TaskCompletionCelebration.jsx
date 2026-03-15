@@ -19,8 +19,8 @@ const TaskCompletionCelebration = ({ isActive, onComplete }) => {
         }
         .confetti-dot-safe {
           position: absolute !important; 
-          border-radius: 2px !important;
           pointer-events: none !important;
+          will-change: transform, opacity !important;
         }
       `;
       document.head.appendChild(style);
@@ -31,32 +31,42 @@ const TaskCompletionCelebration = ({ isActive, onComplete }) => {
     wrapper.className = 'confetti-wrapper-safe';
     document.body.appendChild(wrapper);
 
-    // 3. Generate ULTRA-FAST Confetti
-    const colors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'];
-    const confettiCount = 35; // Kuraintha alavu, aanaal vegamaaga irukkum
+    // 3. Generate PREMIUM BURST Confetti
+    const colors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+    const confettiCount = 65; 
 
     for (let i = 0; i < confettiCount; i++) {
-      // Delay illamal udanadiyaga vedikka seigirom (No setTimeout delay)
       const confetti = document.createElement('div');
       confetti.className = 'confetti-dot-safe';
       
-      const size = Math.random() * 6 + 5; 
+      const size = Math.random() * 8 + 6; 
+      const isCircle = Math.random() > 0.5;
+      
       confetti.style.width = `${size}px`;
-      confetti.style.height = `${size * 1.2}px`;
+      confetti.style.height = `${isCircle ? size : size * 1.5}px`;
+      confetti.style.borderRadius = isCircle ? '50%' : '2px';
       confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-      confetti.style.left = `${Math.random() * 100}vw`;
-      confetti.style.top = '-10px';
-      confetti.style.transform = `rotate(${Math.random() * 360}deg)`;
+      
+      // Start from center-bottom burst point
+      confetti.style.left = '50vw';
+      confetti.style.top = '100vh';
       
       wrapper.appendChild(confetti);
       
-      // Fast Animation (0.4 to 0.7 seconds ONLY)
+      const angle = (Math.random() * 120 + 210) * (Math.PI / 180); // Upward cone
+      const velocity = Math.random() * 800 + 400;
+      const xDist = Math.cos(angle) * velocity;
+      const yDist = Math.sin(angle) * velocity;
+      
       const animation = confetti.animate([
-        { transform: `translate3d(0, 0, 0) rotate(0deg)`, opacity: 1 },
-        { transform: `translate3d(${Math.random() * 100 - 50}px, ${window.innerHeight}px, 0) rotate(${Math.random() * 720}deg)`, opacity: 0 }
+        { transform: `translate3d(calc(-50% + 0px), 0px, 0) rotate(0deg)`, opacity: 1 },
+        { 
+          transform: `translate3d(calc(-50% + ${xDist}px), ${yDist}px, 0) rotate(${Math.random() * 1440}deg)`, 
+          opacity: 0 
+        }
       ], {
-        duration: 400 + Math.random() * 300, // Max 700ms
-        easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+        duration: 800 + Math.random() * 600,
+        easing: 'cubic-bezier(0.1, 0.8, 0.3, 1)',
         fill: 'forwards'
       });
       
@@ -74,23 +84,28 @@ const TaskCompletionCelebration = ({ isActive, onComplete }) => {
           const gainNode = context.createGain();
           oscillator.connect(gainNode);
           gainNode.connect(context.destination);
-          oscillator.frequency.setValueAtTime(800, context.currentTime);
-          oscillator.frequency.exponentialRampToValueAtTime(1200, context.currentTime + 0.05);
-          gainNode.gain.setValueAtTime(0.1, context.currentTime);
-          gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.1);
+          
+          // Premium "Ding"
+          oscillator.type = 'triangle';
+          oscillator.frequency.setValueAtTime(523.25, context.currentTime); // C5
+          oscillator.frequency.exponentialRampToValueAtTime(1046.5, context.currentTime + 0.1); // C6
+          
+          gainNode.gain.setValueAtTime(0.15, context.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.4);
+          
           oscillator.start(context.currentTime);
-          oscillator.stop(context.currentTime + 0.1);
+          oscillator.stop(context.currentTime + 0.4);
         } catch(e) {}
       });
     } catch(e) {}
     
-    // 5. Auto-Complete in just 0.5 Seconds! (Minnal vegam ⚡)
+    // 5. Cleanup after animation
     const timer = setTimeout(() => {
       if (wrapper && wrapper.parentNode) {
         wrapper.remove();
       }
       onComplete?.();
-    }, 500); // 500ms thaan! Udanadiyaga tick aagividum.
+    }, 1200); 
 
     return () => {
       clearTimeout(timer);

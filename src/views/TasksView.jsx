@@ -19,7 +19,8 @@ export default function TasksView({
   completedPulseId, celebratingGoalId, toggleDoneWithCelebration, removeGoal, toggleSelectGoal,
   markAllPendingDone, duplicatePendingToTomorrow, reopenAllCompleted, overdueEnabled,
   cardTheme, cardBorderColor, showCardDot,
-  appLanguage, onOptimizeSchedule
+  appLanguage, onOptimizeSchedule,
+  handleDecomposeTask, toggleSubtask
 }) {
   const [completedTasksCollapsed, setCompletedTasksCollapsed] = React.useState(false);
   const [liveStripVisible, setLiveStripVisible] = React.useState(true);
@@ -137,6 +138,7 @@ export default function TasksView({
         }}
         onDelete={() => removeGoal(goal.id)}
         onToggleSelect={() => toggleSelectGoal(goal.id)}
+        onToggleSubtask={(subIdx) => toggleSubtask(goal.id, subIdx)}
       />
     </div>
   );
@@ -190,6 +192,13 @@ export default function TasksView({
                 setActionTask(null);
               }}>
                 {selectedSet.has(actionTask.id) ? copy.tasksView.deselectTask : copy.tasksView.selectTask}
+              </button>
+
+              <button className="new-btn" style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.2)', boxShadow: 'none' }} onClick={() => {
+                handleDecomposeTask(actionTask.id);
+                setActionTask(null);
+              }}>
+                ✨ {appLanguage === 'ta' ? 'AI மூலம் பிரிக்கவும்' : 'Breakdown with AI'}
               </button>
 
               <button className="new-btn" style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', boxShadow: 'none' }} onClick={() => {

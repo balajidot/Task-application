@@ -19,7 +19,8 @@ const SwipeableTaskCard = ({
   onToggleSelect,
   cardTheme = 'glow',
   cardBorderColor = '#3b82f6',
-  showCardDot = true
+  showCardDot = true,
+  onToggleSubtask
 }) => {
   const [currentMins, setCurrentMins] = React.useState(() => {
     const now = new Date();
@@ -314,6 +315,47 @@ const SwipeableTaskCard = ({
               </div>
             )}
           </div>
+
+          {/* 🔥 NEW: Sub-tasks Checklist 🔥 */}
+          {goal.subtasks && goal.subtasks.length > 0 && (
+            <div style={{
+              marginTop: '10px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '6px',
+              paddingLeft: '4px',
+              borderLeft: '2px solid rgba(255,255,255,0.08)'
+            }}>
+              {goal.subtasks.map((st, sidx) => (
+                <div 
+                  key={sidx}
+                  onClick={(e) => { e.stopPropagation(); onToggleSubtask?.(sidx); }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    fontSize: '0.85rem',
+                    color: st.done ? 'var(--muted)' : 'var(--text)',
+                    opacity: st.done ? 0.6 : 1,
+                    transition: 'all 0.2s',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <div style={{
+                    width: '16px', height: '16px',
+                    borderRadius: '4px',
+                    border: `1.5px solid ${st.done ? accent : 'var(--card-border)'}`,
+                    background: st.done ? accent : 'transparent',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    flexShrink: 0
+                  }}>
+                    {st.done && <span style={{ fontSize: '10px', color: '#fff' }}>✓</span>}
+                  </div>
+                  <span style={{ textDecoration: st.done ? 'line-through' : 'none', fontWeight: 600 }}>{st.text}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Right Area: Live Badge + Edit Button */}
