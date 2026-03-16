@@ -20,7 +20,12 @@ const SwipeableTaskCard = ({
   cardTheme = 'glow',
   cardBorderColor = '#3b82f6',
   showCardDot = true,
-  onToggleSubtask
+  onToggleSubtask,
+  cardDensity = 'balanced',
+  cardCornerRadius = 18,
+  cardTheme = 'glass',
+  cardBorderColor = '#3b82f6',
+  showCardDot = true,
 }) => {
   const [currentMins, setCurrentMins] = React.useState(() => {
     const now = new Date();
@@ -140,36 +145,58 @@ const SwipeableTaskCard = ({
   const isGlowingLive = liveNow && !doneHere && !isOverdue;
 
   // PREMIUM THEME LOGIC
-  const cardBackground = `var(--card)`;
   const priorityColor = goal.priority === 'High' ? '#ff3b30' : goal.priority === 'Medium' ? '#ff9500' : '#34c759';
 
-  // Theme calculations
-  let appliedBorder = '1px solid var(--card-border)';
-  let appliedShadow = 'var(--card-shadow)';
   const accent = cardBorderColor || 'var(--accent)';
 
-  if (isGlowingLive) {
-    appliedBorder = `1.5px solid ${accent}`;
-    appliedShadow = `0 12px 40px color-mix(in srgb, ${accent} 30%, transparent)`;
-  } else if (selected) {
-    appliedBorder = `2px solid ${accent}`;
-    appliedShadow = `0 12px 40px color-mix(in srgb, ${accent} 20%, transparent)`;
-  } else if (isOverdue && overdueEnabled) {
-    appliedBorder = '1.5px solid #ef4444';
-    appliedShadow = 'inset 0 0 20px rgba(239, 68, 68, 0.08), 0 8px 32px rgba(239, 68, 68, 0.15)';
-  } else {
-    // Standard themes
+  // Determine styles based on cardTheme
+  let appliedBorder = '1px solid var(--card-border)';
+  let appliedShadow = 'var(--card-shadow)';
+  let appliedBg = 'var(--glass-bg)';
+
+  if (cardTheme === 'solid') {
+    appliedBg = 'var(--card)';
+    appliedBorder = `1.5px solid var(--card-border)`;
+    appliedShadow = 'none';
+  } else if (cardTheme === 'minimal') {
+    appliedBg = 'transparent';
+    appliedBorder = `1px solid var(--card-border)`;
+    appliedShadow = 'none';
+  } else if (cardTheme === 'glow') {
+    appliedBg = 'var(--card)';
+    appliedBorder = `1px solid color-mix(in srgb, ${accent} 40%, transparent)`;
+    appliedShadow = `0 8px 30px color-mix(in srgb, ${accent} 15%, transparent)`;
+  } else if (cardTheme === 'glass') {
+    appliedBg = 'var(--glass-bg)';
     appliedBorder = '1px solid var(--glass-border)';
     appliedShadow = 'var(--card-shadow)';
   }
 
+  // Override for status states
+  if (isGlowingLive) {
+    appliedBorder = `1.5px solid ${accent}`;
+    appliedShadow = `0 12px 40px color-mix(in srgb, ${accent} 30%, transparent)`;
+    appliedBg = 'var(--card)';
+  } else if (selected) {
+    appliedBorder = `2px solid ${accent}`;
+    appliedShadow = `0 12px 40px color-mix(in srgb, ${accent} 20%, transparent)`;
+    appliedBg = 'var(--card)';
+  } else if (isOverdue && overdueEnabled) {
+    appliedBorder = '1.5px solid #ef4444';
+    appliedShadow = 'inset 0 0 20px rgba(239, 68, 68, 0.08), 0 8px 32px rgba(239, 68, 68, 0.15)';
+  }
+
+  // Density settings
+  const densityPadding = cardDensity === 'compact' ? '10px 14px' : cardDensity === 'spacious' ? '20px 22px' : '16px 18px';
+  const densityMargin = cardDensity === 'compact' ? '6px' : cardDensity === 'spacious' ? '16px' : '12px';
+
   return (
     <div
-      className="swipeable-task-container"
+      className={`swipeable-task-container density-${cardDensity} style-${cardTheme}`}
       style={{
         position: 'relative',
-        marginBottom: '12px',
-        borderRadius: '24px',
+        marginBottom: densityMargin,
+        borderRadius: `${cardCornerRadius}px`,
         overflow: 'hidden',
         background: 'transparent'
       }}
@@ -197,10 +224,10 @@ const SwipeableTaskCard = ({
           cursor: isDragging ? 'grabbing' : 'grab',
           userSelect: 'none',
           position: 'relative',
-          background: isGlowingLive || selected ? 'var(--card)' : 'var(--glass-bg)',
-          borderRadius: '24px',
+          background: appliedBg,
+          borderRadius: `${cardCornerRadius}px`,
           border: appliedBorder,
-          padding: '16px 18px',
+          padding: densityPadding,
           display: 'flex',
           width: '100%',
           boxSizing: 'border-box',

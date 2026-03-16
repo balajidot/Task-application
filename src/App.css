@@ -398,11 +398,12 @@ body, html {
 /* Card Styles */
 .card-style-glass {
   backdrop-filter: blur(12px) !important;
-  border: 1px solid rgba(255,255,255,0.1) !important;
+  border: 1px solid var(--glass-border) !important;
+  background: var(--glass-bg) !important;
 }
 @media (max-width: 768px) {
   .card-style-glass {
-    backdrop-filter: none !important; /* Heat reduction for task cards */
+    backdrop-filter: none !important;
     background: var(--card) !important;
   }
 }
@@ -419,11 +420,18 @@ body, html {
   box-shadow: none !important;
 }
 
+.card-style-glow {
+  background: var(--card) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
 /* Card Density */
-.density-compact .goal-item { padding: 10px 12px; min-height: 48px; }
-.density-compact .swipeable-task-container { margin-bottom: 6px; }
-.density-spacious .goal-item { padding: 18px 20px; min-height: 68px; }
-.density-spacious .swipeable-task-container { margin-bottom: 14px; }
+.density-compact .premium-slate-card { padding: 10px 14px !important; }
+.density-compact .swipeable-task-container { margin-bottom: 6px !important; }
+.density-balanced .premium-slate-card { padding: 16px 18px !important; }
+.density-balanced .swipeable-task-container { margin-bottom: 12px !important; }
+.density-spacious .premium-slate-card { padding: 20px 22px !important; }
+.density-spacious .swipeable-task-container { margin-bottom: 16px !important; }
 
 /* ============================================
    CALENDAR

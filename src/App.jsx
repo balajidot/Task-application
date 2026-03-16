@@ -1456,6 +1456,7 @@ export default function App() {
                 selectedGoalIds={selectedGoalIds} selectedSet={selectedSet} selectAllVisibleGoals={selectAllVisibleGoals} deleteSelectedGoals={deleteSelectedGoals} clearSelectedGoals={clearSelectedGoals}
                 overdueEnabled={overdueEnabled}
                 cardTheme={cardTheme} cardBorderColor={cardBorderColor} showCardDot={showCardDot}
+                cardDensity={cardDensity} cardCornerRadius={cardCornerRadius}
                 completedPulseId={completedPulseId}
                 celebratingGoalId={celebratingGoalId} toggleDoneWithCelebration={toggleDoneWithCelebration} removeGoal={removeGoal} toggleSelectGoal={toggleSelectGoal}
                 markAllPendingDone={markAllPendingDone} duplicatePendingToTomorrow={duplicatePendingToTomorrow} reopenAllCompleted={reopenAllCompleted}
