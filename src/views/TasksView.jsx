@@ -1,7 +1,6 @@
 import React from 'react';
 import SwipeableTaskCard from '../components/SwipeableTaskCard';
 import TaskProgressIndicator from '../components/TaskProgressIndicator';
-import EnhancedFocusMode from '../components/EnhancedFocusMode';
 import TaskCompletionCelebration from '../components/TaskCompletionCelebration';
 import DailyProductivityScore from '../components/DailyProductivityScore';
 import { PRIORITY_OPTIONS, TIME_FILTER_OPTIONS, DAY_NAMES } from '../utils/constants';
@@ -341,7 +340,6 @@ export default function TasksView({
         </div>
       )}
 
-      {focusMode && <EnhancedFocusMode task={liveCurrentGoal} isActive={focusMode} onExit={() => setFocusMode(false)} />}
       <TaskCompletionCelebration isActive={showCelebration} onComplete={() => setShowCelebration(false)} />
       <DailyProductivityScore goals={goals} todayKey={todayKey()} />
 

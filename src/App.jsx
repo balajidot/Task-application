@@ -20,6 +20,7 @@ import WeeklyPlannerWizard from "./components/WeeklyPlannerWizard";
 import TaskTemplates from "./components/TaskTemplates";
 import { DeviceSettings } from "./plugins/deviceSettings";
 import BottomSheet from "./components/BottomSheet";
+import EnhancedFocusMode from "./components/EnhancedFocusMode";
 
 const DashboardView = lazy(() => import("./views/DashboardView"));
 const TasksView = lazy(() => import("./views/TasksView"));
@@ -1342,6 +1343,8 @@ export default function App() {
             </div>
           </div>
         )}
+
+        {focusMode && <EnhancedFocusMode task={liveCurrentGoal} isActive={focusMode} onExit={() => setFocusMode(false)} />}
 
         <Suspense fallback={<div style={{ display: "grid", placeItems: "center", padding: "40px" }}><span style={{ width: 24, height: 24, borderRadius: "50%", border: "3px solid #94a3b8", borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }}/></div>}>
           {tabSwitching && (

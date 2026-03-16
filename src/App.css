@@ -844,10 +844,10 @@ body, html {
 /* ============================================
    FOCUS WALL
    ============================================ */
-.focus-wall-overlay { position: fixed; inset: 0; background: var(--bg); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; animation: wallFadeIn 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-.focus-wall-exit { position: absolute; top: 40px; right: 40px; background: transparent; color: var(--muted); border: 1px solid var(--card-border); padding: 8px 16px; border-radius: 8px; font-family: inherit; font-weight: 700; cursor: pointer; transition: all 0.3s ease; z-index: 10000; }
+.focus-wall-overlay { position: fixed; inset: 0; background: var(--bg); z-index: 10000; display: flex; flex-direction: column; justify-content: center; align-items: center; animation: wallFadeIn 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.focus-wall-exit { position: absolute; top: calc(20px + var(--safe-top)); right: 20px; background: rgba(255,255,255,0.05); color: var(--muted); border: 1px solid var(--card-border); padding: 8px 16px; border-radius: 12px; font-family: inherit; font-weight: 700; cursor: pointer; transition: all 0.3s ease; z-index: 10001; }
 .focus-wall-exit:hover { background: rgba(239,68,68,0.1); color: #ef4444; border-color: #ef4444; }
-.focus-wall-content { text-align: center; max-width: 700px; width: 90vw; padding: 30px 20px; overflow: hidden; position: relative; z-index: 1; }
+.focus-wall-content { text-align: center; max-width: 700px; width: 90vw; padding: 60px 20px calc(40px + var(--safe-bottom)); display: flex; flex-direction: column; align-items: center; margin: auto; }
 .focus-wall-label { font-size: 1rem; letter-spacing: 4px; color: #10b981; font-weight: 900; margin-bottom: 20px; text-transform: uppercase; animation: pulseGlow 2s infinite; }
 .focus-wall-task { font-size: clamp(1.8rem, 5vw, 2.8rem); font-weight: 900; color: var(--text); line-height: 1.2; margin-bottom: 20px; letter-spacing: -0.5px; word-wrap: break-word; overflow-wrap: break-word; }
 .focus-wall-time { font-size: 1.3rem; color: var(--muted); font-weight: 700; margin-bottom: 30px; }
@@ -1166,8 +1166,12 @@ body.keyboard-open .page { padding-bottom: calc(var(--keyboard-height) + 16px) !
   .alert-icon { font-size: 2.5rem; }
   .alert-title { font-size: 1rem; }
   .alert-time { font-size: 0.92rem; }
-  .focus-wall-exit { top: calc(16px + var(--safe-top)); right: 16px; }
-  .focus-wall-content { width: 100%; max-width: 100%; padding: 28px 20px calc(24px + var(--safe-bottom)); }
+  .focus-wall-exit { top: calc(12px + var(--safe-top)); right: 12px; font-size: 0.8rem; padding: 6px 12px; }
+  .focus-wall-content { padding: 40px 16px calc(24px + var(--safe-bottom)); }
+  .focus-wall-task { margin-bottom: 12px; }
+  .focus-wall-time { margin-bottom: 20px; font-size: 1.1rem; }
+  .focus-wall-countdown { margin-bottom: 24px; }
+  .focus-wall-done-btn { width: 100%; padding: 16px; font-size: 1.1rem; border-radius: 18px; }
 
   .view-transition { animation: slideIn 0.18s ease-out; }
 }

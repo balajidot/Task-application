@@ -160,8 +160,8 @@ const EnhancedFocusMode = ({ task, isActive, onExit }) => {
 
             {/* 🔥 NEW: Soundscape Selector 🔥 */}
             <div style={{
-              width: '100%', maxWidth: 380, marginBottom: 28,
-              padding: '16px', borderRadius: 20,
+              width: '100%', maxWidth: 380, marginBottom: 20,
+              padding: '12px', borderRadius: 20,
               background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)'
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
