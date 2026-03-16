@@ -48,14 +48,6 @@ export default function TasksView({
     setLiveStripVisible(true);
   }, [liveCurrentGoal?.id]);
 
-  React.useEffect(() => {
-    if (!liveHighlightEnabled || !liveCurrentGoal?.id || activeDate !== todayKey()) return;
-    const timer = window.setTimeout(() => {
-      const element = document.querySelector(`[data-task-id="${liveCurrentGoal.id}"]`);
-      element?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
-    }, 180);
-    return () => window.clearTimeout(timer);
-  }, [activeDate, liveCurrentGoal, liveHighlightEnabled]);
 
   const handleStripTouchStart = (event) => {
     stripStartX.current = event.touches[0].clientX;
