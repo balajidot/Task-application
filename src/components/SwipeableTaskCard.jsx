@@ -148,24 +148,18 @@ const SwipeableTaskCard = ({
   const accent = cardBorderColor || 'var(--accent)';
 
   if (isGlowingLive) {
-    appliedBorder = `2.5px solid ${accent}`;
-    appliedShadow = `0 0 35px color-mix(in srgb, ${accent} 40%, transparent)`;
+    appliedBorder = `1.5px solid ${accent}`;
+    appliedShadow = `0 12px 40px color-mix(in srgb, ${accent} 30%, transparent)`;
   } else if (selected) {
-    appliedBorder = `2.5px solid ${accent}`;
-    appliedShadow = `0 12px 40px color-mix(in srgb, ${accent} 25%, transparent)`;
+    appliedBorder = `2px solid ${accent}`;
+    appliedShadow = `0 12px 40px color-mix(in srgb, ${accent} 20%, transparent)`;
   } else if (isOverdue && overdueEnabled) {
-    appliedBorder = '2.5px solid #ef4444';
-    appliedShadow = '0 12px 40px rgba(239, 68, 68, 0.25)';
+    appliedBorder = '1.5px solid #ef4444';
+    appliedShadow = 'inset 0 0 20px rgba(239, 68, 68, 0.08), 0 8px 32px rgba(239, 68, 68, 0.15)';
   } else {
     // Standard themes
-    if (cardTheme === 'glow') {
-      appliedShadow = `0 4px 20px color-mix(in srgb, ${accent} 10%, transparent)`;
-    } else if (cardTheme === 'border') {
-      appliedBorder = `2px solid color-mix(in srgb, ${accent} 40%, var(--card-border))`;
-    } else if (cardTheme === 'minimal') {
-      appliedBorder = '1px solid var(--card-border)';
-      appliedShadow = '0 2px 10px rgba(0,0,0,0.1)';
-    }
+    appliedBorder = '1px solid var(--glass-border)';
+    appliedShadow = 'var(--card-shadow)';
   }
 
   return (
@@ -195,17 +189,17 @@ const SwipeableTaskCard = ({
       {/* Main Card */}
       <div
         ref={cardRef}
-        className={`premium-slate-card ${pulse ? "pulse " : ""}${celebrate ? "celebrate " : ""}${isGlowingLive ? "live-glowing " : ""}`}
+        className={`premium-slate-card glass-card glass-shimmer-effect ${pulse ? "pulse " : ""}${celebrate ? "celebrate " : ""}${isGlowingLive ? "live-glowing " : ""}`}
         style={{
           transform: `translateX(${swipeOffset}px)`,
           transition: isDragging ? 'none' : 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
           cursor: isDragging ? 'grabbing' : 'grab',
           userSelect: 'none',
           position: 'relative',
-          background: cardBackground,
-          borderRadius: 'var(--card-radius, 18px)',
+          background: isGlowingLive || selected ? 'var(--card)' : 'var(--glass-bg)',
+          borderRadius: '24px',
           border: appliedBorder,
-          padding: 'var(--card-padding, 12px 14px)',
+          padding: '16px 18px',
           display: 'flex',
           width: '100%',
           boxSizing: 'border-box',
@@ -283,16 +277,18 @@ const SwipeableTaskCard = ({
           </div>
 
           {/* Metadata Area: Time + Reminder */}
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
             <div style={{
               display: 'inline-flex',
-              padding: '4px 12px',
-              fontSize: '0.78rem',
+              padding: '6px 12px',
+              fontSize: '0.72rem',
               fontWeight: 900,
-              borderRadius: '12px',
-              background: 'var(--chip)',
-              color: 'var(--muted)',
-              border: '1px solid var(--card-border)'
+              borderRadius: '10px',
+              background: 'var(--accent-alpha)',
+              color: 'var(--accent)',
+              border: '1px solid color-mix(in srgb, var(--accent) 20%, transparent)',
+              letterSpacing: '0.02em',
+              textTransform: 'uppercase'
             }}>
               {formatTimeRange(goal.startTime, goal.endTime)}
             </div>
@@ -300,18 +296,19 @@ const SwipeableTaskCard = ({
             {goal.reminder && (
               <div style={{
                 display: 'inline-flex',
-                padding: '4px 12px',
-                fontSize: '0.78rem',
+                padding: '6px 12px',
+                fontSize: '0.72rem',
                 fontWeight: 900,
-                borderRadius: '12px',
-                background: 'rgba(245, 158, 11, 0.12)',
+                borderRadius: '10px',
+                background: 'rgba(245, 158, 11, 0.1)',
                 color: '#f59e0b',
                 border: '1px solid rgba(245, 158, 11, 0.2)',
                 alignItems: 'center',
-                gap: '6px'
+                gap: '6px',
+                textTransform: 'uppercase'
               }}>
                 <span style={{ fontSize: '12px' }}>🔔</span>
-                {new Date(`2000-01-01T${goal.reminder}:00`).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })}
+                {new Date(`2000-01-01T${goal.reminder}:00`).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}
               </div>
             )}
           </div>
@@ -359,19 +356,20 @@ const SwipeableTaskCard = ({
         </div>
 
         {/* Right Area: Live Badge + Edit Button */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
           {isGlowingLive && (
             <div style={{
-              background: 'var(--accent)',
+              background: 'linear-gradient(135deg, #10b981, #059669)',
               color: '#fff',
-              fontSize: '0.68rem',
+              fontSize: '0.65rem',
               fontWeight: 1000,
               padding: '6px 12px',
-              borderRadius: '20px',
+              borderRadius: '12px',
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              boxShadow: `0 4px 12px var(--accent-alpha, rgba(59, 130, 246, 0.4))`
+              boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)',
+              letterSpacing: '0.05em'
             }}>
               LIVE <span className="live-dot-pulse" />
             </div>
@@ -380,18 +378,18 @@ const SwipeableTaskCard = ({
             onClick={(e) => { e.stopPropagation(); onEdit(); }}
             className="card-edit-btn-v6"
             style={{
-              background: 'var(--chip)',
-              border: '1.5px solid var(--card-border)',
-              borderRadius: '16px',
-              padding: '12px',
+              background: 'var(--glass-bg)',
+              border: '1px solid var(--glass-border)',
+              borderRadius: '14px',
+              padding: '10px',
               cursor: 'pointer',
               display: 'flex',
               color: 'var(--text)',
-              transition: 'all 0.2s',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
             }}
           >
-            <span style={{ fontSize: '20px' }}>✏️</span>
+            <span style={{ fontSize: '18px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))' }}>✏️</span>
           </button>
         </div>
 

@@ -94,9 +94,10 @@ export default function TasksView({
         touchAction: 'pan-y',
         userSelect: 'none',
         WebkitUserSelect: 'none',
-        borderRadius: '18px',
-        transform: liveCurrentGoal?.id === goal.id ? 'scale(1.02)' : 'none',
-        transition: 'transform 0.4s cubic-bezier(0.2, 1, 0.2, 1)',
+        borderRadius: '24px',
+        transform: liveCurrentGoal?.id === goal.id ? 'scale(1.015)' : 'none',
+        transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+        padding: '2px 0'
       }}
       onTouchStart={(e) => startLongPress(e, goal)}
       onTouchMove={clearLongPress}
@@ -219,8 +220,8 @@ export default function TasksView({
       <div className="hero">
         <div className="topbar">
           <div>
-            <div className="title" style={{ transition: 'all 0.3s ease' }}>{activeDateLabel}</div>
-            <div className="tip">{liveClockLabel} • {done} of {total} completed</div>
+            <div className="title premium-title" style={{ transition: 'all 0.3s ease' }}>{activeDateLabel}</div>
+            <div className="tip" style={{ fontWeight: 700, opacity: 0.7 }}>{liveClockLabel} • {done} of {total} completed</div>
           </div>
           <div className="head-actions">
             <button
@@ -281,22 +282,22 @@ export default function TasksView({
           </div>
         </div>
         <div className="ai-briefing-grid-v6">
-          <div className="ai-briefing-card">
+          <div className="ai-briefing-card glass-card">
             <div className="ai-briefing-label">Focus</div>
-            <div className="ai-briefing-text" style={{ fontSize: '0.85rem' }}>{aiBriefing.headline}</div>
+            <div className="ai-briefing-text" style={{ fontSize: '0.82rem' }}>{aiBriefing.headline}</div>
           </div>
-          <div className="ai-briefing-card">
+          <div className="ai-briefing-card glass-card">
             <div className="ai-briefing-label">Risk</div>
-            <div className="ai-briefing-text" style={{ fontSize: '0.85rem' }}>{aiBriefing.risk}</div>
+            <div className="ai-briefing-text" style={{ fontSize: '0.82rem', color: '#ef4444' }}>{aiBriefing.risk}</div>
           </div>
-          <div className="ai-briefing-card">
+          <div className="ai-briefing-card glass-card">
             <div className="ai-briefing-label">Suggestion</div>
-            <div className="ai-briefing-text" style={{ fontSize: '0.85rem' }}>{aiBriefing.suggestion}</div>
+            <div className="ai-briefing-text" style={{ fontSize: '0.82rem' }}>{aiBriefing.suggestion}</div>
           </div>
-          <div className="ai-briefing-card" style={{ background: 'var(--chip)', border: '1px solid var(--card-border)' }}>
+          <div className="ai-briefing-card glass-card">
             <div className="ai-briefing-label" style={{ color: 'var(--accent)' }}>Progress</div>
-            <div className="ai-briefing-text" style={{ fontSize: '1.1rem', fontWeight: 900, color: 'var(--text)' }}>
-              {pct}% <span style={{ fontSize: '0.7rem', fontWeight: 600, opacity: 0.6 }}>Day Done</span>
+            <div className="ai-briefing-text" style={{ fontSize: '1.2rem', fontWeight: 900, color: 'var(--text)', letterSpacing: '-0.03em' }}>
+              {pct}% <span style={{ fontSize: '0.7rem', fontWeight: 700, opacity: 0.6, color: 'var(--muted)' }}>DAY DONE</span>
             </div>
           </div>
         </div>

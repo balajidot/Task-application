@@ -13,33 +13,34 @@ function Toggle({ value, onChange, color = '#10b981' }) {
     <button
       onClick={handleClick}
       style={{
-        width: 58,
-        height: 32,
+        width: 52,
+        height: 28,
         borderRadius: 999,
-        border: 'none',
+        border: `1.5px solid ${value ? 'transparent' : 'var(--card-border)'}`,
         cursor: 'pointer',
-        background: value ? `linear-gradient(135deg, ${color}, ${color}cc)` : 'rgba(255,255,255,0.08)',
+        background: value ? color : 'var(--bg)',
         position: 'relative',
-        transition: 'all 0.4s cubic-bezier(0.23, 1, 0.32, 1)',
-        boxShadow: value ? `0 6px 15px ${color}33` : 'none',
+        transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
+        boxShadow: value ? `0 4px 14px color-mix(in srgb, ${color} 40%, transparent)` : 'inset 0 2px 4px rgba(0,0,0,0.1)',
         padding: 0,
         display: 'flex',
         alignItems: 'center',
         flexShrink: 0,
+        outline: 'none'
       }}
     >
       <div
         style={{
-          width: 24,
-          height: 24,
+          width: 20,
+          height: 20,
           borderRadius: '50%',
           background: '#fff',
           position: 'absolute',
-          top: 4,
-          left: value ? 30 : 4,
+          top: 2.5,
+          left: value ? 26 : 4,
           transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
-          boxShadow: '0 3px 8px rgba(0,0,0,0.25)',
-          transform: `scale(${value ? 1 : 0.95})`,
+          boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+          transform: `scale(${value ? 1 : 0.9})`,
         }}
       />
     </button>
