@@ -110,11 +110,14 @@ export default function SettingsView({
   onRefreshNotifications,
   onOpenBatterySettings,
   onOpenAppSettings,
-  cardTheme, setCardTheme,
-  cardBorderColor, setCardBorderColor,
-  showCardDot, setShowCardDot,
-  cardDensity, setCardDensity,
-  cardCornerRadius, setCardCornerRadius,
+  userName, setUserName,
+  notifPerm, requestNotifPerm,
+  goals, onReplaceGoals,
+  onClearCache,
+  onClearLocalData,
+  onRefreshNotifications,
+  onOpenBatterySettings,
+  onOpenAppSettings,
   bgTheme, setBgTheme
 }) {
   const [editingName, setEditingName] = useState(false);
@@ -135,11 +138,6 @@ export default function SettingsView({
     autoThemeMode,
     liveHighlightEnabled,
     appLanguage,
-    cardTheme,
-    cardBorderColor,
-    showCardDot,
-    cardDensity,
-    cardCornerRadius,
     userName,
     bgTheme
   });
@@ -166,11 +164,6 @@ export default function SettingsView({
         case 'autoThemeMode': setAutoThemeMode(value); break;
         case 'liveHighlightEnabled': setLiveHighlightEnabled(value); break;
         case 'appLanguage': setAppLanguage(value); break;
-        case 'cardTheme': setCardTheme(value); break;
-        case 'cardBorderColor': setCardBorderColor(value); break;
-        case 'showCardDot': setShowCardDot(value); break;
-        case 'cardDensity': setCardDensity(value); break;
-        case 'cardCornerRadius': setCardCornerRadius(value); break;
         case 'bgTheme': setBgTheme(value); break;
         case 'userName': 
           if (value !== userName) {
@@ -190,8 +183,7 @@ export default function SettingsView({
     const current = {
       themeMode, taskFontFamily, taskFontSize, uiScale, fontWeight,
       overdueEnabled, soundTheme, hapticEnabled, autoThemeMode,
-      liveHighlightEnabled, appLanguage, cardTheme, cardBorderColor,
-      showCardDot, cardDensity, cardCornerRadius, userName, bgTheme
+      liveHighlightEnabled, appLanguage, userName, bgTheme
     };
     return keys.some(key => localSettings[key] !== current[key]);
   };
@@ -356,85 +348,6 @@ export default function SettingsView({
           </div>
         </Section>
 
-        <Section title="CARD PERSONALIZATION">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ background: 'var(--chip)', padding: '14px', borderRadius: 12, border: '1px solid var(--card-border)' }}>
-              <div style={{ fontWeight: 800, fontSize: '.8rem', color: 'var(--muted)', marginBottom: 12 }}>Layout Density (Reduced Gaps)</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-                {[
-                  { id: 'compact', label: 'Compact', icon: '◾' },
-                  { id: 'balanced', label: 'Balanced', icon: '▫️' },
-                  { id: 'spacious', label: 'Spacious', icon: '◻️' }
-                ].map(d => (
-                  <button key={d.id} onClick={() => handleLocalChange('cardDensity', d.id)} style={{ 
-                    padding: '12px 4px', borderRadius: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-                    border: localSettings.cardDensity === d.id ? '2px solid #3b82f6' : '1px solid var(--card-border)',
-                    background: localSettings.cardDensity === d.id ? 'rgba(59,130,246,0.1)' : 'var(--card)',
-                    color: localSettings.cardDensity === d.id ? '#3b82f6' : 'var(--text)',
-                    fontWeight: 800, fontSize: '.72rem'
-                  }}>
-                    <span>{d.icon}</span>
-                    {d.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div style={{ background: 'var(--chip)', padding: '14px', borderRadius: 12, border: '1px solid var(--card-border)' }}>
-              <div style={{ fontWeight: 800, fontSize: '.8rem', color: 'var(--muted)', marginBottom: 12 }}>Visual Style</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-                {[
-                  { id: 'glass', label: 'Glass' },
-                  { id: 'solid', label: 'Solid' },
-                  { id: 'minimal', label: 'Minimal' },
-                  { id: 'glow', label: 'Glow' }
-                ].map(s => (
-                  <button key={s.id} onClick={() => handleLocalChange('cardTheme', s.id)} style={{ 
-                    padding: '12px 4px', borderRadius: 10,
-                    border: localSettings.cardTheme === s.id ? '2px solid #3b82f6' : '1px solid var(--card-border)',
-                    background: localSettings.cardTheme === s.id ? 'rgba(59,130,246,0.1)' : 'var(--card)',
-                    color: localSettings.cardTheme === s.id ? '#3b82f6' : 'var(--text)',
-                    fontWeight: 800, fontSize: '.75rem'
-                  }}>
-                    {s.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div style={{ background: 'var(--chip)', padding: '14px', borderRadius: 12, border: '1px solid var(--card-border)' }}>
-              <div style={{ fontWeight: 800, fontSize: '.8rem', color: 'var(--muted)', marginBottom: 12 }}>Corner Rounding</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
-                {[8, 12, 18, 26].map(r => (
-                  <button key={r} onClick={() => handleLocalChange('cardCornerRadius', r)} style={{ 
-                    padding: '10px 4px', borderRadius: Math.min(r, 12),
-                    border: localSettings.cardCornerRadius === r ? '2px solid #3b82f6' : '1px solid var(--card-border)',
-                    background: localSettings.cardCornerRadius === r ? 'rgba(59,130,246,0.1)' : 'var(--card)',
-                    color: localSettings.cardCornerRadius === r ? '#3b82f6' : 'var(--text)',
-                    fontWeight: 800, fontSize: '.75rem'
-                  }}>
-                    {r}px
-                  </button>
-                ))}
-              </div>
-            </div>
-            
-            <SettingRow icon="◎" title="Priority Dot" subtitle="Show color dot on cards" right={<Toggle value={localSettings.showCardDot} onChange={(v) => handleLocalChange('showCardDot', v)} color="#10b981" />} />
-
-            <div style={{ padding: '12px 14px', background: 'var(--chip)', borderRadius: 12, border: '1px solid var(--card-border)' }}>
-              <div style={{ fontWeight: 800, fontSize: '.8rem', color: 'var(--muted)', marginBottom: 10 }}>Accent Color</div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6 }}>
-                {['#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#8b5cf6', '#ec4899', '#ffffff'].map(c => (
-                  <button key={c} onClick={() => handleLocalChange('cardBorderColor', c)} style={{ 
-                    width: 30, height: 30, borderRadius: '50%', background: c, border: localSettings.cardBorderColor === c ? '2.5px solid #fff' : '1px solid rgba(255,255,255,0.2)',
-                    boxShadow: localSettings.cardBorderColor === c ? `0 0 10px ${c}` : 'none', cursor: 'pointer'
-                  }} />
-                ))}
-              </div>
-            </div>
-            <ApplyButton keys={['cardDensity', 'cardTheme', 'cardCornerRadius', 'showCardDot', 'cardBorderColor']} />
-          </div>
-        </Section>
 
         <Section title={copy.settings.display}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -510,11 +423,6 @@ export default function SettingsView({
                  autoThemeMode: 'off',
                  liveHighlightEnabled: true,
                  appLanguage: 'en',
-                 cardTheme: 'glow',
-                 cardBorderColor: '#3b82f6',
-                 showCardDot: true,
-                 cardDensity: 'balanced',
-                 cardCornerRadius: 18,
                  bgTheme: 'none'
                });
             }

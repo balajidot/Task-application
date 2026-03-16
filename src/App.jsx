@@ -82,12 +82,6 @@ export default function App() {
   const [hapticEnabled, setHapticEnabled] = React.useState(true);
   const [liveHighlightEnabled, setLiveHighlightEnabled] = React.useState(true);
   
-  // NEW: Card & Board Themes
-  const [cardTheme, setCardTheme] = React.useState('glow'); // glow, border, minimal
-  const [cardBorderColor, setCardBorderColor] = React.useState('#3b82f6');
-  const [showCardDot, setShowCardDot] = React.useState(true);
-  const [cardDensity, setCardDensity] = React.useState('balanced'); // compact, balanced, spacious
-  const [cardCornerRadius, setCardCornerRadius] = React.useState(18); // 8, 12, 18, 24
   const [bgTheme, setBgTheme] = React.useState('none'); // none, mesh, aurora, blobs
   
   const [reminderPopup, setReminderPopup] = React.useState(null);
@@ -367,12 +361,7 @@ export default function App() {
         if (typeof prefs.hapticEnabled === 'boolean') setHapticEnabled(prefs.hapticEnabled);
         if (typeof prefs.liveHighlightEnabled === "boolean") setLiveHighlightEnabled(prefs.liveHighlightEnabled);
         
-        // Load NEW Card themes
-        if (prefs.cardTheme) setCardTheme(prefs.cardTheme);
-        if (prefs.cardBorderColor) setCardBorderColor(prefs.cardBorderColor);
-        if (typeof prefs.showCardDot === 'boolean') setShowCardDot(prefs.showCardDot);
-        if (prefs.cardDensity) setCardDensity(prefs.cardDensity);
-        if (Number(prefs.cardCornerRadius)) setCardCornerRadius(Number(prefs.cardCornerRadius));
+        if (prefs.bgTheme) setBgTheme(prefs.bgTheme);
       }
       if (journalRaw) { try { setJournalEntries(JSON.parse(journalRaw)); } catch{} }
       if (habitsRaw) { try { setHabitsData(JSON.parse(habitsRaw)); } catch{} }
@@ -406,7 +395,6 @@ export default function App() {
     writePrefs({ 
       themeMode, autoThemeMode, appLanguage, taskFontSize, taskFontFamily, uiScale, 
       overdueEnabled, fontWeight, soundTheme, hapticEnabled, liveHighlightEnabled,
-      cardTheme, cardBorderColor, showCardDot, cardDensity, cardCornerRadius,
       bgTheme
     });
     
@@ -415,13 +403,11 @@ export default function App() {
     root.style.setProperty('--task-font-size', `${taskFontSize}px`);
     root.style.setProperty('--task-font-family', taskFontFamily);
     root.style.setProperty('--global-font-weight', fontWeight);
-    root.style.setProperty('--card-glow-color', cardBorderColor);
-    root.style.setProperty('--card-radius', `${cardCornerRadius}px`);
     root.style.setProperty('--ui-scale', uiScale / 100);
     
-    document.body.className = `theme-${themeMode} density-${cardDensity} style-${cardTheme}${bgTheme !== 'none' ? ` bg-anim-${bgTheme}` : ''}`;
+    document.body.className = `theme-${themeMode} ${bgTheme !== 'none' ? ` bg-anim-${bgTheme}` : ''}`;
     scheduleTaskNotifications(goals); 
-  }, [loaded, themeMode, autoThemeMode, appLanguage, taskFontSize, taskFontFamily, uiScale, overdueEnabled, fontWeight, soundTheme, hapticEnabled, liveHighlightEnabled, goals, cardTheme, cardBorderColor, showCardDot, cardDensity, cardCornerRadius, bgTheme]);
+  }, [loaded, themeMode, autoThemeMode, appLanguage, taskFontSize, taskFontFamily, uiScale, overdueEnabled, fontWeight, soundTheme, hapticEnabled, liveHighlightEnabled, goals, bgTheme]);
 
 
   React.useEffect(() => {
@@ -1455,8 +1441,6 @@ export default function App() {
                 searchTerm={searchTerm} setSearchTerm={setSearchTerm} searchRef={searchRef} pendingGoals={pendingGoals} completedGoals={completedGoals} visibleGoals={visibleGoals}
                 selectedGoalIds={selectedGoalIds} selectedSet={selectedSet} selectAllVisibleGoals={selectAllVisibleGoals} deleteSelectedGoals={deleteSelectedGoals} clearSelectedGoals={clearSelectedGoals}
                 overdueEnabled={overdueEnabled}
-                cardTheme={cardTheme} cardBorderColor={cardBorderColor} showCardDot={showCardDot}
-                cardDensity={cardDensity} cardCornerRadius={cardCornerRadius}
                 completedPulseId={completedPulseId}
                 celebratingGoalId={celebratingGoalId} toggleDoneWithCelebration={toggleDoneWithCelebration} removeGoal={removeGoal} toggleSelectGoal={toggleSelectGoal}
                 markAllPendingDone={markAllPendingDone} duplicatePendingToTomorrow={duplicatePendingToTomorrow} reopenAllCompleted={reopenAllCompleted}
@@ -1496,16 +1480,8 @@ export default function App() {
                 notifPerm={notifPerm}
                 requestNotifPerm={() => requestNotificationPermission().then(setNotifPerm)}
                 goals={goals} onReplaceGoals={save}
-                onClearCache={clearAppCache}
-                onClearLocalData={clearLocalAppData}
-                onRefreshNotifications={() => scheduleTaskNotifications(goals)}
                 onOpenBatterySettings={openAndroidBatterySettings}
                 onOpenAppSettings={openAndroidAppSettings}
-                cardTheme={cardTheme} setCardTheme={setCardTheme}
-                cardBorderColor={cardBorderColor} setCardBorderColor={setCardBorderColor}
-                showCardDot={showCardDot} setShowCardDot={setShowCardDot}
-                cardDensity={cardDensity} setCardDensity={setCardDensity}
-                cardCornerRadius={cardCornerRadius} setCardCornerRadius={setCardCornerRadius}
                 bgTheme={bgTheme} setBgTheme={setBgTheme}
               />
             </div>

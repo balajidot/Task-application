@@ -17,15 +17,7 @@ const SwipeableTaskCard = ({
   onEdit,
   onDelete,
   onToggleSelect,
-  cardTheme = 'glow',
-  cardBorderColor = '#3b82f6',
-  showCardDot = true,
-  onToggleSubtask,
-  cardDensity = 'balanced',
-  cardCornerRadius = 18,
-  cardTheme = 'glass',
-  cardBorderColor = '#3b82f6',
-  showCardDot = true,
+  onToggleSubtask
 }) => {
   const [currentMins, setCurrentMins] = React.useState(() => {
     const now = new Date();
@@ -144,33 +136,13 @@ const SwipeableTaskCard = ({
 
   const isGlowingLive = liveNow && !doneHere && !isOverdue;
 
-  // PREMIUM THEME LOGIC
+  // PREMIUM THEME LOGIC (Fixed Default)
   const priorityColor = goal.priority === 'High' ? '#ff3b30' : goal.priority === 'Medium' ? '#ff9500' : '#34c759';
+  const accent = '#3b82f6'; // Default Blue Accent
 
-  const accent = cardBorderColor || 'var(--accent)';
-
-  // Determine styles based on cardTheme
-  let appliedBorder = '1px solid var(--card-border)';
+  let appliedBorder = '1px solid var(--glass-border)';
   let appliedShadow = 'var(--card-shadow)';
   let appliedBg = 'var(--glass-bg)';
-
-  if (cardTheme === 'solid') {
-    appliedBg = 'var(--card)';
-    appliedBorder = `1.5px solid var(--card-border)`;
-    appliedShadow = 'none';
-  } else if (cardTheme === 'minimal') {
-    appliedBg = 'transparent';
-    appliedBorder = `1px solid var(--card-border)`;
-    appliedShadow = 'none';
-  } else if (cardTheme === 'glow') {
-    appliedBg = 'var(--card)';
-    appliedBorder = `1px solid color-mix(in srgb, ${accent} 40%, transparent)`;
-    appliedShadow = `0 8px 30px color-mix(in srgb, ${accent} 15%, transparent)`;
-  } else if (cardTheme === 'glass') {
-    appliedBg = 'var(--glass-bg)';
-    appliedBorder = '1px solid var(--glass-border)';
-    appliedShadow = 'var(--card-shadow)';
-  }
 
   // Override for status states
   if (isGlowingLive) {
@@ -186,17 +158,13 @@ const SwipeableTaskCard = ({
     appliedShadow = 'inset 0 0 20px rgba(239, 68, 68, 0.08), 0 8px 32px rgba(239, 68, 68, 0.15)';
   }
 
-  // Density settings
-  const densityPadding = cardDensity === 'compact' ? '10px 14px' : cardDensity === 'spacious' ? '20px 22px' : '16px 18px';
-  const densityMargin = cardDensity === 'compact' ? '6px' : cardDensity === 'spacious' ? '16px' : '12px';
-
   return (
     <div
-      className={`swipeable-task-container density-${cardDensity} style-${cardTheme}`}
+      className="swipeable-task-container"
       style={{
         position: 'relative',
-        marginBottom: densityMargin,
-        borderRadius: `${cardCornerRadius}px`,
+        marginBottom: '12px',
+        borderRadius: '24px',
         overflow: 'hidden',
         background: 'transparent'
       }}
@@ -225,9 +193,9 @@ const SwipeableTaskCard = ({
           userSelect: 'none',
           position: 'relative',
           background: appliedBg,
-          borderRadius: `${cardCornerRadius}px`,
+          borderRadius: '24px',
           border: appliedBorder,
-          padding: densityPadding,
+          padding: '16px 18px',
           display: 'flex',
           width: '100%',
           boxSizing: 'border-box',

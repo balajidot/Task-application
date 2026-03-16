@@ -17,8 +17,6 @@ export default function TasksView({
   selectedGoalIds, selectedSet, selectAllVisibleGoals, deleteSelectedGoals, clearSelectedGoals,
   completedPulseId, celebratingGoalId, toggleDoneWithCelebration, removeGoal, toggleSelectGoal,
   markAllPendingDone, duplicatePendingToTomorrow, reopenAllCompleted, overdueEnabled,
-  cardTheme, cardBorderColor, showCardDot,
-  cardDensity, cardCornerRadius,
   appLanguage, onOptimizeSchedule,
   handleDecomposeTask, toggleSubtask
 }) {
@@ -111,11 +109,6 @@ export default function TasksView({
         selected={selectedSet.has(goal.id)}
         activeDate={activeDate}
         overdueEnabled={overdueEnabled}
-        cardDensity={cardDensity}
-        cardCornerRadius={cardCornerRadius}
-        cardTheme={cardTheme}
-        cardBorderColor={cardBorderColor}
-        showCardDot={showCardDot}
         onToggleDone={() => toggleDoneWithCelebration(goal)}
         onEdit={() => {
           setEditingGoal(goal.id);
