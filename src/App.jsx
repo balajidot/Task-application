@@ -16,12 +16,10 @@ import {
 import './App.css';
 import { LiveTaskPopup } from "./components/SharedUI";
 import ShortcutsModal from "./components/ShortcutsModal";
-import AchievementBadges from "./components/AchievementBadges";
 import WeeklyPlannerWizard from "./components/WeeklyPlannerWizard";
 import TaskTemplates from "./components/TaskTemplates";
 import { DeviceSettings } from "./plugins/deviceSettings";
 import BottomSheet from "./components/BottomSheet";
-import SpeechToTask from "./components/SpeechToTask";
 
 const DashboardView = lazy(() => import("./views/DashboardView"));
 const TasksView = lazy(() => import("./views/TasksView"));
@@ -320,10 +318,21 @@ export default function App() {
 
 
   React.useEffect(() => {
-    masterTimerRef.current = setInterval(() => setNowTick(Date.now()), 1000);
+    const updateTick = () => setNowTick(Date.now());
+    
+    // ✅ PERF FIX: Dynamic interval based on precision needs
+    // If not in Focus mode or active Pomodoro, slow down ticks to 10s on mobile
+    const isMobile = window.innerWidth <= 768;
+    const intervalTime = isMobile && !focusMode && !showPomodoro ? 10000 : 1000;
+    
+    masterTimerRef.current = setInterval(updateTick, intervalTime);
     const minuteTimer = setInterval(() => setNowMinuteTick(Date.now()), 60000);
-    return () => { clearInterval(masterTimerRef.current); clearInterval(minuteTimer); };
-  }, []);
+    
+    return () => { 
+      clearInterval(masterTimerRef.current); 
+      clearInterval(minuteTimer); 
+    };
+  }, [focusMode, showPomodoro]);
   
   React.useEffect(() => { return () => { clearTimeout(pulseTimerRef.current); clearTimeout(celebrateTimerRef.current); clearTimeout(globalCelebrationTimerRef.current); if (pendingWriteRef.current.timer) clearTimeout(pendingWriteRef.current.timer); }; }, []);
   React.useEffect(() => { setTabSwitching(true); const t = setTimeout(() => setTabSwitching(false), 200); return () => clearTimeout(t); }, [activeView]);
@@ -1223,7 +1232,6 @@ export default function App() {
                     >
                       {aiLoading ? '...' : '✨ AI Auto-Fill'}
                     </button>
-                    <SpeechToTask onSpeechResult={handleSmartTaskParse} />
                   </div>
                 </div>
                 <textarea

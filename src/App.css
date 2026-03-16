@@ -147,12 +147,19 @@ body, html {
 
 .mobile-bottom-nav {
   position: fixed; bottom: 0; left: 0; right: 0;
-  background: color-mix(in srgb, var(--card) 88%, transparent); border-top: 1px solid color-mix(in srgb, var(--card-border) 80%, transparent);
+  background: color-mix(in srgb, var(--card) 94%, transparent); border-top: 1px solid color-mix(in srgb, var(--card-border) 80%, transparent);
   display: flex; justify-content: space-around; align-items: center;
   padding: 8px 8px calc(8px + var(--safe-bottom)) 8px;
   min-height: calc(70px + var(--safe-bottom));
   z-index: 1000; box-shadow: 0 -12px 30px rgba(0,0,0,0.18);
-  backdrop-filter: blur(18px);
+  /* ✅ PERF FIX: Simplified background for mobile to save GPU */
+  backdrop-filter: blur(14px);
+}
+@media (max-width: 768px) {
+  .mobile-bottom-nav {
+    backdrop-filter: none; /* Disable blur on mobile for heat reduction */
+    background: var(--card);
+  }
 }
 
 .mobile-nav-btn {
@@ -212,7 +219,13 @@ body, html {
   position: fixed; inset: 0; background: rgba(0,0,0,0.5);
   display: flex; align-items: flex-end; z-index: 2000;
   animation: fadeIn 0.25s ease-out;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(14px);
+}
+@media (max-width: 768px) {
+  .bottom-sheet-overlay, .more-menu-overlay {
+    backdrop-filter: none !important;
+    background: rgba(0,0,0,0.6);
+  }
 }
 
 .bottom-sheet {
@@ -384,9 +397,14 @@ body, html {
 
 /* Card Styles */
 .card-style-glass {
-  background: color-mix(in srgb, var(--card) 85%, transparent) !important;
   backdrop-filter: blur(12px) !important;
   border: 1px solid rgba(255,255,255,0.1) !important;
+}
+@media (max-width: 768px) {
+  .card-style-glass {
+    backdrop-filter: none !important; /* Heat reduction for task cards */
+    background: var(--card) !important;
+  }
 }
 
 .card-style-solid {
@@ -601,31 +619,36 @@ body, html {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
+  align-items: stretch; /* Ensure cards in the same row have equal height */
 }
 
 .ai-briefing-card {
-  padding: 14px;
-  border-radius: 16px;
+  padding: 18px 16px; /* Increased padding */
+  border-radius: 18px; /* Slightly smoother corners */
   background:
     linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(16, 185, 129, 0.08)),
     var(--chip);
   border: 1px solid rgba(59, 130, 246, 0.16);
+  display: flex;
+  flex-direction: column;
 }
 
 .ai-briefing-label {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 900;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--muted);
-  margin-bottom: 8px;
+  margin-bottom: 10px;
+  opacity: 0.8;
 }
 
 .ai-briefing-text {
-  font-size: 0.94rem;
-  line-height: 1.45;
+  font-size: 0.98rem;
+  line-height: 1.55; /* Better for Tamil script */
   color: var(--text);
   font-weight: 700;
+  margin-top: auto; /* Push text to the bottom if needed or keep it clean */
 }
 .completed-tasks-container .section-head { border-bottom: 1px solid var(--card-border); padding-bottom: 12px; margin-bottom: 16px; }
 .completed-tasks-container .focus-title { font-size: 1.1rem !important; color: var(--muted) !important; }
@@ -1291,6 +1314,12 @@ body.keyboard-open .page { padding-bottom: calc(var(--keyboard-height) + 16px) !
     var(--bg);
   animation: aurora 20s linear infinite;
 }
+@media (max-width: 768px) {
+  .bg-anim-aurora {
+    animation: none; /* Disable expensive aurora animation on mobile */
+    background: var(--bg);
+  }
+}
 
 /* Floating Blobs (requires extra elements, but we can simulate with pseudo) */
 @keyframes blobFloat {
@@ -1324,6 +1353,11 @@ body.keyboard-open .page { padding-bottom: calc(var(--keyboard-height) + 16px) !
   bottom: 10%;
   right: 10%;
   animation: blobFloat 12s infinite ease-in-out reverse;
+}
+@media (max-width: 768px) {
+  .bg-anim-blobs::before, .bg-anim-blobs::after {
+    display: none; /* Remove expensive blob elements on mobile */
+  }
 }
 
 /* Glassmorphism for containers when animated bg is active */

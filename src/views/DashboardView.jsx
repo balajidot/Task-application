@@ -274,7 +274,6 @@ export default function DashboardView({ appLanguage, copy, userName, quote, setA
             { icon: '📊', label: 'Monthly Report', sub: 'PDF summary', action: generateMonthlyReport },
             { icon: '🚀', label: 'Career', sub: 'Track growth', action: () => setActiveView('career') },
             { icon: '🔁', label: 'Habits', sub: 'Track daily', action: () => setActiveView('habits') },
-            { icon: '🏆', label: 'Achievements', sub: 'View badges', action: () => setActiveView('achievements') },
           ].map((item, idx) => (
             <button key={idx} className="tool-btn" style={{
               display: 'flex', alignItems: 'center', gap: '10px',

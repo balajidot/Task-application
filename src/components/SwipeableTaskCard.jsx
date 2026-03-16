@@ -37,10 +37,11 @@ const SwipeableTaskCard = ({
   const BUTTON_WIDTH = 100;
 
   React.useEffect(() => {
+    // ✅ PERF FIX: Increased interval to 1 min to reduce battery drain & heat
     const interval = setInterval(() => {
       const now = new Date();
       setCurrentMins(now.getHours() * 60 + now.getMinutes());
-    }, 5000);
+    }, 60000);
     return () => clearInterval(interval);
   }, []);
 

@@ -77,11 +77,20 @@ export default function AnalyticsView({ setShowPomodoro, setShowImportExport, se
             <div className="ai-briefing-text">{aiWeeklyAnalysis.predictedPct}% {copy.analytics.predictedNote || "completion chance if current pattern continues."}</div>
           </div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${aiWeeklyAnalysis.chartPoints.length}, 1fr)`, gap: 8, alignItems: 'end', marginTop: 16, height: 120 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${aiWeeklyAnalysis.chartPoints.length}, 1fr)`, gap: 6, alignItems: 'end', marginTop: 24, height: 140, padding: '0 4px' }}>
           {aiWeeklyAnalysis.chartPoints.map((point, index) => (
-            <div key={index} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-              <div style={{ width: '100%', maxWidth: 34, height: `${Math.max(8, point)}%`, borderRadius: '10px 10px 4px 4px', background: 'linear-gradient(180deg, #10b981, #3b82f6)' }}></div>
-              <div style={{ fontSize: '.72rem', color: 'var(--muted)', fontWeight: 700 }}>{weekly.days[index]?.name || `D${index + 1}`}</div>
+            <div key={index} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end', gap: 10 }}>
+              <div style={{ 
+                width: '100%', 
+                maxWidth: 36, 
+                height: `${Math.max(8, point)}%`, 
+                borderRadius: '12px 12px 4px 4px', 
+                background: 'linear-gradient(180deg, #10b981, #3b82f6)',
+                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)'
+              }}></div>
+              <div style={{ fontSize: '.7rem', color: 'var(--muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                {weekly.days[index]?.name?.substring(0, 3) || `D${index + 1}`}
+              </div>
             </div>
           ))}
         </div>
@@ -90,17 +99,19 @@ export default function AnalyticsView({ setShowPomodoro, setShowImportExport, se
       <div className="card">
         <div className="section-head">
           <div className="focus-title">{copy.analytics.nextWeek}</div>
-          <button className="new-btn" style={{ width: 'auto' }} onClick={onCreateNextWeekPlan}>{copy.analytics.createNextWeekPlan}</button>
+          <button className="new-btn" style={{ width: 'auto', padding: '10px 16px', fontSize: '0.9rem' }} onClick={onCreateNextWeekPlan}>
+            {copy.analytics.createNextWeekPlan}
+          </button>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div className="ai-briefing-grid" style={{ gridTemplateColumns: '1fr' }}>
           {aiWeeklyAnalysis.nextWeekPlan.map((item, index) => (
-            <div key={index} className="ai-briefing-card">
-              <div className="ai-briefing-label">{item.title}</div>
+            <div key={index} className="ai-briefing-card" style={{ background: 'var(--chip)', border: '1px solid var(--card-border)' }}>
+              <div className="ai-briefing-label" style={{ color: 'var(--accent)' }}>{item.title}</div>
               <div className="ai-briefing-text">{item.detail}</div>
             </div>
           ))}
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 12, marginTop: 16 }}>
+        <div className="ai-briefing-grid" style={{ marginTop: 16 }}>
           <div className="ai-briefing-card">
             <div className="ai-briefing-label">{copy.analytics.planReady}</div>
             <div className="ai-briefing-text">{aiWeeklyAnalysis.nextWeekTaskDrafts.length} {copy.analytics.readyTasks || "tasks ready for one-tap creation."}</div>
@@ -111,7 +122,7 @@ export default function AnalyticsView({ setShowPomodoro, setShowImportExport, se
           </div>
           <div className="ai-briefing-card">
             <div className="ai-briefing-label">{copy.analytics.cleanup}</div>
-            <div className="ai-briefing-text">{copy.analytics.cleanup}: {aiWeeklyAnalysis.overdueCount}</div>
+            <div className="ai-briefing-text">{aiWeeklyAnalysis.overdueCount} {copy.analytics.cleanup || "Pending"}</div>
           </div>
         </div>
       </div>
