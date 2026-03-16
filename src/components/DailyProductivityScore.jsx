@@ -67,7 +67,7 @@ const DailyProductivityScore = ({ goals, todayKey }) => {
         <div className="score-title" style={{ fontSize: '1.2rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontSize: '1.4rem' }}>📊</span> Today's Productivity
         </div>
-        <div className="score-date" style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', fontWeight: '500' }}>
+        <div className="score-date" style={{ fontSize: '0.85rem', color: 'var(--muted)', fontWeight: '600' }}>
           {new Date().toLocaleDateString('en-US', { 
             weekday: 'long', 
             month: 'short', 
@@ -93,10 +93,10 @@ const DailyProductivityScore = ({ goals, todayKey }) => {
           <div className="metric-value" style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#10b981', lineHeight: '1' }}>
             {completedToday}/{totalToday}
           </div>
-          <div className="metric-label" style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.8)', marginTop: '8px', textAlign: 'center' }}>
+          <div className="metric-label" style={{ fontSize: '0.82rem', color: 'var(--text)', opacity: 0.8, marginTop: '8px', textAlign: 'center', fontWeight: 700 }}>
             Tasks Completed
           </div>
-          <div className="metric-progress" style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', marginTop: '10px', overflow: 'hidden' }}>
+          <div className="metric-progress" style={{ width: '100%', height: '4px', background: 'var(--glass-border)', borderRadius: '2px', marginTop: '10px', overflow: 'hidden' }}>
             <div className="metric-progress-fill" style={{ width: `${completionRate}%`, height: '100%', background: '#10b981', borderRadius: '2px', transition: 'width 0.5s ease' }} />
           </div>
         </div>
@@ -110,7 +110,7 @@ const DailyProductivityScore = ({ goals, todayKey }) => {
           <div className="metric-value" style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#3b82f6', lineHeight: '1' }}>
             {focusTimeHours}h {focusTimeMinutes}m
           </div>
-          <div className="metric-label" style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.8)', marginTop: '8px', textAlign: 'center' }}>
+          <div className="metric-label" style={{ fontSize: '0.82rem', color: 'var(--text)', opacity: 0.8, marginTop: '8px', textAlign: 'center', fontWeight: 700 }}>
             Focus Time
           </div>
         </div>
@@ -124,7 +124,7 @@ const DailyProductivityScore = ({ goals, todayKey }) => {
           <div className="metric-value" style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#f59e0b', lineHeight: '1' }}>
             {currentStreak}
           </div>
-          <div className="metric-label" style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.8)', marginTop: '8px', textAlign: 'center' }}>
+          <div className="metric-label" style={{ fontSize: '0.82rem', color: 'var(--text)', opacity: 0.8, marginTop: '8px', textAlign: 'center', fontWeight: 700 }}>
             Day Streak 🔥
           </div>
         </div>
@@ -138,20 +138,20 @@ const DailyProductivityScore = ({ goals, todayKey }) => {
           <div className="metric-value" style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#8b5cf6', lineHeight: '1' }}>
             {efficiencyRate}%
           </div>
-          <div className="metric-label" style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.8)', marginTop: '8px', textAlign: 'center' }}>
+          <div className="metric-label" style={{ fontSize: '0.82rem', color: 'var(--text)', opacity: 0.8, marginTop: '8px', textAlign: 'center', fontWeight: 700 }}>
             Time Efficiency ⚡
           </div>
         </div>
       </div>
 
       <div className="score-insights" style={{ 
-        background: 'rgba(255,255,255,0.03)', 
+        background: 'var(--chip)', 
         borderRadius: '8px', 
         padding: '12px',
         textAlign: 'center',
         fontSize: '0.9rem',
-        color: 'rgba(255,255,255,0.8)',
-        border: '1px solid rgba(255,255,255,0.05)'
+        color: 'var(--text)',
+        border: '1px solid var(--card-border)'
       }}>
         {completionRate >= 80 && "🎉 Excellent productivity today! Keep up the great work!"}
         {completionRate >= 60 && completionRate < 80 && "👍 Good progress! You're over halfway to your daily goals."}

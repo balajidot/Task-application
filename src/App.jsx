@@ -344,7 +344,8 @@ export default function App() {
         setWeekBase(new Date());
       }
       if (prefs) {
-        setThemeMode(prefs.themeMode || (prefs.darkMode ? "dark" : "sunset-light"));
+        const loadedTheme = prefs.themeMode || (prefs.darkMode ? "dark" : "light");
+        setThemeMode(loadedTheme === "dark" ? "dark" : "light");
         if (prefs.autoThemeMode) setAutoThemeMode(prefs.autoThemeMode);
         if (prefs.appLanguage) setAppLanguage(prefs.appLanguage);
         setTaskFontSize(Number(prefs.taskFontSize) || 18);
@@ -486,12 +487,12 @@ export default function App() {
     const applyTheme = () => {
       if (autoThemeMode === "time") {
         const hour = new Date().getHours();
-        setThemeMode(hour >= 18 || hour < 6 ? "dark" : "sunset-light");
+        setThemeMode(hour >= 18 || hour < 6 ? "dark" : "light");
         return;
       }
 
       const media = window.matchMedia?.("(prefers-color-scheme: dark)");
-      setThemeMode(media?.matches ? "dark" : "sunset-light");
+      setThemeMode(media?.matches ? "dark" : "light");
     };
 
     applyTheme();

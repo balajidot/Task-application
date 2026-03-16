@@ -143,60 +143,73 @@ export default function SettingsView({
     bgTheme
   });
 
-  const hasChanges = JSON.stringify(localSettings) !== JSON.stringify({
-    themeMode,
-    taskFontFamily,
-    taskFontSize,
-    uiScale,
-    fontWeight,
-    overdueEnabled,
-    soundTheme,
-    hapticEnabled,
-    autoThemeMode,
-    liveHighlightEnabled,
-    appLanguage,
-    cardTheme,
-    cardBorderColor,
-    showCardDot,
-    cardDensity,
-    cardCornerRadius,
-    userName,
-    bgTheme
-  });
 
   const handleLocalChange = (key, value) => {
     setLocalSettings(prev => ({ ...prev, [key]: value }));
   };
 
-  const applyAll = () => {
-    if (typeof triggerHaptic === 'function') triggerHaptic('heavy');
+  const applySection = (keys) => {
+    if (typeof triggerHaptic === 'function') triggerHaptic('medium');
     
-    // Apply all local settings to main state
-    setThemeMode(localSettings.themeMode);
-    setTaskFontFamily(localSettings.taskFontFamily);
-    setTaskFontSize(localSettings.taskFontSize);
-    setUiScale(localSettings.uiScale);
-    setFontWeight(localSettings.fontWeight);
-    setOverdueEnabled(localSettings.overdueEnabled);
-    setSoundTheme(localSettings.soundTheme);
-    setHapticEnabled?.(localSettings.hapticEnabled);
-    setAutoThemeMode(localSettings.autoThemeMode);
-    setLiveHighlightEnabled(localSettings.liveHighlightEnabled);
-    setAppLanguage(localSettings.appLanguage);
-    setCardTheme(localSettings.cardTheme);
-    setCardBorderColor(localSettings.cardBorderColor);
-    setShowCardDot(localSettings.showCardDot);
-    setCardDensity(localSettings.cardDensity);
-    setCardCornerRadius(localSettings.cardCornerRadius);
-    setBgTheme(localSettings.bgTheme);
-    
-    if (localSettings.userName !== userName) {
-      setUserName(localSettings.userName);
-      localStorage.setItem('taskPlanner_userName', localSettings.userName);
-    }
+    keys.forEach(key => {
+      const value = localSettings[key];
+      switch(key) {
+        case 'themeMode': setThemeMode(value); break;
+        case 'taskFontFamily': setTaskFontFamily(value); break;
+        case 'taskFontSize': setTaskFontSize(value); break;
+        case 'uiScale': setUiScale(value); break;
+        case 'fontWeight': setFontWeight(value); break;
+        case 'overdueEnabled': setOverdueEnabled(value); break;
+        case 'soundTheme': setSoundTheme(value); break;
+        case 'hapticEnabled': setHapticEnabled?.(value); break;
+        case 'autoThemeMode': setAutoThemeMode(value); break;
+        case 'liveHighlightEnabled': setLiveHighlightEnabled(value); break;
+        case 'appLanguage': setAppLanguage(value); break;
+        case 'cardTheme': setCardTheme(value); break;
+        case 'cardBorderColor': setCardBorderColor(value); break;
+        case 'showCardDot': setShowCardDot(value); break;
+        case 'cardDensity': setCardDensity(value); break;
+        case 'cardCornerRadius': setCardCornerRadius(value); break;
+        case 'bgTheme': setBgTheme(value); break;
+        case 'userName': 
+          if (value !== userName) {
+            setUserName(value);
+            localStorage.setItem('taskPlanner_userName', value);
+          }
+          break;
+        default: break;
+      }
+    });
 
-    setAppliedMessage('All changes applied successfully!');
-    setTimeout(() => setAppliedMessage(''), 3000);
+    setAppliedMessage('Changes applied!');
+    setTimeout(() => setAppliedMessage(''), 2000);
+  };
+
+  const isDirty = (keys) => {
+    const current = {
+      themeMode, taskFontFamily, taskFontSize, uiScale, fontWeight,
+      overdueEnabled, soundTheme, hapticEnabled, autoThemeMode,
+      liveHighlightEnabled, appLanguage, cardTheme, cardBorderColor,
+      showCardDot, cardDensity, cardCornerRadius, userName, bgTheme
+    };
+    return keys.some(key => localSettings[key] !== current[key]);
+  };
+
+  const ApplyButton = ({ keys }) => {
+    if (!isDirty(keys)) return null;
+    return (
+      <button 
+        onClick={() => applySection(keys)}
+        style={{
+          marginTop: 12, width: '100%', padding: '10px', borderRadius: 10,
+          background: 'linear-gradient(135deg, #3b82f6, #2563eb)', color: '#fff',
+          border: 'none', fontWeight: 900, fontSize: '.85rem', cursor: 'pointer',
+          boxShadow: '0 4px 12px rgba(37,99,235,0.25)', animation: 'fadeUp 0.2s ease'
+        }}
+      >
+        Apply {keys.length > 1 ? 'Changes' : 'Setting'}
+      </button>
+    );
   };
 
   const isTamil = localSettings.appLanguage === 'ta';
@@ -210,32 +223,6 @@ export default function SettingsView({
 
   return (
     <div className="animate-fade-in" style={{ paddingBottom: 100 }}>
-      {hasChanges && (
-        <div style={{
-          position: 'fixed',
-          bottom: 100,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 4000,
-          width: '94%',
-          maxWidth: 420,
-          background: 'rgba(37,99,235,0.98)',
-          backdropFilter: 'blur(12px)',
-          padding: '14px 22px',
-          borderRadius: 20,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          boxShadow: '0 12px 40px rgba(37,99,235,0.45)',
-          border: '1.5px solid rgba(255,255,255,0.25)',
-          animation: 'slideUp 0.3s cubic-bezier(0.19, 1, 0.22, 1)'
-        }}>
-          <div style={{ color: '#fff', fontWeight: 900, fontSize: '.95rem', letterSpacing: '-0.01em' }}>Unsaved Changes</div>
-          <button onClick={applyAll} className="new-btn" style={{ background: '#fff', color: '#2563eb', padding: '8px 20px', fontSize: '.9rem', minHeight: 44, borderRadius: 14, border: 'none', fontWeight: 900 }}>
-            Apply Changes
-          </button>
-        </div>
-      )}
 
       {appliedMessage && (
         <div style={{
@@ -290,6 +277,7 @@ export default function SettingsView({
                 </button>
               ))}
             </div>
+            <ApplyButton keys={['appLanguage']} />
           </div>
         </Section>
 
@@ -297,20 +285,21 @@ export default function SettingsView({
           <div style={{ padding: '16px 14px', background: 'var(--chip)', borderRadius: 12, border: '1px solid var(--card-border)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: editingName ? 14 : 0 }}>
               <div style={{ width: 52, height: 52, borderRadius: '50%', flexShrink: 0, background: 'linear-gradient(135deg, #10b981, #3b82f6)', display: 'grid', placeItems: 'center', fontSize: '1.4rem', fontWeight: 900, color: '#fff' }}>
-                {userName ? userName[0].toUpperCase() : '?'}
+                {localSettings.userName ? localSettings.userName[0].toUpperCase() : '?'}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 900, fontSize: '1rem', color: 'var(--text)' }}>{localSettings.userName || 'Set your name'}</div>
               </div>
               <button onClick={() => setEditingName(!editingName)} style={{ padding: '7px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', background: editingName ? 'var(--card-border)' : 'linear-gradient(135deg, #10b981, #3b82f6)', color: '#fff', fontWeight: 800, fontSize: '.8rem' }}>
-                {editingName ? 'Done' : 'Edit'}
+                {editingName ? 'Hide' : 'Edit'}
               </button>
             </div>
             {editingName && (
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
                 <input type="text" value={localSettings.userName} onChange={(e) => handleLocalChange('userName', e.target.value)} onKeyDown={(e) => e.key === 'Enter' && setEditingName(false)} autoFocus placeholder="Enter your name..." maxLength={30} className="fi" style={{ flex: 1 }} />
               </div>
             )}
+            <ApplyButton keys={['userName']} />
           </div>
         </Section>
 
@@ -329,13 +318,14 @@ export default function SettingsView({
               ))}
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
             {THEME_OPTIONS.map((theme) => (
-              <button key={theme.value} onClick={() => { handleLocalChange('autoThemeMode', 'off'); handleLocalChange('themeMode', theme.value); }} style={{ padding: '10px 6px', borderRadius: 10, border: localSettings.themeMode === theme.value ? '2px solid #3b82f6' : '1.5px solid var(--card-border)', background: localSettings.themeMode === theme.value ? 'linear-gradient(135deg, rgba(59,130,246,0.18), rgba(16,185,129,0.12))' : 'var(--chip)', color: localSettings.themeMode === theme.value ? '#3b82f6' : 'var(--text)', fontWeight: localSettings.themeMode === theme.value ? 900 : 700, fontSize: '.78rem', cursor: 'pointer', textAlign: 'center', lineHeight: 1.3 }}>
+              <button key={theme.value} onClick={() => { handleLocalChange('autoThemeMode', 'off'); handleLocalChange('themeMode', theme.value); }} style={{ padding: '16px 10px', borderRadius: 14, border: localSettings.themeMode === theme.value ? '2.5px solid #3b82f6' : '1.5px solid var(--card-border)', background: localSettings.themeMode === theme.value ? 'rgba(59,130,246,0.15)' : 'var(--chip)', color: localSettings.themeMode === theme.value ? '#3b82f6' : 'var(--text)', fontWeight: 900, fontSize: '.9rem', cursor: 'pointer', textAlign: 'center', boxShadow: localSettings.themeMode === theme.value ? '0 4px 12px rgba(59,130,246,0.2)' : 'none' }}>
                 {theme.label}
               </button>
             ))}
           </div>
+          <ApplyButton keys={['themeMode', 'autoThemeMode']} />
         </Section>
 
         <Section title="BACKGROUND STYLE">
@@ -361,6 +351,7 @@ export default function SettingsView({
                 </button>
               ))}
             </div>
+            <ApplyButton keys={['bgTheme']} />
           </div>
         </Section>
 
@@ -440,6 +431,7 @@ export default function SettingsView({
                 ))}
               </div>
             </div>
+            <ApplyButton keys={['cardDensity', 'cardTheme', 'cardCornerRadius', 'showCardDot', 'cardBorderColor']} />
           </div>
         </Section>
 
@@ -472,11 +464,13 @@ export default function SettingsView({
               </div>
               <input type="range" min="80" max="130" step="4" value={localSettings.uiScale} onChange={(e) => handleLocalChange('uiScale', Number(e.target.value))} style={{ width: '100%', accentColor: '#3b82f6' }} />
             </div>
+            <ApplyButton keys={['taskFontFamily', 'taskFontSize', 'fontWeight', 'uiScale']} />
           </div>
         </Section>
 
         <Section title="BEHAVIOR">
           <SettingRow icon="!" title="Overdue Alerts" subtitle="Show warning color when time passes" right={<Toggle value={localSettings.overdueEnabled} onChange={(v) => handleLocalChange('overdueEnabled', v)} color="#f59e0b" />} />
+          <ApplyButton keys={['overdueEnabled']} />
         </Section>
 
         <Section title={copy.settings.notifications}>
@@ -491,6 +485,7 @@ export default function SettingsView({
               </select>
             }
           />
+          <ApplyButton keys={['hapticEnabled', 'liveHighlightEnabled', 'soundTheme']} />
         </Section>
 
         <Section title={copy.settings.storage}>

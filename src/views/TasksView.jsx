@@ -293,8 +293,8 @@ export default function TasksView({
             <div className="ai-briefing-label">Suggestion</div>
             <div className="ai-briefing-text" style={{ fontSize: '0.85rem' }}>{aiBriefing.suggestion}</div>
           </div>
-          <div className="ai-briefing-card" style={{ background: 'rgba(59, 130, 246, 0.05)', border: '1px solid rgba(59, 130, 246, 0.1)' }}>
-            <div className="ai-briefing-label" style={{ color: '#3b82f6' }}>Progress</div>
+          <div className="ai-briefing-card" style={{ background: 'var(--chip)', border: '1px solid var(--card-border)' }}>
+            <div className="ai-briefing-label" style={{ color: 'var(--accent)' }}>Progress</div>
             <div className="ai-briefing-text" style={{ fontSize: '1.1rem', fontWeight: 900, color: 'var(--text)' }}>
               {pct}% <span style={{ fontSize: '0.7rem', fontWeight: 600, opacity: 0.6 }}>Day Done</span>
             </div>
@@ -409,7 +409,7 @@ export default function TasksView({
         <div className="tasks-panel-head" style={{ marginBottom: '16px', flexDirection: 'column', alignItems: 'stretch', gap: '12px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div className="focus-title" style={{ margin: 0 }}>{copy.tasksView.todayTasks}</div>
-            <div className="task-summary-chip-v6" style={{ background: 'rgba(255,255,255,0.04)', padding: '6px 12px', borderRadius: '10px', display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+            <div className="task-summary-chip-v6" style={{ background: 'var(--chip)', padding: '6px 12px', borderRadius: '10px', display: 'flex', alignItems: 'baseline', gap: '6px', border: '1px solid var(--card-border)' }}>
               <span style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{copy.tasksView.focusedToday}</span>
               <strong style={{ fontSize: '1rem', color: 'var(--text)' }}>{total}</strong>
             </div>
@@ -441,8 +441,8 @@ export default function TasksView({
               onChange={(event) => setSearchTerm(event.target.value)} 
               style={{
                 width: '100%',
-                background: 'rgba(255,255,255,0.03)',
-                border: '1px solid rgba(255,255,255,0.06)',
+                background: 'var(--chip)',
+                border: '1px solid var(--card-border)',
                 borderRadius: '12px',
                 padding: '12px 14px 12px 40px',
                 color: 'var(--text)',
@@ -482,8 +482,8 @@ export default function TasksView({
                   style={{
                     padding: '16px',
                     borderRadius: '18px',
-                    border: '2px dashed rgba(255,255,255,0.08)',
-                    background: 'rgba(255,255,255,0.02)',
+                    border: '2px dashed var(--card-border)',
+                    background: 'var(--bg)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -535,8 +535,8 @@ export default function TasksView({
           margin-top: 10px;
         }
         .ai-briefing-card {
-          background: rgba(255,255,255,0.03);
-          border: 1px solid rgba(255,255,255,0.06);
+          background: var(--chip);
+          border: 1px solid var(--card-border);
           border-radius: 16px;
           padding: 12px;
           display: flex;
@@ -567,9 +567,9 @@ export default function TasksView({
           border-radius: 10px;
           font-size: 0.8rem;
           font-weight: 800;
-          background: rgba(255,255,255,0.03);
+          background: var(--chip);
           color: var(--muted);
-          border: 1px solid rgba(255,255,255,0.06);
+          border: 1px solid var(--card-border);
           transition: all 0.2s;
         }
         .filter-btn.active {
@@ -579,8 +579,8 @@ export default function TasksView({
         }
         
         .search-input-v6:focus {
-          border-color: var(--accent, #3b82f6) !important;
-          background: rgba(255,255,255,0.05) !important;
+          border-color: var(--accent) !important;
+          background: var(--chip) !important;
         }
       `}} />
     </div>

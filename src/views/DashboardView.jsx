@@ -30,17 +30,17 @@ export default function DashboardView({ appLanguage, copy, userName, quote, setA
 
   return (
     <div className="animate-fade-in">
-      <div className="hero" style={{ marginBottom: '16px' }}>
+      <div className="hero" style={{ marginBottom: '16px', background: 'var(--hero)', border: '1px solid var(--card-border)' }}>
         <div className="topbar">
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
               <span style={{ fontSize: '2.2rem' }}>{greeting.icon}</span>
               {/* 🔥 Personalized Name Greeting 🔥 */}
-              <div className="title">
+              <div className="title" style={{ color: 'var(--text)' }}>
                 {greeting.text}{userName ? `, ${userName}` : ''}
               </div>
             </div>
-            <div className="tip">{greeting.sub}</div>
+            <div className="tip" style={{ color: 'var(--muted)' }}>{greeting.sub}</div>
             <div className="motivation" style={{ marginTop: '14px' }}>
               <div className="motivation-label">DAILY MOTIVATION</div>
               <div className="quote-line">"{quote}"</div>
@@ -69,21 +69,21 @@ export default function DashboardView({ appLanguage, copy, userName, quote, setA
 
       {/* 🔥 STATS GRID 🔥 */}
       <div className="stats" style={{ marginBottom: '16px' }}>
-        <div className="pill" style={{ borderLeft: '3px solid #f59e0b' }}>
-          <div className="num">{streakDays}</div>
-          <div className="lbl">🔥 Day Streak</div>
+        <div className="pill" style={{ borderLeft: '3px solid #f59e0b', background: 'var(--chip)', color: 'var(--text)' }}>
+          <div className="num" style={{ color: 'var(--text)' }}>{streakDays}</div>
+          <div className="lbl" style={{ color: 'var(--muted)' }}>🔥 Day Streak</div>
         </div>
-        <div className="pill" style={{ borderLeft: '3px solid #3b82f6' }}>
-          <div className="num">{weekly.weekDone}</div>
-          <div className="lbl">📊 Week Done</div>
+        <div className="pill" style={{ borderLeft: '3px solid #3b82f6', background: 'var(--chip)', color: 'var(--text)' }}>
+          <div className="num" style={{ color: 'var(--text)' }}>{weekly.weekDone}</div>
+          <div className="lbl" style={{ color: 'var(--muted)' }}>📊 Week Done</div>
         </div>
-        <div className="pill" style={{ borderLeft: '3px solid #ef4444' }}>
-          <div className="num">{todayGoals.high}</div>
-          <div className="lbl">🔴 High Priority</div>
+        <div className="pill" style={{ borderLeft: '3px solid #ef4444', background: 'var(--chip)', color: 'var(--text)' }}>
+          <div className="num" style={{ color: 'var(--text)' }}>{todayGoals.high}</div>
+          <div className="lbl" style={{ color: 'var(--muted)' }}>🔴 High Priority</div>
         </div>
-        <div className="pill" style={{ borderLeft: '3px solid #10b981' }}>
-          <div className="num">{dueSoon}</div>
-          <div className="lbl">⏰ Due Soon</div>
+        <div className="pill" style={{ borderLeft: '3px solid #10b981', background: 'var(--chip)', color: 'var(--text)' }}>
+          <div className="num" style={{ color: 'var(--text)' }}>{dueSoon}</div>
+          <div className="lbl" style={{ color: 'var(--muted)' }}>⏰ Due Soon</div>
         </div>
       </div>
 

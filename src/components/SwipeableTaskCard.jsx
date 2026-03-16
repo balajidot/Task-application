@@ -139,12 +139,12 @@ const SwipeableTaskCard = ({
   const isGlowingLive = liveNow && !doneHere && !isOverdue;
 
   // PREMIUM THEME LOGIC
-  const cardBackground = `linear-gradient(165deg, color-mix(in srgb, var(--card) 95%, white 2%) 0%, var(--card) 100%)`;
+  const cardBackground = `var(--card)`;
   const priorityColor = goal.priority === 'High' ? '#ff3b30' : goal.priority === 'Medium' ? '#ff9500' : '#34c759';
 
   // Theme calculations
-  let appliedBorder = '1.5px solid var(--card-border)';
-  let appliedShadow = '0 8px 30px rgba(0,0,0,0.3)';
+  let appliedBorder = '1px solid var(--card-border)';
+  let appliedShadow = 'var(--card-shadow)';
   const accent = cardBorderColor || 'var(--accent)';
 
   if (isGlowingLive) {
@@ -324,7 +324,7 @@ const SwipeableTaskCard = ({
               flexDirection: 'column',
               gap: '6px',
               paddingLeft: '4px',
-              borderLeft: '2px solid rgba(255,255,255,0.08)'
+              borderLeft: '2px solid var(--card-border)'
             }}>
               {goal.subtasks.map((st, sidx) => (
                 <div 

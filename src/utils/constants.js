@@ -25,21 +25,8 @@ export const FONT_OPTIONS = [
 ];
 
 export const THEME_OPTIONS = [
-  { label: "Dark", value: "dark" },
-  { label: "Ocean Dark", value: "ocean-dark" },
-  { label: "Midnight", value: "midnight" },
-  { label: "Cyber Neon", value: "cyber-neon" },
-  { label: "Deep Purple", value: "deep-purple" },
-  { label: "Emerald Night", value: "emerald-night" },
-  { label: "Eye Comfort", value: "eye-comfort" },
-  { label: "Sunset Light", value: "sunset-light" },
-  { label: "Forest Mist", value: "forest-mist" },
-  { label: "Rose Dawn", value: "rose-dawn" },
-  { label: "Lavender Night", value: "lavender-night" },
-  { label: "Mocha Espresso", value: "mocha-espresso" },
-  { label: "Sakura Bloom", value: "sakura-bloom" },
-  { label: "Graphite Lime", value: "graphite-lime" },
-  { label: "Arctic Glass", value: "arctic-glass" },
+  { label: "Light", value: "light" },
+  { label: "Pure Dark", value: "dark" },
 ];
 
 export const TIME_FILTER_OPTIONS = ["All Times", "Morning", "Afternoon", "Evening", "Night", "No Time"];
