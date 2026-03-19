@@ -36,19 +36,14 @@ export default function DashboardView({
     <div style={{ padding: '0 0 16px' }}>
 
       {/* ── HEADER ── */}
-      <div style={{ padding: '24px 10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '2px', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 6, opacity: 0.9 }}>
-            {new Date().toLocaleDateString(isTa ? 'ta-IN' : 'en-IN', { weekday: 'long', day: 'numeric', month: 'short' })}
-          </div>
-          <div className="greeting-name">
-            {greeting.text}{userName ? `, ${userName}` : ''}
-          </div>
-          {quote && <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 8, fontWeight: 500, lineHeight: 1.6, maxWidth: '90%' }}>{quote}</div>}
+      <div style={{ padding: '24px 10px 12px', display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
+        <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '2px', textTransform: 'uppercase', color: 'var(--accent)', opacity: 0.9 }}>
+          {new Date().toLocaleDateString(isTa ? 'ta-IN' : 'en-IN', { weekday: 'long', day: 'numeric', month: 'short' })}
         </div>
-        <div style={{ width: 52, height: 52, borderRadius: 18, background: 'linear-gradient(135deg,var(--accent),#818cf8)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 900, color: '#fff', flexShrink: 0, boxShadow: '0 8px 24px var(--accent-glow)' }}>
-          {userName?.[0]?.toUpperCase() || 'B'}
+        <div className="greeting-name">
+          {greeting.text}{userName ? `, ${userName}` : ''}
         </div>
+        {quote && <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 4, fontWeight: 500, lineHeight: 1.6, maxWidth: '90%' }}>{quote}</div>}
       </div>
 
       {/* ── LIVE TASK STRIP ── */}
@@ -87,7 +82,7 @@ export default function DashboardView({
             {isTa ? 'இன்றைய முன்னேற்றம்' : "Today's Progress"}
           </h3>
           <p style={{ fontSize: 13, color: 'var(--muted)', fontWeight: 600 }}>
-            {isTa ? `${doneCount} முடிந்தது • ${remCount} மீதமுள்ளது` : `${doneCount} done • ${remCount} remaining`}
+            {isTa ? `${done} முடிந்தது • ${total - done} மீதமுள்ளது` : `${done} done • ${total - done} remaining`}
           </p>
           <div style={{ height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 2, marginTop: 12, overflow: 'hidden' }}>
             <div style={{ height: '100%', width: `${pct}%`, background: 'var(--accent)', boxShadow: '0 0 10px var(--accent-glow)' }} />

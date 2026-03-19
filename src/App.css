@@ -1759,6 +1759,7 @@ body.theme-dark::before {
   line-height: 1.1 !important;
   background: linear-gradient(to bottom, #fff, #94a3b8);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
