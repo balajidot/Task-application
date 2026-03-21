@@ -31,9 +31,9 @@ const ProductivityAnalytics = ({ goals, weeklyStats }) => {
   };
 
   return (
-    <div className="analytics-dashboard">
-      <div className="analytics-grid">
-        <div className="analytics-card">
+    <div className="analytics-dashboard g-lg">
+      <div className="analytics-grid g-lg mb-lg">
+        <div className="analytics-card base-card p-lg">
           <div className="analytics-icon">📊</div>
           <div className="analytics-content">
             <div className="analytics-title">Today's Progress</div>
@@ -50,7 +50,7 @@ const ProductivityAnalytics = ({ goals, weeklyStats }) => {
           </div>
         </div>
 
-        <div className="analytics-card">
+        <div className="analytics-card base-card p-lg">
           <div className="analytics-icon">📈</div>
           <div className="analytics-content">
             <div className="analytics-title">Weekly Completion</div>
@@ -69,7 +69,7 @@ const ProductivityAnalytics = ({ goals, weeklyStats }) => {
           </div>
         </div>
 
-        <div className="analytics-card">
+        <div className="analytics-card base-card p-lg">
           <div className="analytics-icon">⏱️</div>
           <div className="analytics-content">
             <div className="analytics-title">Focus Time Today</div>
@@ -82,7 +82,7 @@ const ProductivityAnalytics = ({ goals, weeklyStats }) => {
           </div>
         </div>
 
-        <div className="analytics-card">
+        <div className="analytics-card base-card p-lg">
           <div className="analytics-icon">🔥</div>
           <div className="analytics-content">
             <div className="analytics-title">Productivity Streak</div>
@@ -96,9 +96,9 @@ const ProductivityAnalytics = ({ goals, weeklyStats }) => {
         </div>
       </div>
 
-      <div className="analytics-chart">
+      <div className="analytics-chart base-card p-lg">
         <h3>Task Distribution by Priority</h3>
-        <div className="priority-chart">
+        <div className="priority-chart flex-stack-lg">
           {['High', 'Medium', 'Low'].map(priority => {
             const count = todayTasks.filter(g => g.priority === priority).length;
             const completed = todayTasks.filter(g => g.priority === priority && g.done).length;

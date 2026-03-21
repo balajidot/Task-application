@@ -92,8 +92,8 @@ const WeeklyMonthlyPlanner = ({ view, goals, onTaskClick, onDateChange }) => {
     const weekData = getWeekData();
     
     return (
-      <div className="weekly-planner">
-        <div className="planner-header">
+      <div className="weekly-planner base-card p-lg">
+      <div className="planner-header base-card flex-between-center p-lg">
           <button 
             className="nav-btn"
             onClick={() => navigateWeek(-1)}
@@ -121,7 +121,7 @@ const WeeklyMonthlyPlanner = ({ view, goals, onTaskClick, onDateChange }) => {
               className="week-day-card"
               onClick={() => onTaskClick?.(day.dateStr)}
             >
-              <div className="week-day-header">
+              <div className="week-day-header flex-between-center">
                 <div className="week-day-name">{day.dayName}</div>
                 <div className="week-day-number">{day.date.getDate()}</div>
               </div>
@@ -131,7 +131,7 @@ const WeeklyMonthlyPlanner = ({ view, goals, onTaskClick, onDateChange }) => {
                     key={task.id}
                     className={`week-task ${task.done ? 'completed' : ''}`}
                   >
-                    <div className="task-priority priority-${task.priority?.toLowerCase()}"></div>
+                    <div className={`task-priority bg-priority-${task.priority?.toLowerCase()}`}></div>
                     <span className="task-text">{task.text}</span>
                   </div>
                 ))}
@@ -159,8 +159,8 @@ const WeeklyMonthlyPlanner = ({ view, goals, onTaskClick, onDateChange }) => {
   }
 
   return (
-    <div className="monthly-planner">
-      <div className="planner-header">
+    <div className="monthly-planner base-card p-lg">
+      <div className="planner-header base-card flex-between-center p-lg">
         <button 
           className="nav-btn"
           onClick={() => navigateMonth(-1)}
@@ -178,7 +178,7 @@ const WeeklyMonthlyPlanner = ({ view, goals, onTaskClick, onDateChange }) => {
         </button>
       </div>
       
-      <div className="calendar-grid">
+      <div className="calendar-grid base-card p-lg">
         <div className="calendar-weekdays">
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
             <div key={day} className="calendar-weekday">{day}</div>
@@ -209,7 +209,7 @@ const WeeklyMonthlyPlanner = ({ view, goals, onTaskClick, onDateChange }) => {
                             className={`calendar-task ${task.done ? 'completed' : ''}`}
                             title={task.text}
                           >
-                            <div className="calendar-task-priority priority-${task.priority?.toLowerCase()}"></div>
+                            <div className={`calendar-task-priority bg-priority-${task.priority?.toLowerCase()}`}></div>
                           </div>
                         ))}
                         {dayTasks.length > 2 && (

@@ -47,7 +47,7 @@ const PomodoroTimer = ({ onTaskComplete, onBreakComplete }) => {
   };
 
   return (
-    <div className="pomodoro-timer">
+    <div className="pomodoro-timer base-card p-lg">
       <div className="pomodoro-display">
         <div className="pomodoro-time">
           {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}

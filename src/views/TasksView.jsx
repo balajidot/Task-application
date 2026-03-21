@@ -132,7 +132,7 @@ export default function TasksView({
   );
 
   return (
-    <div className="view-transition tasks-shell" style={{ animation: 'viewFadeIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) both', position: 'relative' }}>
+    <div className="view-transition tasks-shell flex-stack-lg" style={{ animation: 'viewFadeIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) both', position: 'relative' }}>
       {actionTask && (
         <div className="overlay" onClick={() => setActionTask(null)} style={{ zIndex: 100000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)' }}>
           <div className="modal" onClick={(event) => event.stopPropagation()} style={{ 
@@ -442,7 +442,7 @@ export default function TasksView({
           </div>
         </div>
 
-        <div className="pending-tasks-section tasks-section">
+        <div className="pending-tasks-section tasks-section flex-stack-md">
           <div className="section-head"><div className="section-title-sm">{copy.tasksView.pendingTasks} ({pendingGoals.length})</div></div>
           {pendingGoals.length === 0 ? (
             <div className="empty-state">{searchTerm ? copy.tasksView.noPendingSearch : copy.tasksView.noPending}</div>
@@ -456,7 +456,7 @@ export default function TasksView({
                 </div>
               )}
 
-              <div className="goal-list tasks-list" key={`pending-${activeDate}`} style={{ animation: 'viewFadeIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) both' }}>
+              <div className="goal-list tasks-list flex-stack-md" key={`pending-${activeDate}`} style={{ animation: 'viewFadeIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) both' }}>
                 {pendingGoals.map((goal, idx) => renderTaskItem(goal, idx, false))}
                 
                 {/* Ghost Card for New Task */}
@@ -504,7 +504,7 @@ export default function TasksView({
             </div>
 
             {!completedTasksCollapsed && (
-              <div className="goal-list tasks-list" key={`completed-${activeDate}`} style={{ opacity: '0.8', animation: 'viewFadeIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) both' }}>
+              <div className="goal-list tasks-list flex-stack-sm" key={`completed-${activeDate}`} style={{ opacity: '0.8', animation: 'viewFadeIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) both' }}>
                 {completedGoals.map((goal, idx) => renderTaskItem(goal, idx + pendingGoals.length, true))}
                 <div className="quick-tools compact" style={{ paddingTop: '10px', borderTop: '1px solid rgba(34, 197, 94, 0.15)' }}>
                   <button className="tool-btn" onClick={reopenAllCompleted}>{copy.tasksView.reopenAll} ({completedGoals.length})</button>

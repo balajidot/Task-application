@@ -1334,7 +1334,7 @@ export default function App() {
 
   return (
     <div className={`page ${themeClass}${isPlannerIframeView ? " planner-mode" : ""}`} style={{ "--task-font-size": `${taskFontSize}px`, "--task-font-family": taskFontFamily, "--ui-scale": `${uiScale / 100}`, "--global-font-weight": fontWeight }} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
-      <div className="app">
+      <div className="app g-lg">
         <div className="tab-nav">
           {localizedTabItems.map(tab => (
             <button key={tab.id} className={`tab-btn ${activeView === tab.id ? 'active' : ''}`} onClick={() => { if(typeof triggerHaptic==='function') triggerHaptic('light'); setActiveView(tab.id); }}>
@@ -1643,7 +1643,49 @@ export default function App() {
             </div>
           )}
 
-          {activeView === "insights" && <div key="insights" className="view-transition"><DashboardView appLanguage={appLanguage} copy={copy} userName={userName} quote={quote} setActiveView={setActiveView} done={done} total={total} pct={pct} weekly={weekly} streakDays={streakDays} dueSoon={dueSoon} goals={goals} generateMonthlyReport={generateMonthlyReport} aiPersonalCoach={aiPersonalCoach} liveCurrentGoal={liveCurrentGoal} liveClockLabel={liveClockLabel} userXP={userXP} userLevel={userLevel} /></div>}
+          {activeView === "insights" && (
+            <div key="insights" className="view-transition">
+              <DashboardView
+                appLanguage={appLanguage}
+                copy={copy}
+                userName={userName}
+                quote={quote}
+                setActiveView={setActiveView}
+                done={done}
+                total={total}
+                pct={pct}
+                weekly={weekly}
+                streakDays={streakDays}
+                dueSoon={dueSoon}
+                goals={goals}
+                generateMonthlyReport={generateMonthlyReport}
+                aiPersonalCoach={aiPersonalCoach}
+                liveCurrentGoal={liveCurrentGoal}
+                liveClockLabel={liveClockLabel}
+                liveCountdown={liveCountdown}
+                userXP={userXP}
+                userLevel={userLevel}
+                isOffline={isOffline}
+                onAddTask={() => {
+                  setForm({ text: "", date: todayKey(), reminder: "", startTime: "", endTime: "", repeat: "None", session: "Morning", priority: "Medium" });
+                  setEditingGoal(null);
+                  setShowForm(true);
+                }}
+                onPlanDay={() => setActiveView('planner')}
+                onAutoSchedule={async () => {
+                  setForm({ text: "", date: todayKey(), reminder: "", startTime: "", endTime: "", repeat: "None", session: "Morning", priority: "Medium" });
+                  setEditingGoal(null);
+                  setShowForm(true);
+                  // Give it a tiny bit of time for modal to mount if needed, or just call it
+                  setTimeout(() => handleAiAutoSchedule(), 100);
+                }}
+                onStartFocus={() => setFocusMode(true)}
+                onSkipTask={(id) => {
+                  // Optional: handle skip at App level if needed
+                }}
+              />
+            </div>
+          )}
           {activeView === "chat" && <div key="chat" className="view-transition">
             <ChatAssistantView 
               appLanguage={appLanguage} 
@@ -1909,7 +1951,7 @@ export default function App() {
         </div>
 
         <BottomSheet title={copy.tabs.more} isOpen={showMoreMenu} onClose={() => setShowMoreMenu(false)}>
-          <div className="more-menu-items">
+          <div className="more-menu-items flex-stack-sm">
             {localizedMoreTabItems.map(tab => (
               <button key={tab.id} className={`more-menu-item ${activeView === tab.id ? 'active' : ''}`} onClick={() => { if(typeof triggerHaptic==='function') triggerHaptic('light'); setActiveView(tab.id); setShowMoreMenu(false); }}>
                 <span className="more-menu-icon">{tab.icon}</span><span className="more-menu-label">{tab.label}</span>

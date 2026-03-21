@@ -55,16 +55,9 @@ const DailyProductivityScore = ({ goals, todayKey }) => {
   const currentStreak = calculateStreak(goals);
 
   return (
-    <div className="daily-productivity-score" style={{ 
-      background: 'var(--card)', 
-      borderRadius: '16px', 
-      padding: '20px', 
-      marginBottom: '20px',
-      border: '1px solid var(--card-border)',
-      boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
-    }}>
-      <div className="score-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <div className="score-title" style={{ fontSize: '1.2rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
+    <div className="daily-productivity-score base-card p-lg" style={{ marginBottom: '20px' }}>
+      <div className="score-header flex-between-center" style={{ marginBottom: '20px' }}>
+        <div className="score-title g-sm" style={{ fontSize: '1.2rem', fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
           <span style={{ fontSize: '1.4rem' }}>📊</span> Today's Productivity
         </div>
         <div className="score-date" style={{ fontSize: '0.85rem', color: 'var(--muted)', fontWeight: '600' }}>
@@ -77,10 +70,9 @@ const DailyProductivityScore = ({ goals, todayKey }) => {
       </div>
 
       {/* 🔥 PERFECT 2x2 GRID FIX WITH 4 CARDS 🔥 */}
-      <div className="score-metrics" style={{ 
+      <div className="score-metrics g-md mt-md" style={{ 
         display: 'grid', 
         gridTemplateColumns: 'repeat(2, 1fr)', 
-        gap: '12px', 
         marginBottom: '20px' 
       }}>
         

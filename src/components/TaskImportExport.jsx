@@ -63,7 +63,7 @@ const TaskImportExport = ({ goals, onImport }) => {
 
   return (
     <div className="import-export-section">
-      <div className="import-export-card">
+      <div className="import-export-card base-card p-lg">
         <h3>📤 Export Tasks</h3>
         <p>Download your tasks as a JSON backup file</p>
         <button className="export-btn" onClick={exportTasks}>
@@ -71,7 +71,7 @@ const TaskImportExport = ({ goals, onImport }) => {
         </button>
       </div>
 
-      <div className="import-export-card">
+      <div className="import-export-card base-card p-lg">
         <h3>📥 Import Tasks</h3>
         <p>Upload a previously exported task backup file</p>
         
