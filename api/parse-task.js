@@ -15,55 +15,32 @@ export default async function handler(req, res) {
   const rateLimit = enforceRateLimit(getClientKey(req));
   if (!rateLimit.allowed) return res.status(429).json({ error: 'Too many requests.' });
 
-  const groqKey   = process.env.GROQ_API_KEY;
-  const geminiKey = process.env.GEMINI_API_KEY;
+  const groqKey = process.env.GROQ_API_KEY;
+  if (!groqKey) return res.status(500).json({ error: 'GROQ_API_KEY is not set.' });
 
   const systemPrompt = `Extract task details. Respond in ${outputLanguage}. Return ONLY JSON inside <TASK_JSON> tags. Format: {"text": "...", "startTime": "HH:MM", "priority": "High/Medium/Low", "date": "YYYY-MM-DD"}`;
   const userPrompt   = `Task: "${text}"`;
 
-  // ─── Groq Primary ────────────────────────────────────────────────────────
-  if (groqKey) {
-    try {
-      const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${groqKey}` },
-        body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
-          messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
-          temperature: 0.1,
-        }),
-        signal: AbortSignal.timeout(8000),
-      });
-      if (r.ok) {
-        const data = await r.json();
-        const aiText = data?.choices?.[0]?.message?.content || '';
-        const jsonMatch = aiText.match(/<TASK_JSON>([\s\S]*?)<\/TASK_JSON>/);
-        const parsedTask = jsonMatch ? JSON.parse(jsonMatch[1].trim()) : null;
-        if (parsedTask) return res.status(200).json({ parsedTask });
-      }
-    } catch (e) {}
-  }
+  try {
+    const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${groqKey}` },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
+        temperature: 0.1,
+      }),
+      signal: AbortSignal.timeout(8000),
+    });
 
-  // ─── Gemini Fallback ──────────────────────────────────────────────────────
-  if (geminiKey) {
-    for (const model of [{ v: 'v1', n: 'gemini-1.5-flash-latest' }, { v: 'v1', n: 'gemini-1.0-pro' }]) {
-      try {
-        const r = await fetch(`https://generativelanguage.googleapis.com/${model.v}/models/${model.n}:generateContent?key=${geminiKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contents: [{ parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }] }] }),
-          signal: AbortSignal.timeout(8000),
-        });
-        if (r.ok) {
-          const data = await r.json();
-          const aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-          const jsonMatch = aiText.match(/<TASK_JSON>([\s\S]*?)<\/TASK_JSON>/);
-          const parsedTask = jsonMatch ? JSON.parse(jsonMatch[1].trim()) : null;
-          if (parsedTask) return res.status(200).json({ parsedTask });
-        }
-      } catch (e) {}
+    if (r.ok) {
+      const data = await r.json();
+      const aiText = data?.choices?.[0]?.message?.content || '';
+      const jsonMatch = aiText.match(/<TASK_JSON>([\s\S]*?)<\/TASK_JSON>/);
+      const parsedTask = jsonMatch ? JSON.parse(jsonMatch[1].trim()) : null;
+      if (parsedTask) return res.status(200).json({ parsedTask });
     }
-  }
+  } catch (e) {}
 
-  return res.status(500).json({ error: 'Parsing currently unavailable.' });
+  return res.status(500).json({ error: 'AI Parsing unavailable. Check Groq API Key.' });
 }

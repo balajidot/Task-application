@@ -15,9 +15,10 @@ export default async function handler(req, res) {
   const rateLimit = enforceRateLimit(getClientKey(req));
   if (!rateLimit.allowed) return res.status(429).json({ error: 'Too many requests.' });
 
-  const groqKey   = process.env.GROQ_API_KEY;
-  const geminiKey = process.env.GEMINI_API_KEY;
+  const groqKey = process.env.GROQ_API_KEY;
+  if (!groqKey) return res.status(500).json({ error: 'GROQ_API_KEY is not set.' });
 
+  const { userName = 'User', energy = 'high', goals = [], existingTasks = [], date, language = 'en' } = req.body || {};
   const outputLanguage = language === 'ta' ? 'Tamil' : 'English';
 
   // Format existing tasks for context
@@ -43,89 +44,44 @@ STRICT RULES:
 
 OUTPUT:`;
 
-  // ─── Groq Primary ────────────────────────────────────────────────────────
-  if (groqKey) {
-    try {
-      const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${groqKey}` },
-        body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
-          messages: [{ role: 'user', content: prompt }],
-          temperature: 0.7,
-        }),
-        signal: AbortSignal.timeout(10000),
-      });
-      if (r.ok) {
-        const data = await r.json();
-        const text = data?.choices?.[0]?.message?.content || '';
-        const lines = text.trim().split(/\r?\n/)
-          .map(l => l.trim().replace(/\*\*/g, '').replace(/^[\d]+[\.\)]\s*/, '').replace(/^[-•]\s*/, '').trim())
-          .filter(l => /^\d{1,2}:\d{2}\s*[-–]\s*\d{1,2}:\d{2}\s*[-–]/.test(l))
-          .map(l => l.replace(/–/g, '-'))
-          .slice(0, 7);
+  try {
+    const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${groqKey}` },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.7,
+      }),
+      signal: AbortSignal.timeout(10000),
+    });
+    if (r.ok) {
+      const data = await r.json();
+      const text = data?.choices?.[0]?.message?.content || '';
+      const lines = text.trim().split(/\r?\n/)
+        .map(l => l.trim().replace(/\*\*/g, '').replace(/^[\d]+[\.\)]\s*/, '').replace(/^[-•]\s*/, '').trim())
+        .filter(l => /^\d{1,2}:\d{2}\s*[-–]\s*\d{1,2}:\d{2}\s*[-–]/.test(l))
+        .map(l => l.replace(/–/g, '-'))
+        .slice(0, 7);
 
-        if (lines.length >= 2) {
-          const newTasks = lines.map(line => {
-            const parts = line.split('-').map(p => p.trim());
-            if (parts.length >= 3) {
-              return {
-                text: parts.slice(2).join(' - '),
-                startTime: parts[0],
-                endTime: parts[1],
-                priority: 'Medium',
-                session: (parseInt(parts[0]) < 12) ? 'Morning' : (parseInt(parts[0]) < 17) ? 'Afternoon' : 'Evening'
-              };
-            }
-            return null;
-          }).filter(Boolean);
-          if (newTasks.length > 0) return res.status(200).json({ newTasks });
-        }
-      }
-    } catch (e) {}
-  }
-
-  // ─── Gemini Fallback ──────────────────────────────────────────────────────
-  if (geminiKey) {
-    for (const model of [{ v: 'v1', n: 'gemini-1.5-flash-latest' }, { v: 'v1', n: 'gemini-1.0-pro' }]) {
-      try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/${model.v}/models/${model.n}:generateContent?key=${geminiKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.7, maxOutputTokens: 600 },
-          }),
-          signal: AbortSignal.timeout(10000),
-        });
-        if (response.ok) {
-          const data = await response.json();
-          const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-          const lines = text.trim().split(/\r?\n/)
-            .map(l => l.trim().replace(/\*\*/g, '').replace(/^[\d]+[\.\)]\s*/, '').replace(/^[-•]\s*/, '').trim())
-            .filter(l => /^\d{1,2}:\d{2}\s*[-–]\s*\d{1,2}:\d{2}\s*[-–]/.test(l))
-            .map(l => l.replace(/–/g, '-'))
-            .slice(0, 7);
-          if (lines.length >= 2) {
-            const newTasks = lines.map(line => {
-              const parts = line.split('-').map(p => p.trim());
-              if (parts.length >= 3) {
-                return {
-                  text: parts.slice(2).join(' - '),
-                  startTime: parts[0],
-                  endTime: parts[1],
-                  priority: 'Medium',
-                  session: (parseInt(parts[0]) < 12) ? 'Morning' : (parseInt(parts[0]) < 17) ? 'Afternoon' : 'Evening'
-                };
-              }
-              return null;
-            }).filter(Boolean);
-            if (newTasks.length > 0) return res.status(200).json({ newTasks });
+      if (lines.length >= 2) {
+        const newTasks = lines.map(line => {
+          const parts = line.split('-').map(p => p.trim());
+          if (parts.length >= 3) {
+            return {
+              text: parts.slice(2).join(' - '),
+              startTime: parts[0],
+              endTime: parts[1],
+              priority: 'Medium',
+              session: (parseInt(parts[0]) < 12) ? 'Morning' : (parseInt(parts[0]) < 17) ? 'Afternoon' : 'Evening'
+            };
           }
-        }
-      } catch (e) { continue; }
+          return null;
+        }).filter(Boolean);
+        if (newTasks.length > 0) return res.status(200).json({ newTasks });
+      }
     }
-  }
+  } catch (e) {}
 
   const fallbackTasks = [
     { text: 'Deep focus work block', startTime: '09:30', endTime: '11:00', priority: 'High', session: 'Morning' },
