@@ -14,16 +14,14 @@ const isCapacitor = () =>
  * In a web environment, it uses relative paths.
  */
 export const getApiUrl = (endpoint) => {
-  // Use the main production domain as the fallback for Mobile APKs
-  const PRODUCTION_URL = "https://task-planner-ai.vercel.app"; 
+  const isAPK = typeof window !== 'undefined' && window.location.protocol === 'file:';
   
-  const isWeb = typeof window !== "undefined" && !window.Capacitor;
-  
-  if (isWeb) {
-    // On Vercel or Localhost web, always use relative paths to avoid CORS
+  if (!isAPK) {
+    // Web (Localhost, Vercel, etc.) - ALWAYS use relative paths
     return endpoint;
   }
   
-  // For Capacitor/APK, use absolute URL
+  // Only for APK (Capacitor/file protocol)
+  const PRODUCTION_URL = "https://task-planner-ai.vercel.app";
   return `${PRODUCTION_URL}${endpoint}`;
 };

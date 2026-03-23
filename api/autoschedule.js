@@ -15,7 +15,12 @@ export default async function handler(req, res) {
   if (!rateLimit.allowed) return res.status(429).json({ error: 'Too many requests.' });
 
   const groqKey = process.env.GROQ_API_KEY;
-  if (!groqKey) return res.status(500).json({ error: 'GROQ_API_KEY is not set.' });
+  if (!groqKey) {
+    return res.status(500).json({ 
+      error: 'AI Configuration Error', 
+      details: 'GROQ_API_KEY is not set in Vercel. Please add it in Project Settings > Environment Variables.' 
+    });
+  }
 
   const { userName = 'User', energy = 'high', goals = [], existingTasks = [], date, language = 'en' } = req.body || {};
   const outputLanguage = language === 'ta' ? 'Tamil' : 'English';
