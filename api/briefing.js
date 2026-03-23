@@ -17,20 +17,8 @@ export default async function handler(req, res) {
   const rateLimit = enforceRateLimit(getClientKey(req));
   if (!rateLimit.allowed) return res.status(429).json({ error: 'Too many requests.' });
 
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return res.status(500).json({ error: 'GEMINI_API_KEY is not set.' });
-
-  const { appData = {}, language = 'en', userName = 'User', coachTone = 'motivational' } = req.body || {};
-  const outputLanguage = language === 'ta' ? 'Tamil' : 'English';
-
-  const hour = new Date().getHours();
-  const timeOfDay = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
-
-  const toneMap = {
-    strict: 'You are a strict, no-nonsense productivity coach. Be direct and push hard.',
-    friendly: 'You are a warm, encouraging productivity coach. Be supportive and gentle.',
-    motivational: 'You are a high-energy, inspiring productivity coach. Be passionate and energizing.'
-  };
+  const groqKey   = process.env.GROQ_API_KEY;
+  const geminiKey = process.env.GEMINI_API_KEY;
 
   const prompt = `${toneMap[coachTone] || toneMap.motivational} 
 Speak directly to ${userName} in a motivating, personal tone.
@@ -46,34 +34,44 @@ Write a SHORT personal coach message (2-3 sentences max) in ${outputLanguage}.
 Be specific, personal, and motivating. No generic advice. Address ${userName} by name.
 No markdown, no bullet points. Just 2-3 powerful sentences.`;
 
-  const models = [
-    { v: 'v1',     n: 'gemini-3.1-flash' },
-    { v: 'v1',     n: 'gemini-1.5-flash-latest' },
-    { v: 'v1',     n: 'gemini-1.0-pro' }
-  ];
-
-  for (const model of models) {
+  // ─── Groq Primary ────────────────────────────────────────────────────────
+  if (groqKey) {
     try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/${model.version}/models/${model.name}:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.8, maxOutputTokens: 150 },
-          }),
-          signal: AbortSignal.timeout(9000),
-        }
-      );
-      const data = await response.json();
-      if (response.ok) {
-        const briefing = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+      const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${groqKey}` },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.8,
+        }),
+        signal: AbortSignal.timeout(9000),
+      });
+      if (r.ok) {
+        const data = await r.json();
+        const briefing = data?.choices?.[0]?.message?.content?.trim() || '';
         if (briefing) return res.status(200).json({ briefing });
       }
-      if (response.status === 404 || response.status === 429 || response.status === 403) continue;
-      break;
-    } catch (e) { continue; }
+    } catch (e) {}
+  }
+
+  // ─── Gemini Fallback ──────────────────────────────────────────────────────
+  if (geminiKey) {
+    for (const model of [{ v: 'v1', n: 'gemini-1.5-flash-latest' }, { v: 'v1', n: 'gemini-1.0-pro' }]) {
+      try {
+        const response = await fetch(`https://generativelanguage.googleapis.com/${model.v}/models/${model.n}:generateContent?key=${geminiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.8, maxOutputTokens: 150 } }),
+          signal: AbortSignal.timeout(9000),
+        });
+        if (response.ok) {
+          const data = await response.json();
+          const briefing = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+          if (briefing) return res.status(200).json({ briefing });
+        }
+      } catch (e) { continue; }
+    }
   }
 
   const fallbacks = {
