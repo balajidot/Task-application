@@ -1,10 +1,9 @@
-// ReferralView.jsx — Refer a Friend, Get 1 Month Free
-// ✅ Phase 3: Viral growth engine
-
 import React, { useState, useEffect } from 'react';
 import { getApiUrl } from '../utils/apiConfig';
+import { useApp } from '../context/AppContext';
 
-export default function ReferralView({ userName = 'User', appLanguage = 'en' }) {
+export default function ReferralView() {
+  const { userName = 'User', appLanguage = 'en' } = useApp();
   const [referralCode, setReferralCode]   = useState('');
   const [referralCount, setReferralCount] = useState(0);
   const [freeMonths, setFreeMonths]       = useState(0);

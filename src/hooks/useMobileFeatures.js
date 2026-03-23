@@ -172,11 +172,14 @@ const TAB_ORDER = [
   "planner",
   "analytics",
   "settings",
-  "career",
-  "tools",
   "habits",
-  "journal",
   "goals",
+  "chat",
+  "challenge",
+  "checkin",
+  "subscription",
+  "referral",
+  "tools"
 ];
 
 /**

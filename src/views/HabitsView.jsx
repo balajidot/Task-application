@@ -1,49 +1,27 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { readPersist, writePersist, todayKey, toKey } from '../utils/helpers';
-import { HABITS_KEY } from '../utils/constants';
+import React, { useState } from 'react';
+import { todayKey, toKey } from '../utils/helpers';
+import { useApp } from '../context/AppContext';
 
 export default function HabitsView() {
-  const [habits, setHabits] = useState([]);
+  const { 
+    habits, addHabit: onAddHabit, removeHabit: onRemoveHabit, toggleHabitDay: onToggleDay,
+    loaded 
+  } = useApp();
   const [newHabit, setNewHabit] = useState('');
-  const [loaded, setLoaded] = useState(false);
-  const saveRef = useRef(null);
-
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const raw = await readPersist(HABITS_KEY);
-        if (raw) setHabits(JSON.parse(raw));
-      } catch {}
-      setLoaded(true);
-    };
-    load();
-  }, []);
-
-  const save = useCallback((data) => {
-    clearTimeout(saveRef.current);
-    saveRef.current = setTimeout(() => writePersist(HABITS_KEY, JSON.stringify(data)), 300);
-  }, []);
 
   const addHabit = () => {
     const text = newHabit.trim();
     if (!text) return;
-    const updated = [...habits, { id: Date.now(), text, checked: {}, createdOn: todayKey() }];
-    setHabits(updated); save(updated); setNewHabit('');
+    onAddHabit(text);
+    setNewHabit('');
   };
 
   const removeHabit = (id) => {
-    const updated = habits.filter(h => h.id !== id);
-    setHabits(updated); save(updated);
+    onRemoveHabit(id);
   };
 
   const toggleDay = (id, dayKey) => {
-    const updated = habits.map(h => {
-      if (h.id !== id) return h;
-      const checked = { ...h.checked };
-      checked[dayKey] = !checked[dayKey];
-      return { ...h, checked };
-    });
-    setHabits(updated); save(updated);
+    onToggleDay(id, dayKey);
   };
 
   const getStreak = (habit) => {

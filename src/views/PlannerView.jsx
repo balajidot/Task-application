@@ -1,7 +1,8 @@
-import React from 'react';
+import { useApp } from '../context/AppContext';
 import WeeklyMonthlyPlanner from '../components/WeeklyMonthlyPlanner';
 
-export default function PlannerView({ plannerView, setPlannerView, goals, setActiveDate, setActiveView }) {
+export default function PlannerView() {
+  const { plannerView, setPlannerView, goals, setActiveDate, setActiveView } = useApp();
   return (
     <div className="animate-fade-in">
       <div className="hero">

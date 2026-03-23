@@ -1,6 +1,7 @@
-import React from 'react';
+import { useApp } from '../context/AppContext';
 
-const ProductivityAnalytics = ({ goals, weeklyStats }) => {
+const ProductivityAnalytics = () => {
+  const { goals, weekly: weeklyStats } = useApp();
   const today = new Date().toISOString().split('T')[0];
   const todayTasks = goals.filter(g => g.date === today);
   const completedToday = todayTasks.filter(g => g.done).length;

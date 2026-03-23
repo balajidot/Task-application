@@ -5,21 +5,25 @@ import TaskCompletionCelebration from '../components/TaskCompletionCelebration';
 import DailyProductivityScore from '../components/DailyProductivityScore';
 import { PRIORITY_OPTIONS, TIME_FILTER_OPTIONS, DAY_NAMES } from '../utils/constants';
 import { todayKey, toKey } from '../utils/helpers';
+import { useApp } from '../context/AppContext';
+import { LiveClock, LiveCountdown } from '../components/LiveTimeComponents';
 
-export default function TasksView({
-  activeDate, setActiveDate, activeDateLabel, weekBase, setWeekBase,
-  liveClockLabel, done, total, pct, nextUpcomingGoal, setForm, setEditingGoal, setShowForm,
-  liveCurrentGoal, liveCountdown, focusMode, setFocusMode,
-  showCelebration, setShowCelebration, liveHighlightEnabled, aiBriefing, copy, openAiPlanner, goals, dotsFor,
-  priorityFilter, setPriorityFilter, timeFilter, setTimeFilter,
-  searchTerm, setSearchTerm, searchRef,
-  pendingGoals, completedGoals, visibleGoals,
-  selectedGoalIds, selectedSet, selectAllVisibleGoals, deleteSelectedGoals, clearSelectedGoals,
-  completedPulseId, celebratingGoalId, toggleDoneWithCelebration, removeGoal, toggleSelectGoal,
-  markAllPendingDone, duplicatePendingToTomorrow, reopenAllCompleted, overdueEnabled,
-  appLanguage, onOptimizeSchedule,
-  handleDecomposeTask, toggleSubtask
-}) {
+export default function TasksView() {
+  const app = useApp();
+  const {
+    activeDate, setActiveDate, activeDateLabel, weekBase, setWeekBase,
+    done, total, pct, nextUpcomingGoal, setForm, setEditingGoal, setShowForm,
+    liveCurrentGoal, focusMode, setFocusMode,
+    showCelebration, setShowCelebration, liveHighlightEnabled, aiBriefing, copy, openAiPlanner, goals, dotsFor,
+    priorityFilter, setPriorityFilter, timeFilter, setTimeFilter,
+    searchTerm, setSearchTerm, searchRef,
+    pendingGoals, completedGoals, visibleGoals,
+    selectedGoalIds, selectedSet, selectAllVisibleGoals, deleteSelectedGoals, clearSelectedGoals,
+    completedPulseId, celebratingGoalId, toggleDoneWithCelebration, removeGoal, toggleSelectGoal,
+    markAllPendingDone, duplicatePendingToTomorrow, reopenAllCompleted, overdueEnabled,
+    appLanguage, onOptimizeSchedule,
+    handleDecomposeTask, toggleSubtask
+  } = app;
   const [completedTasksCollapsed, setCompletedTasksCollapsed] = React.useState(false);
   const [liveStripVisible, setLiveStripVisible] = React.useState(true);
   const [stripSwipeX, setStripSwipeX] = React.useState(0);
@@ -105,7 +109,6 @@ export default function TasksView({
         pulse={completedPulseId === goal.id}
         celebrate={celebratingGoalId === goal.id}
         liveNow={liveCurrentGoal?.id === goal.id}
-        countdownText={liveCurrentGoal?.id === goal.id ? liveCountdown : null}
         selected={selectedSet.has(goal.id)}
         activeDate={activeDate}
         overdueEnabled={overdueEnabled}
@@ -208,7 +211,7 @@ export default function TasksView({
         <div className="topbar">
           <div>
             <div className="title premium-title" style={{ transition: 'all 0.3s ease' }}>{activeDateLabel}</div>
-            <div className="tip" style={{ fontWeight: 700, opacity: 0.7 }}>{liveClockLabel} • {done} of {total} completed</div>
+            <div className="tip" style={{ fontWeight: 700, opacity: 0.7 }}><LiveClock /> • {done} of {total} completed</div>
           </div>
           <div className="head-actions">
             <button
@@ -323,8 +326,8 @@ export default function TasksView({
               />
             )}
           </div>
-          <div className="clock">{liveClockLabel}</div>
-          <div className="countdown">{liveCountdown}</div>
+          <div className="clock"><LiveClock /></div>
+          <div className="countdown"><LiveCountdown endTime={liveCurrentGoal?.endTime} /></div>
         </div>
       )}
 

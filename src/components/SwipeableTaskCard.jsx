@@ -1,6 +1,7 @@
 import React from 'react';
 import { formatTimeRange, todayKey, timeToMinutes } from '../utils/helpers';
 import { triggerHaptic } from '../hooks/useMobileFeatures';
+import { LiveCountdown } from './LiveTimeComponents';
 
 const SwipeableTaskCard = ({
   goal,
@@ -9,7 +10,6 @@ const SwipeableTaskCard = ({
   pulse,
   celebrate,
   liveNow,
-  countdownText,
   selected,
   activeDate,
   overdueEnabled,
@@ -369,6 +369,9 @@ const SwipeableTaskCard = ({
               letterSpacing: '0.05em'
             }}>
               LIVE <span className="live-dot-pulse" />
+              <div style={{ marginLeft: '10px', borderLeft: '1px solid rgba(255,255,255,0.3)', paddingLeft: '10px' }}>
+                <LiveCountdown endTime={goal.endTime} showPrefix={false} />
+              </div>
             </div>
           )}
           <button

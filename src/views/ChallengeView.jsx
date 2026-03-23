@@ -1,8 +1,6 @@
-// ChallengeView.jsx — 30-Day Productivity Challenge
-// ✅ Phase 2: Core retention feature
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { todayKey, toKey, goalVisibleOn, isDoneOn } from '../utils/helpers';
+import { useApp } from '../context/AppContext';
 
 const MILESTONES = [
   { day: 1,  icon: '🌱', title: 'First Step',      desc: 'You started your journey!',          xp: 10  },
@@ -13,9 +11,17 @@ const MILESTONES = [
   { day: 30, icon: '🏆', title: 'CHAMPION!',        desc: 'You transformed in 30 days!',       xp: 300 },
 ];
 
-export default function ChallengeView({ goals = [], streakDays = 0, appLanguage = 'en', userXP = 0, userLevel = 1 }) {
-  const [challengeStart, setChallengeStart] = useState(null);
-  const [started, setStarted]               = useState(false);
+export default function ChallengeView() {
+  const { 
+    goals = [], 
+    streakDays = 0, 
+    appLanguage = 'en', 
+    userXP = 0, 
+    userLevel = 1,
+    challengeStart,
+    setChallengeStart
+  } = useApp();
+  const [started, setStarted] = useState(!!challengeStart);
 
   useEffect(() => {
     const saved = localStorage.getItem('taskPlanner_challengeStart');

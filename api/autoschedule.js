@@ -85,20 +85,38 @@ OUTPUT:`;
           .map(l => l.replace(/–/g, '-'))
           .slice(0, 7);
 
-        if (lines.length >= 2) return res.status(200).json({ schedule: lines.join('\n'), count: lines.length });
+        if (lines.length >= 2) {
+          const newTasks = lines.map(line => {
+            // Line format expected: HH:MM - HH:MM - Task name
+            const parts = line.split('-').map(p => p.trim());
+            if (parts.length >= 3) {
+              return {
+                text: parts.slice(2).join(' - '),
+                startTime: parts[0],
+                endTime: parts[1],
+                priority: 'Medium',
+                session: (parseInt(parts[0]) < 12) ? 'Morning' : (parseInt(parts[0]) < 17) ? 'Afternoon' : 'Evening'
+              };
+            }
+            return null;
+          }).filter(Boolean);
+
+          if (newTasks.length > 0) {
+            return res.status(200).json({ newTasks });
+          }
+        }
       }
       if (response.status === 404 || response.status === 429 || response.status === 403) continue;
       break;
     } catch (e) { continue; }
   }
 
-  return res.status(200).json({
-    schedule: [
-      '09:30 - 11:00 - Deep focus work block',
-      '11:15 - 12:30 - Skill building session',
-      '14:00 - 15:30 - Project work sprint',
-      '16:00 - 17:00 - Review and planning',
-    ].join('\n'),
-    count: 4,
-  });
+  const fallbackTasks = [
+    { text: 'Deep focus work block', startTime: '09:30', endTime: '11:00', priority: 'High', session: 'Morning' },
+    { text: 'Skill building session', startTime: '11:15', endTime: '12:30', priority: 'Medium', session: 'Morning' },
+    { text: 'Project work sprint', startTime: '14:00', endTime: '15:30', priority: 'High', session: 'Afternoon' },
+    { text: 'Review and planning', startTime: '16:00', endTime: '17:00', priority: 'Medium', session: 'Afternoon' },
+  ];
+
+  return res.status(200).json({ newTasks: fallbackTasks });
 }

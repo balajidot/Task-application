@@ -2,11 +2,36 @@
 	"appId": "com.digiturning.taskplanner",
 	"appName": "Task Planner",
 	"webDir": "dist",
+	"android": {
+		"allowMixedContent": true,
+		"captureInput": true,
+		"webContentsDebuggingEnabled": false
+	},
 	"plugins": {
 		"LocalNotifications": {
 			"smallestIcon": "ic_stat_icon_config_sample",
 			"iconColor": "#6366f1",
 			"sound": "default"
+		},
+		"Keyboard": {
+			"resize": "body",
+			"resizeOnFullScreen": true,
+			"scrollAssist": false,
+			"hideFormAccessoryBar": true
+		},
+		"StatusBar": {
+			"style": "dark",
+			"overlaysWebView": true,
+			"backgroundColor": "#0d0d14"
+		},
+		"SplashScreen": {
+			"launchShowDuration": 1500,
+			"backgroundColor": "#0d0d14",
+			"showSpinner": false,
+			"launchAutoHide": true
 		}
+	},
+	"server": {
+		"androidScheme": "https"
 	}
 }

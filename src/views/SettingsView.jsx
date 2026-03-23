@@ -93,30 +93,34 @@ function Section({ title, children }) {
   );
 }
 
-export default function SettingsView({
-  setActiveView,
-  themeMode, setThemeMode,
-  taskFontFamily, setTaskFontFamily,
-  taskFontSize, setTaskFontSize,
-  uiScale, setUiScale,
-  fontWeight, setFontWeight,
-  overdueEnabled, setOverdueEnabled,
-  soundTheme, setSoundTheme,
-  hapticEnabled, setHapticEnabled,
-  autoThemeMode, setAutoThemeMode,
-  liveHighlightEnabled, setLiveHighlightEnabled,
-  appLanguage, setAppLanguage,
-  copy,
-  userName, setUserName,
-  notifPerm, requestNotifPerm,
-  goals, onReplaceGoals,
-  onClearCache,
-  onClearLocalData,
-  onRefreshNotifications,
-  onOpenBatterySettings,
-  onOpenAppSettings,
-  bgTheme, setBgTheme
-}) {
+import { useApp } from '../context/AppContext';
+
+export default function SettingsView() {
+  const app = useApp();
+  const {
+    setActiveView,
+    themeMode, setThemeMode,
+    taskFontFamily, setTaskFontFamily,
+    taskFontSize, setTaskFontSize,
+    uiScale, setUiScale,
+    fontWeight, setFontWeight,
+    overdueEnabled, setOverdueEnabled,
+    soundTheme, setSoundTheme,
+    hapticEnabled, setHapticEnabled,
+    autoThemeMode, setAutoThemeMode,
+    liveHighlightEnabled, setLiveHighlightEnabled,
+    appLanguage, setAppLanguage,
+    copy,
+    userName, setUserName,
+    notifPerm, requestNotifPerm,
+    goals, onReplaceGoals,
+    onClearCache,
+    onClearLocalData,
+    onRefreshNotifications,
+    onOpenBatterySettings,
+    onOpenAppSettings,
+    bgTheme, setBgTheme
+  } = app;
   const [editingName, setEditingName] = useState(false);
   const [tempName, setTempName] = useState(userName || '');
   const [confirmClear, setConfirmClear] = useState(null);

@@ -1,9 +1,7 @@
-// CheckInView.jsx — Daily Check-in & AI Auto-schedule
-// ✅ Phase 2: Builds emotional connection + retention
-
 import React, { useState, useEffect } from 'react';
 import { todayKey } from '../utils/helpers';
 import { getApiUrl } from '../utils/apiConfig';
+import { useApp } from '../context/AppContext';
 
 const MOODS = [
   { id: 'great',    emoji: '😄', label: 'Great',    color: '#22c55e' },
@@ -28,7 +26,8 @@ const FOCUS_AREAS = [
   { id: 'personal', emoji: '🌱', label: 'Personal Goals' },
 ];
 
-export default function CheckInView({ userName = 'User', appLanguage = 'en', goals = [], onAddTasks }) {
+export default function CheckInView() {
+  const { userName = 'User', appLanguage = 'en', goals = [], onAddTask: onAddTasks } = useApp();
   const [step, setStep]             = useState(1); // 1=mood, 2=energy, 3=focus, 4=generating, 5=done
   const [mood, setMood]             = useState(null);
   const [energy, setEnergy]         = useState(null);

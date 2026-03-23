@@ -2,7 +2,9 @@
 // Architecture: trust-first, user-controlled, long-term supportive
 // 7 evolutionary upgrades — not a redesign
 import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
-import { todayKey, goalVisibleOn, isDoneOn, timeToMinutes } from '../utils/helpers';
+import { todayKey, goalVisibleOn, isDoneOn, timeToMinutes, getTimeRemainingMs } from '../utils/helpers';
+import { LiveClock, LiveCountdown, LiveRemainingText } from '../components/LiveTimeComponents';
+import { useApp } from '../context/AppContext';
 
 // ── Helpers ────────────────────────────────────────────────────
 function yesterday() {
@@ -143,13 +145,14 @@ function computeIntelligence(goals, behavior) {
 // ═══════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════
-export default function DashboardView({
-  appLanguage, userName, setActiveView,
-  done, total, pct, weekly, streakDays, dueSoon, goals,
-  liveCurrentGoal, liveClockLabel, liveCountdown,
-  isOffline,
-  onAddTask, onPlanDay, onAutoSchedule, onStartFocus, onSkipTask,
-}) {
+export default function DashboardView() {
+  const app = useApp();
+  const {
+    appLanguage, userName, setActiveView,
+    done, total, pct, weekly, streakDays, dueSoon, goals,
+    liveCurrentGoal, isOffline,
+    onAddTask, onPlanDay, onAutoSchedule, onStartFocus, removeGoal: onSkipTask,
+  } = app;
   const ta = appLanguage === 'ta';
   const today = todayKey();
 
@@ -190,7 +193,7 @@ export default function DashboardView({
   // FIX 7: Undo system — in-memory, not persisted (intentional)
   const [undoStack, setUndoStack] = useState([]);
   const [undoVisible, setUndoVisible] = useState(false);
-  const undoTimer = React.useRef(null);
+  const undoTimer = useRef(null);
 
   const pushUndo = useCallback((type, payload, label) => {
     setUndoStack(prev => [...prev.slice(-4), { type, payload, label }]);
@@ -392,26 +395,7 @@ export default function DashboardView({
     };
   }, [paused, pausedAt, liveCurrentGoal, nowMinsNow, ta]);
 
-  // Remaining time
-  const remainingLabel = useMemo(() => {
-    if (liveCountdown != null) {
-      const mins = Math.max(0, Math.round(liveCountdown / 60000));
-      if (mins === 0) return ta ? 'கிட்டத்தட்ட முடிந்தது' : 'ending now';
-      if (mins < 60) return ta ? `${mins} நிமிடம் மீதம்` : `${mins} min left`;
-      const h = Math.floor(mins / 60), m = mins % 60;
-      return ta ? `${h}h ${m}m மீதம்` : `${h}h ${m}m left`;
-    }
-    if (liveCurrentGoal?.endTime) {
-      const diff = Math.max(0, timeToMinutes(liveCurrentGoal.endTime) - nowMinsNow);
-      if (diff === 0) return ta ? 'கிட்டத்தட்ட முடிந்தது' : 'ending now';
-      if (diff < 60) return ta ? `${diff} நிமிடம் மீதம்` : `${diff} min left`;
-      const h = Math.floor(diff / 60), m = diff % 60;
-      return ta ? `${h}h ${m}m மீதம்` : `${h}h ${m}m left`;
-    }
-    return null;
-  }, [liveCountdown, liveCurrentGoal, ta, nowMinsNow]);
-
-  // ── FIX 5: Metrics — only in smart mode or high energy ─────
+  // ── Metrics ──────────────────────────────────────────────────
   const metrics = useMemo(() => {
     const weekDone = weekly?.weekDone || 0;
     const weekTotal = weekly?.weekTotal || 0;
@@ -423,7 +407,6 @@ export default function DashboardView({
       rate, avgPerDay, overdue,
       rateColor: rate >= 70 ? '#22C55E' : rate >= 40 ? 'var(--accent)' : '#EF4444',
       overdueColor: overdue > 0 ? '#EF4444' : 'var(--muted)',
-      // FIX 4: metric action — tied to weekly insight
       rateAction: rate < 50
         ? { label: ta ? 'ஏன்?' : 'Why?', hint: ta ? 'schedule பார்' : 'review schedule', tap: () => setActiveView('planner') }
         : rate >= 80
@@ -435,9 +418,9 @@ export default function DashboardView({
     };
   }, [weekly, dueSoon, ta]);
 
-  // ── FIX 5: Microcopy — toned down, supportive not pressuring ─
+  // ── Microcopy ───────────────────────────────────────────────
   const microcopy = useMemo(() => {
-    if (!smart && energyMode !== 'high') return null; // simple mode = no microcopy
+    if (!smart && energyMode !== 'high') return null;
     if (energyMode === 'low') return ta ? 'இன்று மெதுவாக போகலாம்.' : 'A slower day is still a day.';
     if (doneCount === 0 && totalCount > 0 && intel.isPeakNow && intel.dataAge >= 10)
       return ta ? 'இது உங்கள் productive நேரம்.' : 'Good time to get started.';
@@ -496,7 +479,6 @@ export default function DashboardView({
     setPaused(false); setPausedAt(null);
   }, [pausedAt]);
 
-  // Pulsing dot
   const [pulse, setPulse] = useState(false);
   useEffect(() => {
     if (screenState !== 'in-progress') return;
@@ -504,572 +486,375 @@ export default function DashboardView({
     return () => clearInterval(t);
   }, [screenState]);
 
-  // ── Style atoms ─────────────────────────────────────────────
-  const card = { background: 'var(--card)', border: '1px solid var(--card-border)', borderRadius: 13 };
-  const chip = { background: 'var(--chip)', border: '1px solid var(--card-border)', borderRadius: 8 };
-  const BP = (extra = {}) => ({
-    width: '100%', padding: '14px', color: '#fff', border: 'none', borderRadius: 11,
-    fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 700, cursor: 'pointer',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-    transition: 'opacity 0.15s', WebkitTapHighlightColor: 'transparent',
-    background: 'var(--accent)', ...extra,
-  });
-  const BS = (extra = {}) => ({
-    padding: '10px 13px', background: 'var(--card)', color: 'var(--text)',
-    border: '1px solid var(--card-border)', borderRadius: 10,
-    fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-    WebkitTapHighlightColor: 'transparent', ...extra,
-  });
-  const GHOST = {
-    background: 'none', border: 'none', padding: '3px 0',
-    fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500,
-    color: 'var(--muted)', cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
-  };
-
   const showMetrics = energyConfig.metricShow && (smart || energyMode === 'high');
+  const activeDateLabel = new Date().toLocaleDateString(ta ? 'ta-IN' : 'en-IN', { weekday: 'long', day: 'numeric', month: 'short' });
+
+  if (!userName) {
+    return (
+      <div className="animate-fade-in view-transition" style={{ opacity: 0.5, pointerEvents: 'none', filter: 'blur(4px)' }}>
+        <div className="hero mobile-hero-v6">
+          <h1 className="title v6">{ta ? 'வரவேற்பு' : 'Welcome'}</h1>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ fontFamily: 'var(--font-body)', paddingBottom: 8 }}>
-
-      {/* ── Offline ─────────────────────────────────────────── */}
-      {isOffline && (
-        <div style={{
-          background: 'rgba(245,158,11,0.07)', borderBottom: '1px solid rgba(245,158,11,0.12)',
-          padding: '8px 14px', display: 'flex', alignItems: 'center', gap: 8
-        }}>
-          <span style={{ fontSize: 12 }}>📵</span>
-          <span style={{ fontSize: 12, fontWeight: 600, color: '#F59E0B' }}>
-            {ta ? 'Offline — AI features இல்லை' : 'Offline — tasks still work'}
-          </span>
-        </div>
-      )}
-
-      {/* ── HEADER ──────────────────────────────────────────── */}
-      <div style={{ padding: '14px 14px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
-          <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600, marginBottom: 3 }}>
-            {new Date().toLocaleDateString(ta ? 'ta-IN' : 'en-IN', { weekday: 'long', day: 'numeric', month: 'short' })}
+    <div className="animate-fade-in view-transition">
+      {/* ── HEADER ────────────────────────────────────────────────── */}
+      <div className="dashboard-header-v2">
+        <div className="header-main-stack">
+          <span className="header-greeting">{ta ? 'இன்றைய கவனம்' : "Today's Focus"}</span>
+          <div className="header-sub-text">
+            <LiveClock /> <span>•</span> {doneCount}/{totalCount} {ta ? 'முடிந்தது' : 'Done'}
           </div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.1px' }}>
-            {screenState === 'empty' && energyConfig.emptyMsg}
-            {screenState === 'complete' && (ta ? '✓ முடிந்தது' : '✓ All done')}
-            {screenState === 'paused' && (ta ? '⏸ நிறுத்தப்பட்டது' : '⏸ Paused')}
-            {screenState === 'in-progress' && (ta ? `${doneCount}/${totalCount} — focused` : `${doneCount} of ${totalCount} — focused`)}
-            {screenState === 'ready' && (ta ? `${doneCount}/${totalCount} முடிந்தது` : `${doneCount} of ${totalCount} done`)}
-          </div>
-          {microcopy && (
-            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3, fontWeight: 500, fontStyle: 'italic' }}>
-              {microcopy}
-            </div>
-          )}
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
-          {totalCount > 0 && (
-            <div style={{
-              fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 800, lineHeight: 1,
-              color: pct >= 70 ? '#22C55E' : pct >= 40 ? 'var(--accent)' : 'var(--muted)'
-            }}>
-              {pct}%
-            </div>
-          )}
-          {/* FIX 2: 'AI on/off' — immediately clear what it does */}
-          <button onClick={toggleMode}
-            style={{
-              fontSize: 9, fontWeight: 700,
-              color: smart ? 'var(--accent)' : 'var(--muted)',
-              background: smart ? 'rgba(87,155,252,0.08)' : 'var(--chip)',
-              border: `1px solid ${smart ? 'rgba(87,155,252,0.2)' : 'var(--card-border)'}`,
-              borderRadius: 12, padding: '4px 9px', cursor: 'pointer',
-              fontFamily: 'var(--font-body)', letterSpacing: '0.3px',
-              WebkitTapHighlightColor: 'transparent'
-            }}>
-            {smart ? '✦ AI on' : '○ AI off'}
-          </button>
+        
+        <div className="header-stat-capsule">
+          <div className="capsule-value">{pct}%</div>
+          <div className="capsule-label">{ta ? 'முடிவு' : 'DONE'}</div>
         </div>
       </div>
 
-      {totalCount > 0 && (
-        <div style={{ height: 2, background: 'var(--card-border)', margin: '0 14px 12px', borderRadius: 999, overflow: 'hidden' }}>
-          <div style={{
-            height: '100%', width: `${pct}%`, borderRadius: 999, transition: 'width 0.8s ease',
-            background: pct >= 70 ? '#22C55E' : 'var(--accent)'
-          }} />
-        </div>
-      )}
-
-      {/* ── FIX 3: Energy mode picker — shown only when not set ─ */}
-      {/* FIX 1: Energy picker — minimal chips, non-blocking, optional */}
-      {!energyMode && totalCount > 0 && screenState === 'ready' && (
-        <div style={{ margin: '0 14px 10px', display: 'flex', alignItems: 'center', gap: 7 }}>
-          <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 500, flexShrink: 0, opacity: 0.8 }}>
-            {ta ? 'இன்று:' : 'Today:'}
-          </span>
-          {['low', 'high'].map(m => (
-            <button key={m} onClick={() => setEnergy(m)}
-              style={{
-                ...GHOST, fontSize: 11, color: 'var(--muted)', padding: '3px 9px',
-                border: '1px solid var(--card-border)', borderRadius: 20
-              }}>
-              {m === 'low' ? '😴' : '⚡'} {m === 'low' ? (ta ? 'Low' : 'Low') : (ta ? 'High' : 'High')}
-            </button>
-          ))}
-          <button onClick={() => setEnergy('normal')} style={{ marginLeft: 'auto', ...GHOST, fontSize: 10, opacity: 0.5 }}>✕</button>
-        </div>
-      )}
-      {energyMode === 'low' && (
-        <div style={{
-          margin: '0 14px 10px', padding: '9px 13px', background: 'rgba(99,102,241,0.05)',
-          border: '1px solid rgba(99,102,241,0.1)', borderRadius: 10
+      {/* ── QUICK ACTIONS ─────────────────────────────────────────── */}
+      <div className="quick-actions-grid-v6" style={{ margin: '0 14px 16px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+        <button className="v6-action-btn focus" onClick={() => onStartFocus?.()} style={{ 
+          background: 'var(--chip)', border: '1px solid var(--card-border)', borderRadius: '18px', padding: '16px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' 
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 500 }}>
-              😴 {ta ? 'Low energy — 3 tasks today' : 'Low energy — 3 tasks today'}
-            </span>
-            {/* FIX 5: undo energy mode change */}
-            <button onClick={() => { const prev = energyMode; setEnergy('normal'); pushUndo('energy', { prev }, ta ? 'Energy mode changed' : 'Energy mode changed'); }}
-              style={{ ...GHOST, fontSize: 10 }}>{ta ? 'மாற்று' : 'Change'}</button>
-          </div>
-          {/* FIX 4: Stagnation nudge after 3+ consecutive low days */}
-          {intel.lowStreak?.count >= 3 && (
-            <div style={{ marginTop: 6, fontSize: 11, color: 'var(--muted)', fontStyle: 'italic', lineHeight: 1.4 }}>
-              {ta
-                ? `${intel.lowStreak.count} நாட்களாக low energy. ஒரு small task try பண்ணலாமா?`
-                : `${intel.lowStreak.count} low-energy days. Even one small task helps.`}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── FIX 6: Overload — supportive framing, not alarming ── */}
-      {isOverloaded && !focusTop3 && (
-        <div style={{
-          margin: '0 14px 11px', ...card, padding: '11px 14px',
-          borderLeft: '3px solid var(--accent)'
+          <span style={{ fontSize: '1.2rem' }}>🎯</span>
+          <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text)' }}>{ta ? 'கவனம்' : 'Focus'}</span>
+        </button>
+        <button className="v6-action-btn new" onClick={() => onAddTask?.()} style={{ 
+          background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '18px', padding: '16px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
         }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', marginBottom: 3 }}>
-            {ta ? `${allPending.length} tasks — ${intel.avgCapacity}/day உங்கள் usual`
-              : `${allPending.length} tasks — your usual pace is about ${intel.avgCapacity}/day`}
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 9, fontWeight: 500 }}>
-            {ta ? 'Top 3-ல் focus பண்ணலாம், அல்லது எல்லாம் வைக்கலாம்.'
-              : 'Focus on top 3, or keep everything — your call.'}
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={() => { setFocusTop3(true); pushUndo('focus3', {}, ta ? 'Top 3 mode' : 'Focus mode on'); }}
-              style={BS({ flex: 1, justifyContent: 'center', fontSize: 12 })}>
-              {ta ? 'Top 3 மட்டும்' : 'Focus on 3'}
-            </button>
-            <button onClick={() => { }} style={{ ...GHOST, flex: 1, textAlign: 'center' }}>
-              {ta ? 'எல்லாம் வேண்டும்' : 'Keep all'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {focusTop3 && (
-        <div style={{
-          margin: '0 14px 11px', padding: '8px 13px',
-          background: 'rgba(34,197,94,0.04)', border: '1px solid rgba(34,197,94,0.1)',
-          borderRadius: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+          <span style={{ fontSize: '1.2rem' }}>＋</span>
+          <span style={{ fontSize: '0.75rem', fontWeight: 800 }}>{ta ? 'சேர்' : 'New Task'}</span>
+        </button>
+        <button className="v6-action-btn plan" onClick={() => !isOffline && onAutoSchedule?.()} style={{ 
+          background: 'var(--chip)', border: '1px solid var(--card-border)', borderRadius: '18px', padding: '16px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', opacity: isOffline ? 0.5 : 1
         }}>
-          <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 500 }}>
-            {ta ? 'Top 3 tasks — focused mode' : 'Showing top 3 — focused mode'}
-          </span>
-          <button onClick={() => setFocusTop3(false)} style={{ ...GHOST, fontSize: 10 }}>
-            {ta ? 'எல்லாம் பார்' : 'Show all'}
-          </button>
+          <span style={{ fontSize: '1.2rem' }}>🤖</span>
+          <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text)' }}>{ta ? 'திட்டம்' : 'AI Plan'}</span>
+        </button>
+      </div>
+
+      {/* ── OPTIMIZE CTA ─────────────────────────────────────────── */}
+      <div style={{ margin: '0 14px 20px' }}>
+        <button 
+          onClick={() => !isOffline && onPlanDay?.()} 
+          className="optimize-btn-v6"
+          style={{ 
+            width: '100%', 
+            padding: '14px', 
+            borderRadius: '16px', 
+            background: 'linear-gradient(135deg, #a855f7, #6366f1)', 
+            color: '#fff', 
+            border: 'none', 
+            fontWeight: 800, 
+            fontSize: '0.95rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            boxShadow: '0 8px 24px rgba(139, 92, 246, 0.25)'
+          }}
+        >
+          ✨ {ta ? 'அட்டவணையைச் சீராக்கு' : 'Optimize Schedule'}
+        </button>
+      </div>
+
+      {/* ── AI COACH ─────────────────────────────────────────────── */}
+      <div className="section-container-v2">
+        <h2 className="section-title-v2">
+          <span>🤖</span> AI Coach
+        </h2>
+        
+        <div className="ai-briefing-grid-v2">
+          <div className="ai-card-v2">
+            <div className="ai-card-label">{ta ? 'நிலை' : 'LIVE MODE'}</div>
+            <div className="ai-card-value live">
+               <div className="pulse-dot-v2" /> On
+            </div>
+          </div>
+
+          <div className="ai-card-v2">
+            <div className="ai-card-label">{ta ? 'கவனம்' : 'FOCUS'}</div>
+            <div className="ai-card-value">
+              {nextTask ? `${ta ? 'தயார்' : 'Prep'} "${nextTask.text.substring(0, 15)}..."` : (ta ? 'தீர்வு இல்லை' : 'No tasks')}
+            </div>
+          </div>
+
+          <div className="ai-card-v2">
+            <div className="ai-card-label">{ta ? 'அபாயம்' : 'RISK'}</div>
+            <div className="ai-card-value" style={{ color: isOverloaded ? 'var(--error)' : 'var(--text)' }}>
+              {isOverloaded ? (ta ? 'அதிகம்' : 'High') : (ta ? 'குறைவு' : 'Low')}
+            </div>
+          </div>
+
+          <div className="ai-card-v2">
+            <div className="ai-card-label">{ta ? 'ஆலோசனை' : 'SUGGESTION'}</div>
+            <div className="ai-card-value">
+              {nextReason ? (nextReason.length > 20 ? nextReason.substring(0, 18) + '..' : nextReason) : (ta ? 'வேகம்' : 'Momentum')}
+            </div>
+          </div>
         </div>
-      )}
+      </div>
 
-      {/* ══ MAIN CARD ════════════════════════════════════════════ */}
-      <div style={{ margin: '0 14px 12px' }}>
+      {/* ── PRODUCTIVITY METRICS ──────────────────────────────────── */}
+      <div className="section-container-v2">
+        <div className="section-header-row-v2">
+          <h2 className="section-title-v2">
+            <span>📊</span> {ta ? 'உற்பத்தித்திறன்' : "Productivity"}
+          </h2>
+          <span className="section-date-label">{activeDateLabel}</span>
+        </div>
 
-        {/* EMPTY */}
-        {screenState === 'empty' && (
-          <div style={{ ...card, padding: '18px 16px' }}>
-            <div style={{ fontSize: 13, color: 'var(--muted)', fontWeight: 500, marginBottom: 14, lineHeight: 1.55 }}>
-              {energyConfig.emptyMsg}
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              <button onClick={() => onAddTask?.()} style={BP({ fontSize: 13, padding: '12px 8px' })}>
-                ＋ {ta ? 'சேர்' : 'Add Task'}
-              </button>
-              <button onClick={() => !isOffline && onAutoSchedule?.()}
-                style={BP({
-                  background: 'var(--card)', color: isOffline ? 'var(--muted)' : 'var(--text)',
-                  border: '1px solid var(--card-border)', fontSize: 13, padding: '12px 8px',
-                  opacity: isOffline ? 0.4 : 1, cursor: isOffline ? 'not-allowed' : 'pointer'
-                })}>
-                🤖 {ta ? 'AI திட்டம்' : 'AI Plan'}{isOffline ? ' ✕' : ''}
-              </button>
-            </div>
+        <div className="productivity-grid-v2">
+          <div className="stat-card-v2 success">
+            <div className="stat-value">{doneCount}/{totalCount}</div>
+            <div className="stat-label">{ta ? 'முடிந்தவை' : 'TASKS DONE'}</div>
           </div>
-        )}
-
-        {/* IN-PROGRESS */}
-        {screenState === 'in-progress' && (
-          <div style={{ ...card, padding: '14px 16px', borderLeft: '3px solid #22C55E' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-              <div style={{
-                width: 6, height: 6, borderRadius: '50%', background: '#22C55E', flexShrink: 0,
-                opacity: pulse ? 1 : 0.4, transition: 'opacity 0.6s ease'
-              }} />
-              <div style={{ fontSize: 10, fontWeight: 800, color: '#22C55E', letterSpacing: '1.2px', textTransform: 'uppercase' }}>
-                {ta ? 'நடக்கிறது' : 'IN PROGRESS'}
-              </div>
-              {remainingLabel && (
-                <div style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 700, color: 'var(--text)', ...chip, padding: '3px 10px' }}>
-                  {remainingLabel}
-                </div>
-              )}
-            </div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 12, lineHeight: 1.3 }}>
-              {liveCurrentGoal?.text}
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 8 }}>
-              <button onClick={() => setActiveView('tasks')} style={BP({ background: '#22C55E', fontSize: 14 })}>
-                ✓ {ta ? 'முடிந்தது — தொடர்' : 'Done — next'}
-              </button>
-              <button onClick={handlePause} style={BS({ justifyContent: 'center' })}>
-                ⏸ {ta ? 'Pause' : 'Pause'}
-              </button>
-            </div>
+          <div className="stat-card-v2 primary">
+            <div className="stat-value">{Math.round(streakDays)}</div>
+            <div className="stat-label">{ta ? 'தொடர் நாள்' : 'DAY STREAK'}</div>
           </div>
-        )}
+        </div>
+      </div>
 
-        {/* PAUSED — FIX 3: time-aware, softened */}
-        {screenState === 'paused' && (
-          <div style={{
-            ...card, padding: '14px 16px',
-            borderLeft: `3px solid ${pauseContext?.urgency ? '#EF4444' : '#F59E0B'}`
+      {/* ── NEXT UP AREA ─────────────────────────────────────────── */}
+      {nextTask && (
+        <div style={{ margin: '0 14px 20px' }}>
+          <div className="card next-up-card-v6" style={{ 
+            padding: '20px', 
+            borderRadius: '24px', 
+            background: 'var(--card)', 
+            border: '2px solid var(--accent)',
+            boxShadow: '0 12px 32px rgba(59, 130, 246, 0.15)',
+            position: 'relative',
+            overflow: 'hidden'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <div style={{
-                fontSize: 10, fontWeight: 800, letterSpacing: '1.2px', textTransform: 'uppercase',
-                color: pauseContext?.urgency ? '#EF4444' : '#F59E0B'
-              }}>
-                ⏸ {ta ? 'PAUSE' : 'PAUSED'}
-              </div>
-              {pauseContext && (
-                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', ...chip, padding: '3px 9px' }}>
-                  {pauseContext.label}
-                </div>
-              )}
-            </div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 6, lineHeight: 1.3 }}>
-              {nextTask?.text || liveCurrentGoal?.text}
-            </div>
-            {/* FIX 6: urgency softened — informative not alarming */}
-            {pauseContext?.urgency && (
-              <div style={{ fontSize: 11, color: '#F59E0B', fontWeight: 600, marginBottom: 9 }}>
-                {pauseContext.urgency}
-              </div>
-            )}
-            {!pauseContext?.urgency && remainingLabel && (
-              <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 500, marginBottom: 9 }}>
-                {ta ? `${remainingLabel} மீதம்` : `${remainingLabel} remaining`}
-              </div>
-            )}
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 8 }}>
-              <button onClick={handleResume}
-                style={BP({ background: pauseContext?.urgency ? '#F59E0B' : 'var(--accent)', fontSize: 14 })}>
-                ▶ {ta ? 'தொடர்' : 'Resume'}
-              </button>
-              <button onClick={() => { handleResume(); setActiveView('tasks'); }} style={BS({ justifyContent: 'center' })}>
-                {ta ? 'Tasks' : 'Tasks'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* READY — FIX 1 transparent reason + FIX 6 soft skip */}
-        {screenState === 'ready' && nextTask && (
-          <div style={{
-            ...card, padding: '14px 16px',
-            borderLeft: nextIsOverdue ? '3px solid #EF4444' : '1px solid var(--card-border)'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-              <div style={{
-                fontSize: 10, fontWeight: 800, letterSpacing: '1.2px', textTransform: 'uppercase',
-                color: nextIsOverdue ? '#EF4444' : 'var(--accent)'
-              }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+              <div className="ai-briefing-label" style={{ color: 'var(--accent)', margin: 0 }}>
                 {nextIsOverdue ? (ta ? 'தாமதம்' : 'OVERDUE') : (ta ? 'அடுத்தது' : 'NEXT UP')}
               </div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', ...chip, padding: '3px 9px' }}>
-                {doneCount + 1} / {totalCount}
-              </div>
+              <LiveCountdown endTime={nextTask.endTime} />
             </div>
-
-            {/* FIX 1: System explanation — only in smart mode, only when meaningful */}
-            {nextReason && (
-              <div style={{
-                fontSize: 10, color: 'var(--muted)', fontStyle: 'italic',
-                fontWeight: 500, marginBottom: 6, lineHeight: 1.4
-              }}>
-                {nextReason}
-              </div>
-            )}
-
-            {nextTask.startTime && (
-              <div style={{
-                fontSize: 11, fontWeight: 600, marginBottom: 4,
-                color: nextIsOverdue ? '#EF4444' : 'var(--muted)'
-              }}>
-                {nextTask.startTime}{nextTask.endTime ? ` – ${nextTask.endTime}` : ''}
-              </div>
-            )}
-
-            <div style={{
-              fontSize: 17, fontWeight: 700, color: 'var(--text)', marginBottom: 14,
-              lineHeight: 1.3, letterSpacing: '-0.2px'
-            }}>
+            
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--text)', marginBottom: '8px', lineHeight: 1.2 }}>
               {nextTask.text}
+            </h3>
+            <p style={{ fontSize: '0.9rem', color: 'var(--muted)', fontWeight: 600, marginBottom: '20px' }}>
+              {nextTask.startTime} {nextTask.endTime ? ` — ${nextTask.endTime}` : ''}
+            </p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <button 
+                onClick={() => { setActiveView('tasks'); onStartFocus?.(); }}
+                style={{ 
+                  background: 'var(--accent)', 
+                  color: '#fff', 
+                  border: 'none', 
+                  padding: '14px', 
+                  borderRadius: '14px', 
+                  fontWeight: 800,
+                  fontSize: '0.9rem'
+                }}
+              >
+                ▶ {ta ? 'தொடங்கு' : 'Start Focus'}
+              </button>
+              <button 
+                onClick={handleSkip}
+                style={{ 
+                  background: 'var(--chip)', 
+                  color: 'var(--text)', 
+                  border: '1px solid var(--card-border)', 
+                  padding: '14px', 
+                  borderRadius: '14px', 
+                  fontWeight: 800,
+                  fontSize: '0.9rem'
+                }}
+              >
+                {ta ? 'தவிர்' : 'Skip →'}
+              </button>
             </div>
 
-            <button onClick={() => { setActiveView('tasks'); onStartFocus?.(); }}
-              style={BP({
-                background: nextIsOverdue ? '#EF4444' : 'var(--accent)', marginBottom: 10,
-                fontSize: 15
-              })}>
-              ▶ {energyConfig.ctaLabel}
-            </button>
-
-            {/* FIX 6: Skip — no consequence pressure, just next task preview */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-              <div style={{ display: 'flex', gap: 20 }}>
-                <button onClick={handleSkip} style={GHOST}>{ta ? 'छोड़ें →' : 'Skip →'}</button>
-                <button onClick={() => setActiveView('tasks')} style={GHOST}>{ta ? 'வேற task' : 'Pick another'}</button>
-              </div>
-              {skipConsequence && (
-                <div style={{ fontSize: 10, color: 'var(--muted)', fontStyle: 'italic', textAlign: 'center' }}>
-                  {skipConsequence}
-                </div>
-              )}
+            {/* Background Decor */}
+            <div style={{ position: 'absolute', bottom: '-20px', right: '-10px', fontSize: '6rem', opacity: 0.03, transform: 'rotate(-15deg)', pointerEvents: 'none' }}>
+              🎯
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* COMPLETE */}
-        {screenState === 'complete' && completionSummary && (
-          <div style={{ ...card, padding: '18px 16px' }}>
-            <div style={{ textAlign: 'center', marginBottom: 14 }}>
-              <div style={{ fontSize: 26, marginBottom: 8 }}>🎯</div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 3 }}>
-                {ta ? `${completionSummary.count} tasks` : `${completionSummary.count} tasks done`}
-                {completionSummary.effort && (
-                  <span style={{ fontWeight: 500, color: 'var(--muted)', fontSize: 13 }}>{' · '}{completionSummary.effort}</span>
-                )}
-              </div>
-              {streakDays >= 2 && (
-                <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 2 }}>
-                  🔥 {ta ? `${streakDays} நாள்` : `${streakDays} days`}
-                </div>
-              )}
-              {microcopy && (
-                <div style={{ fontSize: 11, color: 'var(--muted)', fontStyle: 'italic', marginTop: 4 }}>
-                  {microcopy}
-                </div>
-              )}
-            </div>
-            <button onClick={() => !isOffline && onAutoSchedule?.()}
-              style={BP({ fontSize: 14, opacity: isOffline ? 0.5 : 1 })}>
-              {ta ? 'நாளை திட்டமிடு' : 'Plan Tomorrow'}
-            </button>
-          </div>
-        )}
+      {/* ── FOOTER ────────────────────────────────────────────────── */}
+      <div style={{ padding: '20px 14px 40px', textAlign: 'center' }}>
+        <p style={{ fontSize: '0.7rem', color: 'var(--muted)', fontWeight: 600, opacity: 0.5, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+          Life OS · AI Productivity System
+        </p>
       </div>
 
-      {/* ── TASK PREVIEW ──────────────────────────────────────── */}
-      {preview.length > 0 && screenState !== 'complete' && screenState !== 'empty' && (
-        <div style={{ margin: '0 14px 12px' }}>
-          <div style={{ ...card, overflow: 'hidden' }}>
-            {preview.map(g => {
-              const urg = g.startTime ? (timeToMinutes(g.startTime) - nowMinsNow < 0 ? 'overdue' : timeToMinutes(g.startTime) - nowMinsNow <= 30 ? 'soon' : null) : null;
-              const isActive = g.id === liveCurrentGoal?.id;
-              return (
-                <div key={g.id} style={{
-                  display: 'flex', alignItems: 'center', gap: 12,
-                  padding: '11px 14px', borderBottom: '1px solid var(--card-border)',
-                  background: isActive ? 'rgba(34,197,94,0.04)' : 'transparent'
-                }}>
-                  <div style={{
-                    width: 5, height: 5, borderRadius: '50%', flexShrink: 0,
-                    background: urg === 'overdue' ? '#EF4444' : urg === 'soon' ? '#F59E0B' : 'var(--muted)',
-                    opacity: urg ? 1 : 0.4
-                  }} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{
-                      fontSize: 13, fontWeight: 600, color: 'var(--text)',
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
-                    }}>{g.text}</div>
-                    <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 2 }}>
-                      {g.startTime ? `${g.startTime}${g.endTime ? ` – ${g.endTime}` : ''}` : ''}
-                    </div>
-                  </div>
-                  {urg === 'overdue' && <div style={{ fontSize: 9, fontWeight: 800, color: '#EF4444', flexShrink: 0 }}>LATE</div>}
-                  {urg === 'soon' && <div style={{ fontSize: 9, fontWeight: 800, color: '#F59E0B', flexShrink: 0 }}>SOON</div>}
-                </div>
-              );
-            })}
-            <button onClick={() => setActiveView('tasks')}
-              style={{
-                width: '100%', padding: '11px 14px', background: 'var(--chip)', border: 'none',
-                color: 'var(--accent)', fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', justifyContent: 'space-between'
-              }}>
-              <span style={{ color: 'var(--muted)', fontSize: 12 }}>{pending.length} {ta ? 'மீதம்' : 'remaining'}</span>
-              <span>{ta ? 'View all →' : 'View all →'}</span>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ── SECONDARY ACTIONS ─────────────────────────────────── */}
-      {screenState !== 'empty' && screenState !== 'complete' && (
-        <div style={{ margin: '0 14px 12px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-          <button onClick={() => onAddTask?.()} style={BS()}>
-            ＋ {ta ? 'Task சேர்' : 'Add Task'}
-          </button>
-          <button onClick={() => !isOffline && onPlanDay?.()}
-            style={BS({ opacity: isOffline ? 0.4 : 1, cursor: isOffline ? 'not-allowed' : 'pointer' })}>
-            🤖 {ta ? 'AI திட்டம்' : 'AI Schedule'}
-          </button>
-        </div>
-      )}
-
-      {/* ── FIX 4: Weekly insight — surfaced passively, dismissible */}
-      {smart && weeklyInsight && (() => {
-        // FIX 6: mark seen for this week
-        const wk = (() => { const d = new Date(), j = new Date(d.getFullYear(), 0, 1); return `${d.getFullYear()}-W${Math.ceil(((d - j) / 86400000 + j.getDay() + 1) / 7)}`; })();
-        const sm = localStore.get(KEYS.insightShown) || {};
-        if (!sm[wk]) localStore.set(KEYS.insightShown, { ...sm, [wk]: true });
-        return true;
-      })() && (
-          <div style={{
-            margin: '0 14px 12px', ...card, padding: '12px 14px',
-            borderLeft: `3px solid ${weeklyInsight.tone === 'positive' ? '#22C55E' : 'var(--accent)'}`
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', flex: 1, lineHeight: 1.3 }}>
-                {weeklyInsight.title}
-              </div>
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--muted)', lineHeight: 1.45, marginBottom: weeklyInsight.action ? 8 : 0 }}>
-              {weeklyInsight.body}
-            </div>
-            {weeklyInsight.action && (
-              <button onClick={weeklyInsight.action.tap}
-                style={{
-                  padding: '6px 12px', background: 'var(--chip)', border: '1px solid var(--card-border)',
-                  borderRadius: 7, fontSize: 11, fontWeight: 700, color: 'var(--accent)',
-                  cursor: 'pointer', fontFamily: 'var(--font-body)', marginTop: 4
-                }}>
-                {weeklyInsight.action.label}
-              </button>
-            )}
-          </div>
-        )}
-
-      {/* ── FIX 5: METRICS — hidden in low energy + simple mode ── */}
-      {showMetrics && totalCount >= 0 && (
-        <div style={{ margin: '0 14px 8px', display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
-          {[
-            {
-              v: `${metrics.rate}%`, l: ta ? 'வார முடிவு' : 'Week rate',
-              c: metrics.rateColor, tap: () => setActiveView('analytics'), action: metrics.rateAction,
-            },
-            {
-              v: metrics.avgPerDay || '—', l: ta ? 'நாள் சராசரி' : 'Avg / day',
-              c: 'var(--text)', tap: () => setActiveView('analytics'), action: null,
-            },
-            {
-              v: metrics.overdue > 0 ? `${metrics.overdue}` : '—',
-              l: ta ? 'தாமதம்' : 'Overdue', c: metrics.overdueColor,
-              tap: metrics.overdue > 0 ? () => setActiveView('tasks') : undefined,
-              action: metrics.overdueAction,
-            },
-          ].map((s, i) => (
-            <div key={i} style={{ ...card, padding: '10px 6px', textAlign: 'center', background: 'var(--card)', border: '1px solid var(--card-border)' }}>
-              <div style={{ fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 800, color: s.c, lineHeight: 1 }}>
-                {s.v}
-              </div>
-              <div style={{
-                fontSize: 9, color: 'var(--muted)', fontWeight: 700, marginTop: 4,
-                textTransform: 'uppercase', letterSpacing: '0.4px'
-              }}>{s.l}</div>
-              {s.action ? (
-                <button onClick={s.action.tap}
-                  style={{
-                    marginTop: 5, padding: '3px 8px', background: 'rgba(99,102,241,0.08)',
-                    color: 'var(--accent)', border: 'none', borderRadius: 6, fontSize: 9,
-                    fontWeight: 800, cursor: 'pointer', fontFamily: 'var(--font-body)'
-                  }}>
-                  {s.action.label}
-                </button>
-              ) : s.tap ? (
-                <button onClick={s.tap}
-                  style={{
-                    marginTop: 5, padding: '3px 8px', background: 'transparent', color: 'var(--muted)',
-                    border: 'none', fontSize: 9, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-body)'
-                  }}>
-                  {ta ? 'பார்' : 'View →'}
-                </button>
-              ) : null}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* FIX 1: Transparency footer — only in smart mode, only when learning */}
-      {/* FIX 3: Transparency — one plain sentence, no numbers or jargon */}
-      {smart && intel.dataAge >= 10 && (
-        <div style={{
-          margin: '0 14px 10px', padding: '7px 11px',
-          borderRadius: 9, border: '1px solid var(--card-border)',
-          display: 'flex', alignItems: 'center', gap: 8
-        }}>
-          <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#22C55E', flexShrink: 0, opacity: 0.6 }} />
-          <div style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 500 }}>
-            {ta
-              ? (intel.peakHour !== null ? `${intel.peakHour}:00 உங்கள் most productive hour.` : 'உங்கள் patterns கற்றுக்கொள்கிறது.')
-              : (intel.peakHour !== null ? `${intel.peakHour}:00 is your most productive hour.` : 'Still learning your patterns.')}
-          </div>
-          {isOffline && <div style={{ marginLeft: 'auto', fontSize: 9, color: 'var(--muted)', fontWeight: 600 }}>Local</div>}
-        </div>
-      )}
-      {/* FIX 7: Undo toast — 5s, any major action */}
-      {undoVisible && undoStack.length > 0 && (
-        <div style={{
-          position: 'fixed', bottom: 'calc(80px + var(--safe-bottom,0px))',
-          left: '50%', transform: 'translateX(-50%)',
-          background: 'var(--card)', border: '1px solid var(--card-border)',
-          borderRadius: 20, padding: '8px 14px 8px 16px',
-          display: 'flex', alignItems: 'center', gap: 10,
-          boxShadow: '0 4px 20px rgba(0,0,0,0.3)', zIndex: 999,
-          fontFamily: 'var(--font-body)', whiteSpace: 'nowrap'
-        }}>
-          <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 500 }}>
-            {undoStack[undoStack.length - 1]?.label}
-          </span>
-          <button onClick={popUndo}
-            style={{
-              fontSize: 12, fontWeight: 700, color: 'var(--accent)',
-              background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-body)'
-            }}>
-            Undo
-          </button>
-        </div>
-      )}
-
-      {/* FIX 8: Product identity — quiet, only on empty/complete */}
-      {(screenState === 'empty' || screenState === 'complete') && (
-        <div style={{ padding: '2px 14px 10px', textAlign: 'center' }}>
-          <span style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 500, opacity: 0.45, letterSpacing: '0.5px' }}>
-            Task Planner · AI productivity system
-          </span>
-        </div>
-      )}
+      {/* ── VIEW SPECIFIC STYLES ──────────────────────────────────── */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        .dashboard-header-v2 {
+          padding: calc(24px + var(--safe-top)) 20px 20px !important;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 20px;
+        }
+        .header-main-stack {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+        .header-greeting {
+          font-size: 1.8rem !important;
+          font-weight: 900 !important;
+          letter-spacing: -0.04em !important;
+          color: var(--text);
+          display: block;
+        }
+        .header-sub-text {
+          font-size: 0.85rem !important;
+          font-weight: 700 !important;
+          color: var(--muted);
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .header-stat-capsule {
+          background: var(--chip);
+          padding: 8px 16px;
+          border-radius: 20px;
+          border: 1px solid var(--card-border);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          min-width: 80px;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        .capsule-value {
+          font-size: 1.25rem;
+          font-weight: 900;
+          color: var(--text);
+          line-height: 1;
+        }
+        .capsule-label {
+          font-size: 0.6rem;
+          font-weight: 900;
+          color: var(--muted);
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          margin-top: 2px;
+        }
+        .section-container-v2 {
+          margin: 0 16px 28px;
+        }
+        .section-title-v2 {
+          font-size: 0.95rem;
+          font-weight: 800;
+          color: var(--text);
+          margin-bottom: 12px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding-left: 4px;
+        }
+        .ai-briefing-grid-v2 {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 12px;
+        }
+        .ai-card-v2 {
+          background: var(--chip);
+          border: 1px solid var(--card-border);
+          border-radius: 20px;
+          padding: 16px;
+          transition: 0.2s;
+        }
+        .ai-card-label {
+          font-size: 0.6rem;
+          font-weight: 900;
+          color: var(--muted);
+          text-transform: uppercase;
+          letter-spacing: 0.1em;
+          margin-bottom: 6px;
+        }
+        .ai-card-value {
+          font-size: 0.85rem;
+          font-weight: 700;
+          color: var(--text);
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .ai-card-value.live { color: var(--success); }
+        .pulse-dot-v2 {
+          width: 6px; height: 6px;
+          background: var(--success);
+          border-radius: 50%;
+          animation: pulse-dot 2s infinite ease-in-out;
+        }
+        
+        .section-header-row-v2 {
+          display: flex;
+          justify-content: space-between;
+          align-items: baseline;
+          margin-bottom: 14px;
+          padding: 0 4px;
+        }
+        .section-date-label {
+          font-size: 0.7rem;
+          color: var(--muted);
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+        .productivity-grid-v2 {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 16px;
+        }
+        .stat-card-v2 {
+          border-radius: 24px;
+          padding: 24px 16px;
+          text-align: center;
+          border: 1px solid var(--card-border);
+        }
+        .stat-card-v2.success {
+          background: linear-gradient(145deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.02));
+          border-color: rgba(16, 185, 129, 0.2);
+        }
+        .stat-card-v2.primary {
+          background: linear-gradient(145deg, rgba(99, 102, 241, 0.1), rgba(99, 102, 241, 0.02));
+          border-color: rgba(99, 102, 241, 0.2);
+        }
+        .stat-value {
+          font-size: 2.2rem;
+          font-weight: 900;
+          line-height: 1;
+          margin-bottom: 8px;
+          letter-spacing: -0.02em;
+        }
+        .stat-card-v2.success .stat-value { color: var(--success); }
+        .stat-card-v2.primary .stat-value { color: var(--accent); }
+        .stat-label {
+          font-size: 0.6rem;
+          font-weight: 900;
+          color: var(--muted);
+          text-transform: uppercase;
+          letter-spacing: 0.1em;
+        }
+        
+        @keyframes pulse-dot {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.4; transform: scale(0.8); }
+        }
+        .v6-action-btn:active, .ai-card-v2:active {
+          transform: scale(0.96);
+          transition: transform 0.1s ease;
+        }
+      `}} />
     </div>
   );
 }

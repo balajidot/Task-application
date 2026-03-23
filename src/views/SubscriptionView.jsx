@@ -1,8 +1,6 @@
-// SubscriptionView.jsx — Premium Paywall Screen
-// ✅ Full Razorpay integration with monthly + yearly plans
-
 import React, { useState, useEffect } from 'react';
 import { getApiUrl } from '../utils/apiConfig';
+import { useApp } from '../context/AppContext';
 
 const FEATURES_FREE = [
   { icon: '✅', text: 'Task management & tracking'      },
@@ -27,7 +25,8 @@ const FEATURES_PREMIUM = [
   { icon: '🔔', text: 'Smart daily notifications'        },
 ];
 
-export default function SubscriptionView({ userName = 'User', appLanguage = 'en', onSubscribed }) {
+export default function SubscriptionView({ onSubscribed }) {
+  const { userName = 'User', appLanguage = 'en' } = useApp();
   const [plan, setPlan]           = useState('monthly');
   const [loading, setLoading]     = useState(false);
   const [status, setStatus]       = useState(null); // 'success' | 'error' | null

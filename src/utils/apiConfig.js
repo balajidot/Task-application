@@ -5,7 +5,8 @@
  * Detects if the app is running in a native environment (Capacitor).
  */
 const isCapacitor = () =>
-  typeof window !== "undefined" && window.Capacitor !== undefined;
+  typeof window !== "undefined" && 
+  (window.Capacitor !== undefined || window.location.host.includes('localhost'));
 
 /**
  * Returns the base URL for API calls.

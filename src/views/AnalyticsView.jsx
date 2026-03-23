@@ -1,9 +1,11 @@
-import React, { Suspense } from 'react';
+import React, { useState, Suspense } from 'react';
 import ProductivityAnalytics from '../components/ProductivityAnalytics';
+import { useApp } from '../context/AppContext';
 
-export default function AnalyticsView({ setShowPomodoro, setShowImportExport, setActiveView, goals, weekly, aiWeeklyAnalysis, onCreateNextWeekPlan, copy, appLanguage = 'en', userName = 'User' }) {
-  const [deepAnalysis, setDeepAnalysis] = React.useState('');
-  const [analysisLoading, setAnalysisLoading] = React.useState(false);
+export default function AnalyticsView() {
+  const { setShowPomodoro, setShowImportExport, setActiveView, goals, weekly, aiWeeklyAnalysis, onCreateNextWeekPlan, copy, appLanguage, userName } = useApp();
+  const [deepAnalysis, setDeepAnalysis] = useState('');
+  const [analysisLoading, setAnalysisLoading] = useState(false);
 
   const fetchDeepAnalysis = async () => {
     setAnalysisLoading(true);

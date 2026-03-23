@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useApp } from '../context/AppContext';
 import { getAssistantResponse } from '../utils/aiAssistant';
 import { triggerHaptic } from '../hooks/useMobileFeatures';
 import { getApiUrl } from '../utils/apiConfig';
 
-export default function ChatAssistantView({ appLanguage, goals, habits, career, journalEntries, onExecuteAction }) {
+export default function ChatAssistantView() {
+  const { appLanguage, goals, habits, career, journalEntries, handleChatAction: onExecuteAction } = useApp();
   const [messages, setMessages] = useState(() => {
     const saved = localStorage.getItem('taskPlanner_chatMessages');
     if (saved) {

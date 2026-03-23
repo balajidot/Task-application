@@ -1,40 +1,71 @@
+# ============================================
+# LOGS
+# ============================================
 logs
 *.log
-build_error.log
-build_output.txt
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-lerna-debug.log*
 
+# ============================================
+# NODE
+# ============================================
 node_modules
+package-lock.json
+
+# ============================================
+# BUILD OUTPUT
+# ============================================
 dist
 dist-ssr
 dev-dist
 *.local
 
-# Editor folders
+# ============================================
+# API KEYS & ENV — Critical Security!
+# ============================================
+.env
+.env.local
+.env.development
+.env.production
+.env.*
+
+# ============================================
+# CAPACITOR / ANDROID
+# ============================================
+android/.gradle
+android/app/build
+android/build
+android/capacitor-cordova-android-plugins
+android/local.properties
+android/app/google-services.json
+android/app/release/
+*.keystore
+*.jks
+
+# ============================================
+# EDITOR
+# ============================================
 .vscode/*
 !.vscode/extensions.json
 .idea
-.DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
 
-# Capacitor / Android
-android/.gradle
-android/app/build
-android/build
-android/capacitor-cordova-android-plugins
+# ============================================
+# OS FILES
+# ============================================
+.DS_Store
+Thumbs.db
+Desktop.ini
 
-# Electron
-electron/dist
-
-# Project backups
+# ============================================
+# PROJECT BACKUPS
+# ============================================
 *backup*
 *old*
 _prev*
@@ -42,3 +73,4 @@ _backup*
 *_bak
 temp/
 tmp/
+*.zip

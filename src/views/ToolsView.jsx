@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { TOOLS_KEY } from '../utils/constants';
 import { readPersist, writePersist } from '../utils/helpers';
+import { useApp } from '../context/AppContext';
 
-export default function ToolsView({ onOpenPomodoro, appLanguage, copy }) {
+export default function ToolsView() {
+  const { onOpenPomodoro, appLanguage, copy } = useApp();
   const [quickNotes, setQuickNotes] = useState('');
   const [savedNotes, setSavedNotes] = useState([]);
   const [noteTitle, setNoteTitle] = useState('');
