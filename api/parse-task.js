@@ -30,7 +30,7 @@ export default async function handler(req, res) {
     { v: 'v1beta', n: 'gemini-1.5-flash-8b' }
   ];
 
-  let lastError = 'All models failed';
+  const errors = [];
   for (const model of models) {
     try {
       const apiUrl = `https://generativelanguage.googleapis.com/${model.v}/models/${model.n}:generateContent?key=${apiKey}`;
@@ -46,8 +46,9 @@ export default async function handler(req, res) {
 
       if (!response.ok) {
         const errorBody = await response.text();
-        console.error(`[DIAGNOSTIC] ${model.n} (${model.v}) failed with ${response.status}: ${errorBody}`);
-        lastError = `Model ${model.n} failed: ${response.status} ${errorBody}`;
+        const msg = `[${model.n} ${model.v}] ${response.status}: ${errorBody}`;
+        console.error(msg);
+        errors.push(msg);
         continue;
       }
 
@@ -57,11 +58,10 @@ export default async function handler(req, res) {
       const parsedTask = jsonMatch ? JSON.parse(jsonMatch[1].trim()) : null;
       if (parsedTask) return res.status(200).json({ parsedTask });
     } catch (e) {
-      console.error(`[DIAGNOSTIC] Fetch error for ${model.n}:`, e.message);
-      lastError = `Fetch error: ${e.message}`;
+      errors.push(`[${model.n}] Exception: ${e.message}`);
       continue;
     }
   }
 
-  return res.status(500).json({ error: 'AI Error', detail: lastError });
+  return res.status(500).json({ error: 'AI Error', details: errors });
 }
