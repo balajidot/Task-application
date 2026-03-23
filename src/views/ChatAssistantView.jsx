@@ -29,10 +29,12 @@ export default function ChatAssistantView() {
     }];
   });
 
-  const [input,    setInput]    = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  const scrollRef  = useRef(null);
-  const inputRef   = useRef(null);
+  const [input,    setInput]         = useState('');
+  const [isTyping, setIsTyping]       = useState(false);
+  // ✅ FIX: Persist conversation language (Tamil stays Tamil)
+  const [conversationLang, setConversationLang] = useState(appLanguage);
+  const scrollRef   = useRef(null);
+  const inputRef    = useRef(null);
   const messagesRef = useRef(null);
 
   // ✅ BUG #8 FIX: Save messages to localStorage
@@ -87,7 +89,7 @@ export default function ChatAssistantView() {
       const response = await fetch(getApiUrl('/api/chat'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMsg, appData, language: appLanguage }),
+        body: JSON.stringify({ message: userMsg, appData, language: appLanguage, conversationLang }),
         signal: AbortSignal.timeout(12000),
       });
 
@@ -115,6 +117,8 @@ export default function ChatAssistantView() {
             }
           });
         }
+        // ✅ FIX: Update conversation language from server response
+        if (data.detectedLang) setConversationLang(data.detectedLang);
         setMessages(prev => [...prev, {
           id: Date.now() + 1,
           text: data.response,

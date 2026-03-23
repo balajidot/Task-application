@@ -1,60 +1,36 @@
-// AI Coach — Groq (Primary) + Gemini (Fallback)
+// AI Coach — Full App Control + Tamil Persistence
 import { enforceRateLimit, getClientKey } from './_rateLimit.js';
 
-// ✅ Detect language from message
 function detectLanguage(message, defaultLang) {
+  if (/[\u0B80-\u0BFF]/.test(message)) return 'ta';
   const msg = (message || '').toLowerCase();
-  // Tamil request detection
-  if (
-    msg.includes('tamil') || msg.includes('தமிழ்') ||
-    msg.includes('tamil la') || msg.includes('tamil-la') ||
-    msg.includes('tamila') || msg.includes('pesu') ||
-    msg.includes('sollu') || msg.includes('சொல்லு') ||
-    /[\u0B80-\u0BFF]/.test(message) // Tamil unicode chars
-  ) return 'ta';
-  // English request
+  const tamilTriggers = ['tamil','tamila','tamil la','pesu','sollu','pesanum','solu','vanakkam','nandri','enna','epdi','panna','pannu','iruku','irukku','venum','vendum','seri','ok da','da ','di ','bro '];
+  if (tamilTriggers.some(t => msg.includes(t))) return 'ta';
   if (msg.includes('english') || msg.includes('speak english')) return 'en';
   return defaultLang;
 }
 
-function getLocalFallback(message, appData, language) {
-  const msg  = (message || '').toLowerCase();
-  const lang = language === 'ta';
+function getLocalFallback(message, appData, lang) {
+  const msg = (message || '').toLowerCase();
   const { goals = [], habits = [] } = appData || {};
-  const done    = goals.filter(g => g.done).length;
-  const total   = goals.length;
-  const pending = total - done;
+  const done = goals.filter(g => g.done).length;
+  const total = goals.length;
+  const isTa = lang === 'ta';
 
-  if (msg.includes('analysis') || msg.includes('analyze') || msg.includes('performance') || msg.includes('progress') || msg.includes('பகுப்பாய்வு') || msg.includes('munnetram') || msg.includes('munneram')) {
-    return lang
-      ? `📊 உங்கள் முன்னேற்றம்:\n\n✅ முடிந்தது: ${done}/${total} பணிகள்\n⏳ நிலுவை: ${pending} பணிகள்\n🔥 பழக்கங்கள்: ${habits.length}\n\nதொடர்ந்து உழைப்பீர்கள்! 💪`
-      : `📊 Your progress:\n\n✅ Done: ${done}/${total} tasks\n⏳ Pending: ${pending} tasks\n🔥 Active habits: ${habits.length}\n\nKeep pushing! 💪`;
+  if (msg.includes('progress') || msg.includes('analysis') || msg.includes('munnetram') || msg.includes('பகுப்பாய்வு')) {
+    return isTa
+      ? `📊 உங்கள் முன்னேற்றம்:\n✅ முடிந்தது: ${done}/${total}\n⏳ நிலுவை: ${total-done}\n🔥 பழக்கங்கள்: ${habits.length}\n\nதொடர்ந்து உழைப்பீர்கள்! 💪`
+      : `📊 Progress: ${done}/${total} done, ${total-done} pending, ${habits.length} habits. Keep going! 💪`;
   }
-  if (msg.includes('today') || msg.includes('plan') || msg.includes('schedule') || msg.includes('இன்று') || msg.includes('திட்டம்') || msg.includes('inru') || msg.includes('thittam')) {
-    const today     = new Date().toISOString().split('T')[0];
-    const todayList = goals.filter(g => g.date === today && !g.done).slice(0, 3);
-    const taskStr   = todayList.length > 0
-      ? todayList.map((t, i) => `${i+1}. ${t.text}${t.startTime ? ` (${t.startTime})` : ''}`).join('\n')
-      : (lang ? 'இன்று பணிகள் இல்லை' : 'No tasks for today');
-    return lang
-      ? `📅 இன்றைய பணிகள்:\n\n${taskStr}\n\nகவனம் செலுத்துங்கள்! 🎯`
-      : `📅 Today's tasks:\n\n${taskStr}\n\nStay focused! 🎯`;
+  if (msg.includes('today') || msg.includes('inru') || msg.includes('இன்று')) {
+    const today = new Date().toISOString().split('T')[0];
+    const list = goals.filter(g => g.date === today && !g.done).slice(0,3);
+    const str = list.length ? list.map((t,i) => `${i+1}. ${t.text}`).join('\n') : (isTa ? 'இன்று பணிகள் இல்லை' : 'No tasks today');
+    return isTa ? `📅 இன்றைய பணிகள்:\n${str}` : `📅 Today:\n${str}`;
   }
-  if (msg.includes('habit') || msg.includes('streak') || msg.includes('பழக்கம்') || msg.includes('pazham')) {
-    return lang
-      ? `🔥 உங்களிடம் ${habits.length} பழக்கங்கள் உள்ளன. தினமும் தொடர்ந்து செய்யுங்கள்!`
-      : `🔥 You have ${habits.length} active habits. Consistency is the key!`;
-  }
-  if (msg.includes('focus') || msg.includes('productiv') || msg.includes('கவனம்') || msg.includes('kavanam')) {
-    return lang
-      ? `🧠 கவனம் tips:\n\n1. Pomodoro: 25 min வேலை + 5 min ஓய்வு\n2. Phone notifications off பண்ணுங்கள்\n3. ஒரு நேரத்தில் ஒரு பணி\n4. குறிக்கோள் தெளிவாக வை`
-      : `🧠 Focus tips:\n\n1. Pomodoro: 25 min work + 5 min break\n2. Turn off notifications\n3. One task at a time\n4. Keep your goal visible`;
-  }
-  // Tamil greeting
-  if (lang) {
-    return `வணக்கம்! 👋 நான் உங்கள் AI Coach.\n\nஇவற்றை கேளுங்கள்:\n• "இன்றைய திட்டம்"\n• "என் முன்னேற்றம் என்ன?"\n• "கவனம் tips"\n• "பழக்கங்கள் எப்படி?"`;
-  }
-  return `👋 Hello! Try asking:\n• "Today's plan"\n• "Analyze my progress"\n• "Focus tips"\n• "How are my habits?"`;
+  return isTa
+    ? `வணக்கம்! 👋 நான் உங்கள் AI Coach.\n\n• "இன்றைய திட்டம்"\n• "task add pannu: [பணி பெயர்]"\n• "என் முன்னேற்றம்"\n• "habit add pannu"`
+    : `👋 Hello! I'm your AI Coach.\n\n• "Today's plan"\n• "Add task: [task name]"\n• "Analyze progress"\n• "Add habit"`;
 }
 
 export default async function handler(req, res) {
@@ -69,23 +45,61 @@ export default async function handler(req, res) {
   const rateLimit = enforceRateLimit(getClientKey(req));
   if (!rateLimit.allowed) return res.status(429).json({ error: 'Too many requests.' });
 
-  const { message, appData = {}, language = 'en' } = req.body || {};
+  const { message, appData = {}, language = 'en', conversationLang } = req.body || {};
 
-  // ✅ Auto-detect language from message
-  const detectedLang = detectLanguage(message, language);
-  const outputLang   = detectedLang === 'ta' ? 'Tamil' : 'English';
+  // ✅ FIX 1: Language persistence — use conversationLang if set
+  const detectedLang = conversationLang || detectLanguage(message, language);
+  const isTamil      = detectedLang === 'ta';
+  const { goals = [], habits = [] } = appData;
+  const today        = new Date().toISOString().split('T')[0];
+  const todayTasks   = goals.filter(g => g.date === today && !g.done).slice(0, 5).map(g => `- ${g.text}${g.startTime ? ` (${g.startTime})` : ''}`).join('\n') || (isTamil ? 'இன்று பணிகள் இல்லை' : 'No tasks today');
+
+  // ✅ FIX 2: Full system prompt with ALL actions
+  const systemPrompt = isTamil ? `
+நீங்கள் ஒரு Tamil AI Life Coach. எல்லா responses-உம் தமிழிலேயே மட்டும் பதில் சொல்லவும். ஒருபோதும் English-ல் மாறாதீர்கள்.
+
+User data:
+- Tasks: ${goals.length} total, ${goals.filter(g=>g.done).length} done, ${goals.length - goals.filter(g=>g.done).length} pending
+- Habits: ${habits.length} active
+- Today's tasks: ${todayTasks}
+
+முக்கியம்: Task add பண்ண, navigate பண்ண, settings மாத்த — எல்லாவற்றிற்கும் ACTIONS_JSON use பண்ணவும்.
+Response 100 words-க்கு உள்ளே வை. Emojis use பண்ணவும்.
+` : `
+You are a helpful English AI Life Coach. Always respond in English only.
+
+User data:
+- Tasks: ${goals.length} total, ${goals.filter(g=>g.done).length} done, ${goals.length - goals.filter(g=>g.done).length} pending
+- Habits: ${habits.length} active
+- Today's tasks: ${todayTasks}
+
+Use ACTIONS_JSON for all app control actions.
+Keep responses under 100 words. Use emojis.
+`;
+
+  const actionsGuide = `
+AVAILABLE ACTIONS (use when needed):
+
+1. Add tasks:
+<ACTIONS_JSON>[{"type":"ADD_TASKS","tasks":[{"text":"Task name","startTime":"09:00","endTime":"10:00","priority":"High","session":"Morning","date":"${today}"}]}]</ACTIONS_JSON>
+
+2. Navigate to a view:
+<ACTIONS_JSON>[{"type":"SET_VIEW","value":"tasks"}]</ACTIONS_JSON>
+Views: tasks, planner, analytics, settings, habits, goals, chat
+
+3. Switch theme:
+<ACTIONS_JSON>[{"type":"SET_THEME","value":"dark"}]</ACTIONS_JSON>
+
+4. Switch language:
+<ACTIONS_JSON>[{"type":"SET_LANGUAGE","value":"ta"}]</ACTIONS_JSON>
+`;
+
+  const userPrompt = isTamil
+    ? `பயனர் சொல்கிறார்: "${message}"\n\nதமிழிலேயே பதில் சொல்லவும்.\n${actionsGuide}`
+    : `User says: "${message}"\n\nRespond in English.\n${actionsGuide}`;
 
   const groqKey   = process.env.GROQ_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY;
-  const { goals = [], habits = [] } = appData;
-
-  const systemPrompt = detectedLang === 'ta'
-    ? `நீங்கள் ஒரு தமிழ் AI Productivity Coach. எல்லா responses-உம் தமிழிலேயே பதில் சொல்லவும். Romanized Tamil-ஐயும் புரிந்துகொள்ளவும். பயனர் stats: ${goals.length} tasks (${goals.filter(g=>g.done).length} done), ${habits.length} habits. 80 words-க்கு உள்ளே பதில் சொல்லவும். Emojis use பண்ணவும்.`
-    : `You are a helpful AI Productivity Coach. Always respond in English. User stats: ${goals.length} tasks (${goals.filter(g=>g.done).length} done), ${habits.length} habits. Keep responses under 80 words. Use emojis.`;
-
-  const userPrompt = detectedLang === 'ta'
-    ? `பயனர் சொல்கிறார்: "${message}"\n\nதமிழில் பதில் சொல்லவும்.\n\nTask சேர்க்க: <ACTIONS_JSON>[{"type":"ADD_TASKS","tasks":[{"text":"...","startTime":"HH:MM","endTime":"HH:MM","priority":"High/Medium/Low","session":"Morning","date":"YYYY-MM-DD"}]}]</ACTIONS_JSON>`
-    : `User says: "${message}"\n\nRespond in English.\n\nTo add tasks: <ACTIONS_JSON>[{"type":"ADD_TASKS","tasks":[{"text":"...","startTime":"HH:MM","endTime":"HH:MM","priority":"High/Medium/Low","session":"Morning","date":"YYYY-MM-DD"}]}]</ACTIONS_JSON>`;
 
   // ─── Groq Primary ────────────────────────────────────────────────────────
   if (groqKey) {
@@ -97,28 +111,29 @@ export default async function handler(req, res) {
           'Authorization': `Bearer ${groqKey}`,
         },
         body: JSON.stringify({
-          model: 'llama-3.1-8b-instant',
+          model: 'llama-3.3-70b-versatile',
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user',   content: userPrompt   },
           ],
-          max_tokens: 300,
+          max_tokens: 400,
           temperature: 0.7,
         }),
-        signal: AbortSignal.timeout(8000),
+        signal: AbortSignal.timeout(10000),
       });
-
       const data = await r.json();
       if (r.ok) {
         const aiText = data?.choices?.[0]?.message?.content || '';
-        let actions  = [];
+        let actions = [];
         const m = aiText.match(/<ACTIONS_JSON>([\s\S]*?)<\/ACTIONS_JSON>/);
-        if (m) { try { actions = JSON.parse(m[1].trim()); } catch {} }
-        return res.status(200).json({
-          response: aiText.replace(/<ACTIONS_JSON>[\s\S]*?<\/ACTIONS_JSON>/, '').trim(),
-          actions,
-          lang: detectedLang,
-        });
+        if (m) {
+          try {
+            const parsed = JSON.parse(m[1].trim());
+            actions = Array.isArray(parsed) ? parsed : [parsed];
+          } catch {}
+        }
+        const clean = aiText.replace(/<ACTIONS_JSON>[\s\S]*?<\/ACTIONS_JSON>/g, '').trim();
+        return res.status(200).json({ response: clean, actions, detectedLang });
       }
     } catch {}
   }
@@ -147,14 +162,16 @@ export default async function handler(req, res) {
         const data = await r.json();
         if (r.ok) {
           const aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-          let actions  = [];
+          let actions = [];
           const m = aiText.match(/<ACTIONS_JSON>([\s\S]*?)<\/ACTIONS_JSON>/);
-          if (m) { try { actions = JSON.parse(m[1].trim()); } catch {} }
-          return res.status(200).json({
-            response: aiText.replace(/<ACTIONS_JSON>[\s\S]*?<\/ACTIONS_JSON>/, '').trim(),
-            actions,
-            lang: detectedLang,
-          });
+          if (m) {
+            try {
+              const parsed = JSON.parse(m[1].trim());
+              actions = Array.isArray(parsed) ? parsed : [parsed];
+            } catch {}
+          }
+          const clean = aiText.replace(/<ACTIONS_JSON>[\s\S]*?<\/ACTIONS_JSON>/g, '').trim();
+          return res.status(200).json({ response: clean, actions, detectedLang });
         }
         if ([403, 404, 429].includes(r.status)) continue;
         break;
@@ -166,6 +183,6 @@ export default async function handler(req, res) {
   return res.status(200).json({
     response: getLocalFallback(message, appData, detectedLang),
     actions: [],
-    lang: detectedLang,
+    detectedLang,
   });
 }
