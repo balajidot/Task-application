@@ -80,9 +80,11 @@ function LoadingScreen() {
 }
 
 // ─── Onboarding Modal ─────────────────────────────────────────────────────────
-// ✅ FIX: Extracted from App — no more inline styles
 function OnboardingModal() {
   const app = useApp();
+  // ✅ BUG #1 FIX: Don't show until prefs are loaded
+  // Prevents welcome screen flashing on every app launch
+  if (!app.loaded) return null;
   if (!app.showNameSetup && app.userName) return null;
 
   return (
@@ -185,44 +187,153 @@ function ConfirmDialog() {
 function TaskFormModal() {
   const app = useApp();
   if (!app.showForm) return null;
+
+  const priorities = ['High', 'Medium', 'Low'];
+  const sessions   = ['Morning', 'Afternoon', 'Evening', 'Night'];
+  const repeats    = ['None', 'Daily', 'Weekdays', 'Weekly'];
+
   return (
     <div className="overlay" onClick={() => app.setShowForm(false)}>
-      <div
-        className="modal task-form-modal"
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="m-title">
-          {app.editingGoal ? app.copy.taskForm.editTask : app.copy.taskForm.newTask}
+      <div className="modal task-form-modal" onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div className="task-form-header">
+          <div className="m-title">
+            {app.editingGoal
+              ? (app.appLanguage === 'ta' ? '✏️ பணி திருத்து' : '✏️ Edit Task')
+              : (app.appLanguage === 'ta' ? '➕ புதிய பணி' : '➕ New Task')}
+          </div>
+          <button className="task-form-close" onClick={() => app.setShowForm(false)}>✕</button>
         </div>
-        <textarea
-          className="fi task-box"
-          placeholder={app.copy.taskForm.taskPlaceholder}
-          value={app.form.text}
-          onChange={e => app.setForm({ ...app.form, text: e.target.value })}
-          autoFocus
-        />
-        <div className="task-form-time-grid">
+
+        {/* Task Text */}
+        <div className="fg">
+          <label className="fl">
+            {app.appLanguage === 'ta' ? 'பணி விவரம்' : 'Task'}
+          </label>
+          <textarea
+            className="fi task-box"
+            placeholder={app.copy.taskForm?.taskPlaceholder || 'What do you need to do?'}
+            value={app.form.text}
+            onChange={e => app.setForm({ ...app.form, text: e.target.value })}
+            autoFocus
+            rows={3}
+          />
+        </div>
+
+        {/* Time Row */}
+        <div className="fg">
+          <label className="fl">
+            {app.appLanguage === 'ta' ? 'நேரம்' : 'Time'}
+          </label>
+          <div className="task-form-time-grid">
+            <div className="task-form-time-item">
+              <span className="task-form-time-label">
+                {app.appLanguage === 'ta' ? 'தொடக்கம்' : 'Start'}
+              </span>
+              <input
+                type="time"
+                className="fi"
+                value={app.form.startTime}
+                onChange={e => app.setForm({ ...app.form, startTime: e.target.value })}
+              />
+            </div>
+            <div className="task-form-time-item">
+              <span className="task-form-time-label">
+                {app.appLanguage === 'ta' ? 'முடிவு' : 'End'}
+              </span>
+              <input
+                type="time"
+                className="fi"
+                value={app.form.endTime}
+                onChange={e => app.setForm({ ...app.form, endTime: e.target.value })}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Priority */}
+        <div className="fg">
+          <label className="fl">
+            {app.appLanguage === 'ta' ? 'முன்னுரிமை' : 'Priority'}
+          </label>
+          <div className="task-form-chips">
+            {priorities.map(p => (
+              <button
+                key={p}
+                className={`task-priority-chip priority-chip-${p.toLowerCase()} ${app.form.priority === p ? 'active' : ''}`}
+                onClick={() => app.setForm({ ...app.form, priority: p })}
+                type="button"
+              >
+                {p === 'High' ? '🔴' : p === 'Medium' ? '🟡' : '🟢'} {p}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Session */}
+        <div className="fg">
+          <label className="fl">
+            {app.appLanguage === 'ta' ? 'நேர பகுதி' : 'Session'}
+          </label>
+          <div className="task-form-chips">
+            {sessions.map(s => (
+              <button
+                key={s}
+                className={`task-session-chip ${app.form.session === s ? 'active' : ''}`}
+                onClick={() => app.setForm({ ...app.form, session: s })}
+                type="button"
+              >
+                {s === 'Morning' ? '🌅' : s === 'Afternoon' ? '☀️' : s === 'Evening' ? '🌆' : '🌙'} {s}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Reminder */}
+        <div className="fg">
+          <label className="fl">
+            {app.appLanguage === 'ta' ? 'நினைவூட்டல்' : 'Reminder'}
+          </label>
           <input
             type="time"
             className="fi"
-            value={app.form.startTime}
-            onChange={e => app.setForm({ ...app.form, startTime: e.target.value })}
-          />
-          <input
-            type="time"
-            className="fi"
-            value={app.form.endTime}
-            onChange={e => app.setForm({ ...app.form, endTime: e.target.value })}
+            value={app.form.reminder}
+            onChange={e => app.setForm({ ...app.form, reminder: e.target.value })}
           />
         </div>
+
+        {/* Repeat */}
+        <div className="fg">
+          <label className="fl">
+            {app.appLanguage === 'ta' ? 'மீண்டும்' : 'Repeat'}
+          </label>
+          <div className="task-form-chips">
+            {repeats.map(r => (
+              <button
+                key={r}
+                className={`task-session-chip ${app.form.repeat === r ? 'active' : ''}`}
+                onClick={() => app.setForm({ ...app.form, repeat: r })}
+                type="button"
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Actions */}
         <div className="task-form-actions">
           <button className="new-btn task-form-submit" onClick={app.submitForm}>
-            {app.copy.common.addTask}
+            {app.aiLoading ? '⏳ AI...' : (app.editingGoal
+              ? (app.appLanguage === 'ta' ? '💾 சேமி' : '💾 Save')
+              : (app.appLanguage === 'ta' ? '➕ சேர்' : '➕ Add Task'))}
           </button>
           <button className="hero-btn task-form-cancel" onClick={() => app.setShowForm(false)}>
-            {app.copy.common.cancel}
+            {app.appLanguage === 'ta' ? 'ரத்து' : 'Cancel'}
           </button>
         </div>
+
       </div>
     </div>
   );

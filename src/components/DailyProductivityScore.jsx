@@ -1,7 +1,8 @@
 import React from 'react';
 
-const DailyProductivityScore = ({ goals, todayKey }) => {
-  const todayTasks = goals.filter(g => g.date === todayKey);
+const DailyProductivityScore = ({ goals = [], todayKey }) => {
+  const safeGoals = Array.isArray(goals) ? goals : [];
+  const todayTasks = safeGoals.filter(g => g.date === todayKey);
   const completedToday = todayTasks.filter(g => g.done).length;
   const totalToday = todayTasks.length;
   const completionRate = totalToday > 0 ? Math.round((completedToday / totalToday) * 100) : 0;

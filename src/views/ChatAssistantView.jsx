@@ -1,139 +1,142 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
 import { getAssistantResponse } from '../utils/aiAssistant';
 import { triggerHaptic } from '../hooks/useMobileFeatures';
 import { getApiUrl } from '../utils/apiConfig';
 
 export default function ChatAssistantView() {
-  const { appLanguage, goals, habits, career, journalEntries, handleChatAction: onExecuteAction } = useApp();
+  const {
+    appLanguage, goals, habits, career, journalEntries,
+    handleChatAction: onExecuteAction,
+    showConfirm
+  } = useApp();
+
   const [messages, setMessages] = useState(() => {
-    const saved = localStorage.getItem('taskPlanner_chatMessages');
-    if (saved) {
-      try {
+    try {
+      const saved = localStorage.getItem('taskPlanner_chatMessages');
+      if (saved) {
         const parsed = JSON.parse(saved);
         return parsed.map(m => ({ ...m, time: new Date(m.time) }));
-      } catch (e) {
-        return [{ id: 1, text: appLanguage === 'ta' ? "வணக்கம்! நான் உங்கள் AI ஆலோசகர்..." : "Hello! I'm your AI Coach...", sender: 'ai', time: new Date() }];
       }
-    }
-    return [{ 
-      id: 1, 
-      text: appLanguage === 'ta' 
-        ? "வணக்கம்! நான் உங்கள் AI ஆலோசகர். உங்கள் புள்ளிவிவரங்களை நான் ஆராய்ந்துவிட்டேன். நான் உங்களுக்கு எப்படி உதவட்டும்?"
-        : "Hello! I'm your AI Coach. I've analyzed your data. How can I help you optimize your productivity?", 
-      sender: 'ai', 
-      time: new Date() 
+    } catch {}
+    return [{
+      id: 1,
+      text: appLanguage === 'ta'
+        ? 'வணக்கம்! நான் உங்கள் AI Coach. எப்படி உதவட்டும்?'
+        : "Hello! I'm your AI Coach. How can I help you today?",
+      sender: 'ai',
+      time: new Date()
     }];
   });
 
+  const [input,    setInput]    = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const scrollRef  = useRef(null);
+  const inputRef   = useRef(null);
+  const messagesRef = useRef(null);
+
+  // ✅ BUG #8 FIX: Save messages to localStorage
   useEffect(() => {
-    localStorage.setItem('taskPlanner_chatMessages', JSON.stringify(messages));
+    try {
+      localStorage.setItem('taskPlanner_chatMessages', JSON.stringify(messages));
+    } catch {}
   }, [messages]);
 
-  const [input, setInput] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  const scrollRef = useRef(null);
-
-  const appData = { goals, habits, career, journalEntries };
+  // ✅ BUG #8 FIX: Scroll to bottom without jump
+  const scrollToBottom = useCallback((instant = false) => {
+    setTimeout(() => {
+      scrollRef.current?.scrollIntoView({
+        behavior: instant ? 'auto' : 'smooth',
+        block: 'end'
+      });
+    }, instant ? 0 : 150);
+  }, []);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isTyping]);
-  
-  const scrollToBottom = () => {
-    setTimeout(() => {
-      scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, 100);
-  };
+  }, [messages, isTyping, scrollToBottom]);
 
-  // Keyboard height handling optimization: 
-  // We use absolute positioning but wrap everything in a container that reacts to the keyboard.
-  const [keyboardHeight, setKbHeight] = useState(0);
-
+  // ✅ BUG #8 FIX: Keyboard handling — no jump
+  // Use CSS + capacitor keyboard plugin instead of visualViewport hack
   useEffect(() => {
-    // ✅ FIX 6: Smooth keyboard handling — no jump
-    const handleResize = () => {
-      if (window.visualViewport) {
-        const newHeight = window.innerHeight - window.visualViewport.height;
-        // Only update if significant change (>50px) to avoid micro-jumps
-        setKbHeight(prev => {
-          if (Math.abs(newHeight - prev) > 50) return Math.max(0, newHeight);
-          return prev;
-        });
-        // Delay scroll to after keyboard animation completes
-        setTimeout(scrollToBottom, 300);
-      }
+    const handleFocus = () => {
+      // Small delay to let keyboard fully open
+      setTimeout(() => scrollToBottom(false), 400);
     };
-    window.visualViewport?.addEventListener('resize', handleResize);
-    window.visualViewport?.addEventListener('scroll', handleResize);
-    return () => {
-      window.visualViewport?.removeEventListener('resize', handleResize);
-      window.visualViewport?.removeEventListener('scroll', handleResize);
-    };
-  }, []);
+    inputRef.current?.addEventListener('focus', handleFocus);
+    return () => inputRef.current?.removeEventListener('focus', handleFocus);
+  }, [scrollToBottom]);
+
+  const appData = { goals, habits, career, journalEntries };
 
   const handleSend = async (text) => {
-    const userMsg = text || input;
-    if (!userMsg.trim()) return;
+    const userMsg = (text || input).trim();
+    if (!userMsg) return;
 
     triggerHaptic('light');
-    const newMessages = [...messages, { id: Date.now(), text: userMsg, sender: 'user', time: new Date() }];
+    const newMessages = [
+      ...messages,
+      { id: Date.now(), text: userMsg, sender: 'user', time: new Date() }
+    ];
     setMessages(newMessages);
     setInput('');
     setIsTyping(true);
+    scrollToBottom();
 
     try {
       const response = await fetch(getApiUrl('/api/chat'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: userMsg,
-          appData,
-          language: appLanguage
-        })
+        body: JSON.stringify({ message: userMsg, appData, language: appLanguage }),
+        signal: AbortSignal.timeout(12000),
       });
 
       const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.message || data.error || `Server Error ${response.status}`);
+      // ✅ API Key missing — friendly message
+      if (response.status === 500 && data.error === 'GEMINI_API_KEY is not set.') {
+        setMessages(prev => [...prev, {
+          id: Date.now() + 1,
+          text: appLanguage === 'ta'
+            ? '⚙️ AI இப்போது configure ஆகவில்லை. Admin-ஐ தொடர்பு கொள்ளவும்.'
+            : '⚙️ AI is not configured yet. Please set up the API key in Vercel.',
+          sender: 'ai', time: new Date()
+        }]);
+        return;
       }
-      
+
+      if (!response.ok) throw new Error(data.message || `Error ${response.status}`);
+
       if (data.response) {
-        // Immediate actions
-        if (data.actions && Array.isArray(data.actions)) {
-          // If it's a SET_LANGUAGE or SET_THEME, we execute immediately
-          // Note: REPLACE_TASKS and ADD_TASKS usually need the user to see the button or it happens via onExecuteAction
+        if (data.actions?.length) {
           data.actions.forEach(action => {
             if (['SET_LANGUAGE', 'SET_THEME', 'SET_VIEW'].includes(action.type)) {
-               onExecuteAction(action);
+              onExecuteAction(action);
             }
           });
         }
-
-        setMessages(prev => [...prev, { 
-          id: Date.now() + 1, 
-          text: data.response, 
-          sender: 'ai', 
+        setMessages(prev => [...prev, {
+          id: Date.now() + 1,
+          text: data.response,
+          sender: 'ai',
           time: new Date(),
-          actions: data.actions 
+          actions: data.actions
         }]);
       } else {
-        throw new Error(data.error || 'AI Failed');
+        throw new Error('No response from AI');
       }
     } catch (error) {
-      console.error('Gemini Error:', error);
-      
-      const errorMsg = appLanguage === 'ta' 
-        ? `⚠️ (பிழை: ${error.message}) ` 
-        : `⚠️ (Error: ${error.message}) `;
-        
-      const aiResponse = getAssistantResponse(userMsg, appData, appLanguage);
-      setMessages(prev => [...prev, { 
-        id: Date.now() + 1, 
-        text: errorMsg + aiResponse, 
-        sender: 'ai', 
-        time: new Date() 
+      // ✅ Timeout or network error — use local fallback
+      const isTimeout = error.name === 'TimeoutError' || error.name === 'AbortError';
+      const fallback  = getAssistantResponse(userMsg, appData, appLanguage);
+      setMessages(prev => [...prev, {
+        id: Date.now() + 1,
+        text: isTimeout
+          ? (appLanguage === 'ta'
+              ? '⏳ AI response தாமதமாகிறது. மீண்டும் try பண்ணவும்.\n\n' + fallback
+              : '⏳ AI is taking too long. Try again.\n\n' + fallback)
+          : fallback,
+        sender: 'ai', time: new Date()
       }]);
     } finally {
       setIsTyping(false);
@@ -147,154 +150,127 @@ export default function ChatAssistantView() {
     onExecuteAction(action);
   };
 
-  const quickActions = appLanguage === 'ta' 
-    ? [
-        { label: "📅 இன்றைய திட்டம் (Today's Plan)", val: "today schedule add pannu" },
-        { label: "🛑 முழு ஆய்வு (Full Analysis)", val: "full analyze my progress" },
-        { label: "🚀 கேரியர் (Career)", val: "career stats" },
-        { label: "🔥 பழக்கங்கள் (Habits)", val: "habit streaks" },
-        { label: "🧠 மனநிலை (Mindset)", val: "journal mood analysis" }
-      ]
-    : [
-        { label: "📅 Today's Plan", val: "setup a today's plan for me" },
-        { label: "📊 Full Performance Analysis", val: "give me a full performance analysis" },
-        { label: "🚀 Career Growth", val: "tell me about my career" },
-        { label: "🔥 Habit Streaks", val: "my habit progress" },
-        { label: "🧠 Mindset Insight", val: "analyze my mindset and mood" }
-      ];
-
+  // ✅ BUG #8 FIX: Use showConfirm instead of window.confirm
   const clearChat = () => {
-    if (window.confirm(appLanguage === 'ta' ? "உரையாடலை அழிக்கவா?" : "Clear history?")) {
-      setMessages([{ id: 1, text: appLanguage === 'ta' ? "வணக்கம்! நான் உங்கள் AI உதவியாளர்." : "Hello! I'm your AI Assistant.", sender: 'ai', time: new Date() }]);
-    }
+    showConfirm(
+      appLanguage === 'ta' ? 'உரையாடலை அழிக்கவா?' : 'Clear chat history?',
+      () => {
+        setMessages([{
+          id: 1,
+          text: appLanguage === 'ta'
+            ? 'வணக்கம்! மீண்டும் தொடங்கலாம்.'
+            : 'Hello! Let\'s start fresh.',
+          sender: 'ai',
+          time: new Date()
+        }]);
+        try { localStorage.removeItem('taskPlanner_chatMessages'); } catch {}
+      }
+    );
   };
 
+  const quickActions = appLanguage === 'ta'
+    ? [
+        { label: '📅 Today\'s Plan',         val: 'today schedule add pannu' },
+        { label: '📊 Full Analysis',          val: 'full analyze my progress' },
+        { label: '🔥 Habit Streaks',          val: 'habit streaks' },
+        { label: '🧠 Mindset',               val: 'journal mood analysis' },
+      ]
+    : [
+        { label: '📅 Today\'s Plan',          val: 'setup a today\'s plan for me' },
+        { label: '📊 Full Analysis',          val: 'give me a full performance analysis' },
+        { label: '🔥 Habit Streaks',          val: 'my habit progress' },
+        { label: '🧠 Mindset',               val: 'analyze my mindset and mood' },
+      ];
+
   return (
-    <div className="chat-view animate-fade-in" style={{ 
-      display: 'flex', 
-      flexDirection: 'column', 
-      height: '100%', 
-      width: '100%',
-      maxWidth: '600px', 
-      margin: '0 auto', 
-      background: 'var(--bg)',
-      position: 'relative',
-      overflow: 'hidden'
-    }}>
-      {/* Header - Fixed at top */}
-      <div style={{ 
-        padding: '16px', 
-        borderBottom: '1px solid var(--card-border)', 
-        background: 'var(--card)', 
-        borderRadius: '20px 20px 0 0', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'space-between',
-        flexShrink: 0
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(135deg, #10b981, #3b82f6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>🤖</div>
+    <div className="chat-view-wrapper">
+
+      {/* ── Header ── */}
+      <div className="chat-header">
+        <div className="chat-header-info">
+          <div className="chat-avatar">🤖</div>
           <div>
-            <div style={{ fontWeight: 900, fontSize: '1.1rem' }}>{appLanguage === 'ta' ? 'AI உதவியாளர்' : 'AI Assistant'}</div>
-            <div style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 700 }}>● Online Active</div>
+            <div className="chat-title">
+              {appLanguage === 'ta' ? 'AI Coach' : 'AI Coach'}
+            </div>
+            <div className="chat-status">● Online</div>
           </div>
         </div>
-        <button className="mini-btn" onClick={clearChat} style={{ opacity: 0.7 }}>🧹</button>
+        <button className="mini-btn" onClick={clearChat}>🧹</button>
       </div>
 
-      {/* Messages */}
-      <div style={{ 
-        flex: 1, 
-        overflowY: 'auto', 
-        padding: '16px', 
-        display: 'flex', 
-        flexDirection: 'column', 
-        gap: '12px',
-        WebkitOverflowScrolling: 'touch',
-        paddingBottom: '20px'
-      }} className="no-scrollbar">
+      {/* ── Messages ── */}
+      <div className="chat-messages no-scrollbar" ref={messagesRef}>
         {messages.map(m => (
-          <div key={m.id} style={{
-            alignSelf: m.sender === 'user' ? 'flex-end' : 'flex-start',
-            maxWidth: '85%',
-            padding: '12px 16px',
-            borderRadius: m.sender === 'user' ? '18px 18px 0 18px' : '18px 18px 18px 0',
-            background: m.sender === 'user' ? 'var(--accent)' : 'var(--chip)',
-            color: m.sender === 'user' ? '#fff' : 'var(--text)',
-            fontSize: '0.92rem',
-            fontWeight: 700,
-            lineHeight: 1.5,
-            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-            whiteSpace: 'pre-wrap'
-          }}>
+          <div
+            key={m.id}
+            className={`chat-bubble ${m.sender === 'user' ? 'chat-bubble-user' : 'chat-bubble-ai'}`}
+          >
             {m.text}
             {Array.isArray(m.actions) && m.actions.map((action, idx) => (
               (action.type === 'ADD_TASKS' || action.type === 'REPLACE_TASKS') && (
-                <div key={idx} style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-                  <button 
-                    className="new-btn" 
+                <div key={idx} className="chat-action-btn-wrap">
+                  <button
+                    className="new-btn chat-action-btn"
                     onClick={() => handleApplyAction(action)}
-                    style={{ width: '100%', padding: '8px', fontSize: '0.85rem', background: 'rgba(255,255,255,0.2)' }}
                   >
-                    ✨ {action.type === 'REPLACE_TASKS' ? (appLanguage === 'ta' ? 'அட்டவணையை மாற்றுக' : 'Replace Schedule') : (appLanguage === 'ta' ? 'பட்டியலில் சேர்' : 'Add to Board')}
+                    ✨ {action.type === 'REPLACE_TASKS'
+                      ? (appLanguage === 'ta' ? 'அட்டவணையை மாற்று' : 'Replace Schedule')
+                      : (appLanguage === 'ta' ? 'பட்டியலில் சேர்' : 'Add to Board')}
                   </button>
                 </div>
               )
             ))}
           </div>
         ))}
+
         {isTyping && (
-          <div style={{ alignSelf: 'flex-start', background: 'var(--chip)', padding: '10px 16px', borderRadius: '18px 18px 18px 0', display: 'flex', gap: '4px' }}>
+          <div className="chat-bubble chat-bubble-ai chat-typing">
             <div className="dot-typing" />
             <div className="dot-typing" />
             <div className="dot-typing" />
           </div>
         )}
-        <div ref={scrollRef} style={{ height: '1px' }} />
+
+        <div ref={scrollRef} className="chat-scroll-anchor" />
       </div>
 
-      {/* Bottom Area (Quick Actions + Input) */}
-      <div style={{ 
-        background: 'var(--card)', 
-        zIndex: 10,
-        boxShadow: '0 -4px 20px rgba(0,0,0,0.3)',
-        // IMPORTANT: We use internal keyboardHeight state which is from visualViewport for most accurate mobile placement
-        paddingBottom: `calc(${keyboardHeight}px + env(safe-area-inset-bottom, 10px))`,
-        flexShrink: 0,
-        transition: 'padding-bottom 0.15s ease-out'
-      }}>
+      {/* ── Bottom Bar ── */}
+      <div className="chat-bottom">
         {/* Quick Actions */}
-        <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', padding: '10px 16px', borderBottom: '1px solid var(--card-border)' }} className="no-scrollbar">
+        <div className="chat-quick-actions no-scrollbar">
           {quickActions.map((q, i) => (
-            <button key={i} className="filter-btn" onClick={() => handleSend(q.val)} style={{ whiteSpace: 'nowrap', borderRadius: '999px', padding: '8px 16px' }}>
+            <button
+              key={i}
+              className="filter-btn chat-quick-btn"
+              onClick={() => handleSend(q.val)}
+            >
               {q.label}
             </button>
           ))}
         </div>
 
-        {/* Input Bar */}
-        <div style={{ padding: '12px 16px', display: 'flex', gap: '10px' }}>
-          <input 
-            type="text" 
-            className="fi" 
-            placeholder={appLanguage === 'ta' ? "கேளுங்கள்..." : "Type your question..."}
+        {/* Input */}
+        <div className="chat-input-row">
+          <input
+            ref={inputRef}
+            type="text"
+            className="fi chat-input"
+            placeholder={appLanguage === 'ta' ? 'கேளுங்கள்...' : 'Type your question...'}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            style={{ flex: 1, borderRadius: '999px', padding: '12px 20px' }}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleSend()}
           />
-          <button className="new-btn" onClick={() => handleSend()} style={{ width: '48px', height: '48px', borderRadius: '50%', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <button
+            className="new-btn chat-send-btn"
+            onClick={() => handleSend()}
+            disabled={!input.trim()}
+          >
             ➔
           </button>
         </div>
       </div>
 
-      <style dangerouslySetInnerHTML={{__html: `
-        .dot-typing { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); animation: dot-blink 1.4s infinite both; }
-        .dot-typing:nth-child(2) { animation-delay: 0.2s; }
-        .dot-typing:nth-child(3) { animation-delay: 0.4s; }
-        @keyframes dot-blink { 0%, 80%, 100% { opacity: 0.2; } 40% { opacity: 1; } }
-      `}} />
     </div>
   );
 }

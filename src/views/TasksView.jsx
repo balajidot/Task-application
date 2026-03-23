@@ -14,90 +14,70 @@ export default function TasksView() {
     activeDate, setActiveDate, activeDateLabel, weekBase, setWeekBase,
     done, total, pct, nextUpcomingGoal, setForm, setEditingGoal, setShowForm,
     liveCurrentGoal, focusMode, setFocusMode,
-    showCelebration, setShowCelebration, liveHighlightEnabled, aiBriefing, copy, openAiPlanner, goals, dotsFor,
+    showCelebration, setShowCelebration, liveHighlightEnabled, aiBriefing, copy,
+    goals, dotsFor,
     priorityFilter, setPriorityFilter, timeFilter, setTimeFilter,
     searchTerm, setSearchTerm, searchRef,
     pendingGoals, completedGoals, visibleGoals,
-    selectedGoalIds, selectedSet, selectAllVisibleGoals, deleteSelectedGoals, clearSelectedGoals,
-    completedPulseId, celebratingGoalId, toggleDoneWithCelebration, removeGoal, toggleSelectGoal,
-    markAllPendingDone, duplicatePendingToTomorrow, reopenAllCompleted, overdueEnabled,
-    appLanguage, onOptimizeSchedule,
+    selectedGoalIds, selectedSet, selectAllVisibleGoals,
+    deleteSelectedGoals, clearSelectedGoals,
+    completedPulseId, celebratingGoalId, toggleDoneWithCelebration,
+    removeGoal, toggleSelectGoal,
+    markAllPendingDone, duplicatePendingToTomorrow, reopenAllCompleted,
+    overdueEnabled, appLanguage, onOptimizeSchedule,
     handleDecomposeTask, toggleSubtask
   } = app;
-  const [completedTasksCollapsed, setCompletedTasksCollapsed] = React.useState(false);
-  const [liveStripVisible, setLiveStripVisible] = React.useState(true);
-  const [stripSwipeX, setStripSwipeX] = React.useState(0);
-  const [actionTask, setActionTask] = React.useState(null);
-  const [modalPos, setModalPos] = React.useState({ x: 0, y: 0 });
 
-  const stripStartX = React.useRef(0);
+  const [completedCollapsed, setCompletedCollapsed] = React.useState(false);
+  const [liveStripVisible,   setLiveStripVisible]   = React.useState(true);
+  const [stripSwipeX,        setStripSwipeX]        = React.useState(0);
+  const [actionTask,         setActionTask]         = React.useState(null);
+
+  const stripStartX    = React.useRef(0);
   const longPressTimer = React.useRef(null);
-  const touchCoords = React.useRef({ x: 0, y: 0 });
 
+  // Seven-day calendar
   const sevenDays = React.useMemo(() => {
     const base = new Date(weekBase);
-    const day = base.getDay();
-    const monday = new Date(base);
-    monday.setDate(base.getDate() - (day === 0 ? 6 : day - 1));
-
-    return Array.from({ length: 7 }, (_, index) => {
-      const date = new Date(monday);
-      date.setDate(monday.getDate() + index);
-      return date;
+    const day  = base.getDay();
+    const mon  = new Date(base);
+    mon.setDate(base.getDate() - (day === 0 ? 6 : day - 1));
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(mon);
+      d.setDate(mon.getDate() + i);
+      return d;
     });
   }, [weekBase]);
 
-  React.useEffect(() => {
-    setLiveStripVisible(true);
-  }, [liveCurrentGoal?.id]);
+  React.useEffect(() => { setLiveStripVisible(true); }, [liveCurrentGoal?.id]);
 
-
-  const handleStripTouchStart = (event) => {
-    stripStartX.current = event.touches[0].clientX;
-  };
-
-  const handleStripTouchMove = (event) => {
-    setStripSwipeX(event.touches[0].clientX - stripStartX.current);
-  };
-
-  const handleStripTouchEnd = () => {
+  // Strip swipe
+  const handleStripTouchStart = (e) => { stripStartX.current = e.touches[0].clientX; };
+  const handleStripTouchMove  = (e) => { setStripSwipeX(e.touches[0].clientX - stripStartX.current); };
+  const handleStripTouchEnd   = () => {
     if (Math.abs(stripSwipeX) > 80) setLiveStripVisible(false);
     else setStripSwipeX(0);
   };
 
-  const startLongPress = (event, goal) => {
-    const touch = event.touches ? event.touches[0] : event;
-    const coords = { x: touch.clientX, y: touch.clientY };
-    touchCoords.current = coords;
-
+  // Long press
+  const startLongPress = (e, goal) => {
     longPressTimer.current = setTimeout(() => {
       if (window.navigator?.vibrate) window.navigator.vibrate(50);
       toggleSelectGoal(goal.id);
     }, 450);
   };
+  const clearLongPress = () => { if (longPressTimer.current) clearTimeout(longPressTimer.current); };
 
-  const clearLongPress = () => {
-    if (longPressTimer.current) clearTimeout(longPressTimer.current);
-  };
-
+  // Render single task item
   const renderTaskItem = (goal, idx, isCompleted) => (
     <div
       key={goal.id}
-      data-task-id={goal.id}
-      style={{
-        touchAction: 'pan-y',
-        userSelect: 'none',
-        WebkitUserSelect: 'none',
-        borderRadius: '24px',
-        transform: liveCurrentGoal?.id === goal.id ? 'scale(1.015)' : 'none',
-        transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
-        padding: '2px 0'
-      }}
-      onTouchStart={(e) => startLongPress(e, goal)}
+      className={`task-item-wrap${liveCurrentGoal?.id === goal.id ? ' task-item-live' : ''}`}
+      onTouchStart={e => startLongPress(e, goal)}
       onTouchMove={clearLongPress}
       onTouchEnd={clearLongPress}
       onTouchCancel={clearLongPress}
-      onMouseDown={(e) => startLongPress(e, goal)}
+      onMouseDown={e => startLongPress(e, goal)}
       onMouseMove={clearLongPress}
       onMouseUp={clearLongPress}
       onMouseLeave={clearLongPress}
@@ -116,463 +96,286 @@ export default function TasksView() {
         onEdit={() => {
           setEditingGoal(goal.id);
           setForm({
-            text: goal.text,
-            date: goal.date,
-            reminder: goal.reminder || '',
+            text:      goal.text,
+            date:      goal.date,
+            reminder:  goal.reminder  || '',
             startTime: goal.startTime || '',
-            endTime: goal.endTime || '',
-            repeat: goal.repeat || 'None',
-            session: goal.session || 'Morning',
-            priority: goal.priority || 'Medium',
+            endTime:   goal.endTime   || '',
+            repeat:    goal.repeat    || 'None',
+            session:   goal.session   || 'Morning',
+            priority:  goal.priority  || 'Medium',
           });
           setShowForm(true);
         }}
         onDelete={() => removeGoal(goal.id)}
         onToggleSelect={() => toggleSelectGoal(goal.id)}
-        onToggleSubtask={(subIdx) => toggleSubtask(goal.id, subIdx)}
+        onToggleSubtask={subIdx => toggleSubtask(goal.id, subIdx)}
       />
     </div>
   );
 
   return (
-    <div className="view-transition tasks-shell flex-stack-lg" style={{ animation: 'viewFadeIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) both', position: 'relative' }}>
-      {actionTask && (
-        <div className="overlay" onClick={() => setActionTask(null)} style={{ zIndex: 100000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)' }}>
-          <div className="modal" onClick={(event) => event.stopPropagation()} style={{ 
-            width: '90%', 
-            maxWidth: '340px', 
-            padding: '20px', 
-            textAlign: 'center', 
-            borderRadius: '24px',
-            background: 'var(--card-bg)',
-            border: '1px solid var(--card-border)',
-            boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
-            position: 'absolute',
-            left: `${Math.min(window.innerWidth - 350, Math.max(10, modalPos.x - 170))}px`,
-            top: `${Math.min(window.innerHeight - 400, Math.max(10, modalPos.y - 100))}px`,
-            animation: 'modalSlideUp 0.3s cubic-bezier(0.2, 1, 0.2, 1)'
-          }}>
-            <div style={{ fontSize: '1.2rem', fontWeight: 1000, marginBottom: '6px', color: 'var(--text)', letterSpacing: '-0.02em' }}>
-              {copy.tasksView.taskActions}
-            </div>
-            <div style={{ fontSize: '0.9rem', color: 'var(--muted)', marginBottom: '24px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              "{actionTask.text}"
-            </div>
+    <div className="view-transition tasks-shell">
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <button className="new-btn" style={{ background: 'var(--chip)', color: 'var(--text)', border: '1px solid var(--card-border)', boxShadow: 'none' }} onClick={() => {
-                setEditingGoal(actionTask.id);
-                setForm({
-                  text: actionTask.text,
-                  date: actionTask.date,
-                  reminder: actionTask.reminder,
-                  startTime: actionTask.startTime,
-                  endTime: actionTask.endTime,
-                  repeat: actionTask.repeat,
-                  session: actionTask.session,
-                  priority: actionTask.priority,
-                });
-                setShowForm(true);
-                setActionTask(null);
-              }}>
-                {copy.common.edit}
-              </button>
-
-              <button className="new-btn" style={{ background: 'var(--chip)', color: 'var(--text)', border: '1px solid var(--card-border)', boxShadow: 'none' }} onClick={() => {
-                toggleSelectGoal(actionTask.id);
-                setActionTask(null);
-              }}>
-                {selectedSet.has(actionTask.id) ? copy.tasksView.deselectTask : copy.tasksView.selectTask}
-              </button>
-
-              <button className="new-btn" style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.2)', boxShadow: 'none' }} onClick={() => {
-                handleDecomposeTask(actionTask.id);
-                setActionTask(null);
-              }}>
-                ✨ {appLanguage === 'ta' ? 'AI மூலம் பிரிக்கவும்' : 'Breakdown with AI'}
-              </button>
-
-              <button className="new-btn" style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', boxShadow: 'none' }} onClick={() => {
-                removeGoal(actionTask.id);
-                setActionTask(null);
-              }}>
-                {copy.common.delete}
-              </button>
-
-              <button className="new-btn" style={{ background: 'transparent', color: 'var(--muted)', marginTop: '4px', boxShadow: 'none' }} onClick={() => setActionTask(null)}>
-                {copy.common.cancel}
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* ── Celebration ── */}
+      {showCelebration && (
+        <TaskCompletionCelebration onComplete={() => setShowCelebration(false)} />
       )}
 
-      <div className="hero">
-        <div className="topbar">
-          <div>
-            <div className="title premium-title" style={{ transition: 'all 0.3s ease' }}>{activeDateLabel}</div>
-            <div className="tip" style={{ fontWeight: 700, opacity: 0.7 }}><LiveClock /> • {done} of {total} completed</div>
-          </div>
-          <div className="head-actions">
-            <button
-              className="hero-btn"
-              onClick={() => setFocusMode(true)}
-              style={{
-                background: liveCurrentGoal ? 'linear-gradient(135deg,#10b981,#059669)' : 'var(--chip)',
-                color: liveCurrentGoal ? '#fff' : 'var(--muted)',
-                border: liveCurrentGoal ? 'none' : '1px solid var(--card-border)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-              }}
-              title={liveCurrentGoal ? 'Enter Focus Mode for current task' : 'No active task right now'}
-            >
-              {copy.tasksView.focus}
-            </button>
-            <button className="new-btn" onClick={() => {
-              setForm({ text: '', date: activeDate, reminder: '', startTime: '', endTime: '', repeat: 'None', session: 'Morning', priority: 'Medium' });
-              setEditingGoal(null);
-              setShowForm(true);
-            }}>
-              {copy.tasksView.newTask}
-            </button>
-            <button className="hero-btn" onClick={openAiPlanner}>
-              {copy.tasksView.aiPlan}
-            </button>
-          </div>
-        </div>
-      </div>
-
-    <div className="card tasks-panel" style={{ marginTop: 8 }}>
-        <div style={{ padding: '0 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <button 
-            className="hero-btn" 
-            onClick={() => onOptimizeSchedule(visibleGoals)}
-            disabled={visibleGoals.length === 0}
-            style={{ 
-              background: 'linear-gradient(135deg, #a855f7, #6366f1)', 
-              color: 'white', 
-              border: 'none',
-              padding: '10px 16px',
-              fontSize: '0.82rem',
-              boxShadow: '0 4px 15px rgba(139, 92, 246, 0.3)',
-              flex: 1,
-              marginRight: '8px'
-            }}
-          >
-            ✨ {appLanguage === 'ta' ? 'அட்டவணைப்படுத்து' : 'Optimize Schedule'}
-          </button>
-        </div>
-
-        <div className="tasks-panel-head">
-          <div className="focus-title">{copy.tasksView.aiCoach}</div>
-          <div className="task-summary-chip">
-            <span>{copy.tasksView.liveMode}</span>
-            <strong>{liveHighlightEnabled ? copy.common.on : copy.common.off}</strong>
-          </div>
-        </div>
-        <div className="ai-briefing-grid-v6">
-          <div className="ai-briefing-card glass-card">
-            <div className="ai-briefing-label">Focus</div>
-            <div className="ai-briefing-text" style={{ fontSize: '0.82rem' }}>{aiBriefing.headline}</div>
-          </div>
-          <div className="ai-briefing-card glass-card">
-            <div className="ai-briefing-label">Risk</div>
-            <div className="ai-briefing-text" style={{ fontSize: '0.82rem', color: '#ef4444' }}>{aiBriefing.risk}</div>
-          </div>
-          <div className="ai-briefing-card glass-card">
-            <div className="ai-briefing-label">Suggestion</div>
-            <div className="ai-briefing-text" style={{ fontSize: '0.82rem' }}>{aiBriefing.suggestion}</div>
-          </div>
-          <div className="ai-briefing-card glass-card">
-            <div className="ai-briefing-label" style={{ color: 'var(--accent)' }}>Progress</div>
-            <div className="ai-briefing-text" style={{ fontSize: '1.2rem', fontWeight: 900, color: 'var(--text)', letterSpacing: '-0.03em' }}>
-              {pct}% <span style={{ fontSize: '0.7rem', fontWeight: 700, opacity: 0.6, color: 'var(--muted)' }}>DAY DONE</span>
-            </div>
-          </div>
-        </div>
-        {activeDate !== todayKey() && liveCurrentGoal && (
-          <button className="tool-btn" style={{ marginTop: 14 }} onClick={() => setActiveDate(todayKey())}>
-            {copy.tasksView.jumpToLive}
-          </button>
-        )}
-      </div>
-
-      {liveCurrentGoal && liveStripVisible && (
+      {/* ── Live Strip ── */}
+      {liveCurrentGoal && liveStripVisible && liveHighlightEnabled && (
         <div
           className="live-strip enhanced-live-strip"
-          style={{ transform: `translateX(${stripSwipeX}px)`, opacity: 1 - (Math.abs(stripSwipeX) / 150), transition: stripSwipeX === 0 ? 'transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.4s ease' : 'none', position: 'relative', touchAction: 'pan-y', marginTop: '4px' }}
+          style={{ transform: `translateX(${stripSwipeX}px)`, opacity: Math.max(0, 1 - Math.abs(stripSwipeX) / 200) }}
           onTouchStart={handleStripTouchStart}
           onTouchMove={handleStripTouchMove}
           onTouchEnd={handleStripTouchEnd}
         >
-          <button onClick={() => setLiveStripVisible(false)} style={{ position: 'absolute', top: '8px', right: '12px', background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: '16px', padding: '4px', cursor: 'pointer', zIndex: 10 }}>×</button>
-          <div>
-            <div className="tag">{copy.tasksView.currentTask}</div>
-            <div className="task">{liveCurrentGoal.text}</div>
-            {liveCurrentGoal.startTime && liveCurrentGoal.endTime && (
-              <TaskProgressIndicator
-                startTime={liveCurrentGoal.startTime}
-                endTime={liveCurrentGoal.endTime}
-                currentTime={new Date().toTimeString().slice(0, 5)}
-                variant="premium"
-                taskText={liveCurrentGoal.text}
-                timeText={`${liveCurrentGoal.startTime} - ${liveCurrentGoal.endTime || '--:--'}`}
-                upNextText={nextUpcomingGoal?.text || ''}
-                upNextTime={nextUpcomingGoal?.startTime || ''}
-                dayDone={done}
-                dayTotal={total}
-                dayPct={pct}
-              />
-            )}
+          <div className="live-task-main">
+            <div className="task-info">
+              <div className="tag">🔴 LIVE NOW</div>
+              <div className="task">{liveCurrentGoal.text}</div>
+              {liveCurrentGoal.session && (
+                <div className="session-badge">{liveCurrentGoal.session}</div>
+              )}
+            </div>
+            <div className="clock">
+              <LiveClock />
+              {liveCurrentGoal.endTime && (
+                <LiveCountdown endTime={liveCurrentGoal.endTime} />
+              )}
+            </div>
           </div>
-          <div className="clock"><LiveClock /></div>
-          <div className="countdown"><LiveCountdown endTime={liveCurrentGoal?.endTime} /></div>
+          {nextUpcomingGoal && (
+            <div className="up-next-banner">
+              <span className="up-next-icon">⏭</span>
+              <span className="up-next-label">Up next:</span>
+              <span className="up-next-text">
+                <span>{nextUpcomingGoal.startTime}</span> — {nextUpcomingGoal.text}
+              </span>
+            </div>
+          )}
         </div>
       )}
 
-      <TaskCompletionCelebration isActive={showCelebration} onComplete={() => setShowCelebration(false)} />
-      <DailyProductivityScore goals={goals} todayKey={todayKey()} />
+      {/* ── Progress ── */}
+      <TaskProgressIndicator done={done} total={total} pct={pct} />
 
-      <div className="card tasks-panel">
-        <div className="cal-header">
-          <div className="cal-month" style={{ transition: 'all 0.3s ease' }}>{new Date(weekBase).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}</div>
-          <div className="cal-actions">
-            <button className="cal-btn" onClick={() => { const nextWeek = new Date(weekBase); nextWeek.setDate(nextWeek.getDate() - 7); setWeekBase(nextWeek); }}>◀</button>
-            <button className="today-btn" onClick={() => { setWeekBase(new Date()); setActiveDate(todayKey()); }}>{copy.common.today}</button>
-            <button className="cal-btn" onClick={() => { const nextWeek = new Date(weekBase); nextWeek.setDate(nextWeek.getDate() + 7); setWeekBase(nextWeek); }}>▶</button>
-          </div>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', paddingBottom: '4px' }}>
-          {sevenDays.map((day) => {
-            const dots = dotsFor(toKey(day));
-            const isToday = toKey(day) === todayKey();
-            const isSelected = toKey(day) === activeDate;
-
-            return (
-              <div
-                key={day.toISOString()}
-                onClick={() => setActiveDate(toKey(day))}
-                style={{
-                  backgroundColor: isSelected ? 'var(--accent,#3b82f6)' : isToday ? 'rgba(59,130,246,0.1)' : 'var(--chip)',
-                  border: isSelected ? '2px solid var(--accent,#3b82f6)' : isToday ? '1.5px solid rgba(59,130,246,0.45)' : '1.5px solid var(--card-border)',
-                  borderRadius: '10px',
-                  padding: '7px 2px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '4px',
-                  transition: 'all 0.18s ease',
-                  minWidth: 0,
-                }}
-              >
-                <div style={{ fontSize: '9px', fontWeight: 900, letterSpacing: '0.03em', color: isSelected ? 'rgba(255,255,255,0.85)' : 'var(--muted)' }}>
-                  {DAY_NAMES[day.getDay()].substring(0, 3)}
-                </div>
-                <div style={{
-                  width: '26px',
-                  height: '26px',
-                  fontSize: '13px',
-                  fontWeight: isToday || isSelected ? 900 : 700,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: isToday && !isSelected ? '50%' : '6px',
-                  background: isToday && !isSelected ? '#3b82f6' : 'transparent',
-                  color: isSelected ? '#fff' : isToday ? '#fff' : 'var(--text)',
-                }}>
-                  {day.getDate()}
-                </div>
-                <div style={{ display: 'flex', gap: '2px', height: '5px', alignItems: 'center' }}>
-                  {dots.done > 0 && <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: isSelected ? 'rgba(255,255,255,0.8)' : '#10b981' }} />}
-                  {dots.pending > 0 && <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: isSelected ? 'rgba(255,255,255,0.6)' : '#f59e0b' }} />}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="card tasks-panel">
-        <div className="tasks-panel-head" style={{ marginBottom: '16px', flexDirection: 'column', alignItems: 'stretch', gap: '12px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div className="focus-title" style={{ margin: 0 }}>{copy.tasksView.todayTasks}</div>
-            <div className="task-summary-chip-v6" style={{ background: 'var(--chip)', padding: '6px 12px', borderRadius: '10px', display: 'flex', alignItems: 'baseline', gap: '6px', border: '1px solid var(--card-border)' }}>
-              <span style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{copy.tasksView.focusedToday}</span>
-              <strong style={{ fontSize: '1rem', color: 'var(--text)' }}>{total}</strong>
+      {/* ── AI Briefing ── */}
+      {aiBriefing && (
+        <div className="card tasks-briefing-card">
+          <div className="ai-briefing-grid">
+            <div className="ai-briefing-card">
+              <div className="ai-briefing-label">🧠 Focus</div>
+              <div className="ai-briefing-text">{aiBriefing.headline}</div>
+            </div>
+            <div className="ai-briefing-card">
+              <div className="ai-briefing-label">⚠️ Risk</div>
+              <div className="ai-briefing-text">{aiBriefing.risk}</div>
+            </div>
+            <div className="ai-briefing-card" style={{ gridColumn: '1 / -1' }}>
+              <div className="ai-briefing-label">💡 Suggestion</div>
+              <div className="ai-briefing-text">{aiBriefing.suggestion}</div>
             </div>
           </div>
-          
-          <div className="filters-scroll-v6" style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px', msOverflowStyle: 'none', scrollbarWidth: 'none' }}>
-            <button className={`filter-btn ${priorityFilter === 'All' ? 'active' : ''}`} onClick={() => setPriorityFilter('All')}>All</button>
-            {PRIORITY_OPTIONS.map((priority) => (
-              <button key={priority} className={`filter-btn ${priorityFilter === priority ? 'active' : ''}`} onClick={() => setPriorityFilter(priority)}>
-                {priority}
-              </button>
-            ))}
-            <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)', margin: '4px 4px' }} />
-            <button className={`filter-btn ${timeFilter === 'All Times' ? 'active' : ''}`} onClick={() => setTimeFilter('All Times')}>All Times</button>
-            {TIME_FILTER_OPTIONS.slice(1).map((filter) => (
-              <button key={filter} className={`filter-btn ${timeFilter === filter ? 'active' : ''}`} onClick={() => setTimeFilter(filter)}>
-                {filter}
-              </button>
-            ))}
+        </div>
+      )}
+
+      {/* ── Daily Productivity Score ── */}
+      <DailyProductivityScore
+        goals={goals || []}
+        todayKey={activeDate}
+      />
+
+      {/* ── Tasks Panel ── */}
+      <div className="card tasks-panel">
+
+        {/* Week Calendar */}
+        <div className="tasks-week-cal">
+          <div className="week-cal-header">
+            <button className="cal-btn" onClick={() => {
+              const d = new Date(weekBase); d.setDate(d.getDate() - 7); setWeekBase(d);
+            }}>‹</button>
+            <span className="cal-month">
+              {sevenDays[0] && new Date(sevenDays[0]).toLocaleDateString(
+                appLanguage === 'ta' ? 'ta-IN' : 'en-IN',
+                { month: 'short', year: 'numeric' }
+              )}
+            </span>
+            <button className="cal-btn" onClick={() => {
+              const d = new Date(weekBase); d.setDate(d.getDate() + 7); setWeekBase(d);
+            }}>›</button>
+            <button className="today-btn" onClick={() => {
+              setActiveDate(todayKey()); setWeekBase(new Date());
+            }}>Today</button>
           </div>
 
-          <div style={{ position: 'relative' }}>
-            <input 
-              ref={searchRef} 
-              type="text" 
-              className="search-input-v6" 
-              placeholder={copy.tasksView.searchPlaceholder} 
-              value={searchTerm} 
-              onChange={(event) => setSearchTerm(event.target.value)} 
-              style={{
-                width: '100%',
-                background: 'var(--chip)',
-                border: '1px solid var(--card-border)',
-                borderRadius: '12px',
-                padding: '12px 14px 12px 40px',
-                color: 'var(--text)',
-                fontSize: '0.9rem',
-                outline: 'none',
-                transition: 'border 0.2s'
-              }}
-            />
-            <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }}>🔍</span>
+          <div className="week-grid">
+            {sevenDays.map(date => {
+              const key     = toKey(date);
+              const isToday = key === todayKey();
+              const isSel   = key === activeDate;
+              const dots    = dotsFor(key);
+              const dname   = DAY_NAMES?.[date.getDay()] || ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][date.getDay()];
+              return (
+                <div key={key} className="day-cell" onClick={() => setActiveDate(key)}>
+                  <div className="day-box">
+                    <div className="d-name">{dname?.slice(0, 3)}</div>
+                    <div className={`d-num${isToday ? ' is-today' : ''}${isSel ? ' is-sel' : ''}`}>
+                      {date.getDate()}
+                    </div>
+                    <div className="d-dots">
+                      {dots.done    > 0 && <span className="dot done" />}
+                      {dots.pending > 0 && <span className="dot pending" />}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        <div className="pending-tasks-section tasks-section flex-stack-md">
-          <div className="section-head"><div className="section-title-sm">{copy.tasksView.pendingTasks} ({pendingGoals.length})</div></div>
-          {pendingGoals.length === 0 ? (
-            <div className="empty-state">{searchTerm ? copy.tasksView.noPendingSearch : copy.tasksView.noPending}</div>
-          ) : (
-            <>
-              {selectedGoalIds.length > 0 && (
-                <div className="quick-tools compact">
-                  <button className="tool-btn" onClick={selectAllVisibleGoals}>{copy.tasksView.selectAll} ({visibleGoals.length})</button>
-                  <button className="tool-btn warn" onClick={deleteSelectedGoals}>{copy.tasksView.deleteSelected} ({selectedGoalIds.length})</button>
-                  <button className="tool-btn" onClick={clearSelectedGoals}>{copy.tasksView.clearSelection}</button>
-                </div>
-              )}
+        {/* Date Label */}
+        <div className="tasks-date-label">
+          <span className="section-title-sm">{activeDateLabel}</span>
+          <span className="count">{total} tasks</span>
+        </div>
 
-              <div className="goal-list tasks-list flex-stack-md" key={`pending-${activeDate}`} style={{ animation: 'viewFadeIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) both' }}>
-                {pendingGoals.map((goal, idx) => renderTaskItem(goal, idx, false))}
-                
-                {/* Ghost Card for New Task */}
-                <div 
-                  onClick={() => {
-                    setForm({ text: '', date: activeDate, reminder: '', startTime: '', endTime: '', repeat: 'None', session: 'Morning', priority: 'Medium' });
-                    setEditingGoal(null);
-                    setShowForm(true);
-                  }}
-                  style={{
-                    padding: '16px',
-                    borderRadius: '18px',
-                    border: '2px dashed var(--card-border)',
-                    background: 'var(--bg)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '12px',
-                    cursor: 'pointer',
-                    marginTop: '8px',
-                    transition: 'all 0.2s'
-                  }}
-                  className="ghost-add-task-v2"
-                >
-                  <span style={{ fontSize: '20px', color: 'var(--muted)' }}>+</span>
-                  <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--muted)', letterSpacing: '0.02em' }}>
-                    {copy.tasksView.newTask}
-                  </span>
-                </div>
-              </div>
+        {/* Filters */}
+        <div className="tasks-filters no-scrollbar">
+          <button className={`filter-btn ${priorityFilter === 'All' ? 'active' : ''}`}
+            onClick={() => setPriorityFilter('All')}>All</button>
+          {PRIORITY_OPTIONS.map(p => (
+            <button key={p} className={`filter-btn ${priorityFilter === p ? 'active' : ''}`}
+              onClick={() => setPriorityFilter(p)}>
+              {p === 'High' ? '🔴' : p === 'Medium' ? '🟡' : '🟢'} {p}
+            </button>
+          ))}
+          <div className="filter-divider" />
+          {TIME_FILTER_OPTIONS.map(f => (
+            <button key={f} className={`filter-btn ${timeFilter === f ? 'active' : ''}`}
+              onClick={() => setTimeFilter(f)}>{f}</button>
+          ))}
+        </div>
 
-              <div className="quick-tools compact">
-                <button className="tool-btn" onClick={markAllPendingDone}>{copy.tasksView.markAllDone} ({pendingGoals.length})</button>
-                <button className="tool-btn" onClick={duplicatePendingToTomorrow}>{copy.tasksView.copyTomorrow} ({pendingGoals.length})</button>
-              </div>
-            </>
+        {/* Search */}
+        <div className="tasks-search-wrap">
+          <span className="tasks-search-icon">🔍</span>
+          <input
+            ref={searchRef}
+            type="text"
+            className="search-input tasks-search-input"
+            placeholder={copy.tasksView?.searchPlaceholder || 'Search tasks...'}
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+          />
+          {searchTerm && (
+            <button className="tasks-search-clear" onClick={() => setSearchTerm('')}>✕</button>
           )}
         </div>
 
+        {/* Bulk actions */}
+        {selectedGoalIds.length > 0 && (
+          <div className="quick-tools compact tasks-bulk-actions">
+            <button className="tool-btn" onClick={selectAllVisibleGoals}>
+              Select All ({visibleGoals.length})
+            </button>
+            <button className="tool-btn warn" onClick={deleteSelectedGoals}>
+              Delete ({selectedGoalIds.length})
+            </button>
+            <button className="tool-btn" onClick={clearSelectedGoals}>Clear</button>
+          </div>
+        )}
+
+        {/* Pending Tasks */}
+        <div className="tasks-section">
+          <div className="section-head">
+            <div className="section-title-sm">
+              📋 {copy.tasksView?.pendingTasks || 'Pending'} ({pendingGoals.length})
+            </div>
+          </div>
+
+          {pendingGoals.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-state-icon">🎉</div>
+              <div className="empty-state-title">
+                {searchTerm
+                  ? (copy.tasksView?.noPendingSearch || 'No results')
+                  : (copy.tasksView?.noPending || 'All done!')}
+              </div>
+              {!searchTerm && (
+                <div className="empty-state-sub">Add a new task to get started</div>
+              )}
+              {!searchTerm && (
+                <button className="empty-state-btn" onClick={() => {
+                  setForm({ text: '', date: activeDate, reminder: '', startTime: '', endTime: '', repeat: 'None', session: 'Morning', priority: 'Medium' });
+                  setEditingGoal(null);
+                  setShowForm(true);
+                }}>+ Add Task</button>
+              )}
+            </div>
+          ) : (
+            <div className="goal-list tasks-list">
+              {pendingGoals.map((goal, idx) => renderTaskItem(goal, idx, false))}
+
+              {/* Ghost add card */}
+              <div
+                className="task-ghost-add"
+                onClick={() => {
+                  setForm({ text: '', date: activeDate, reminder: '', startTime: '', endTime: '', repeat: 'None', session: 'Morning', priority: 'Medium' });
+                  setEditingGoal(null);
+                  setShowForm(true);
+                }}
+              >
+                <span className="task-ghost-icon">+</span>
+                <span className="task-ghost-label">
+                  {copy.tasksView?.newTask || 'Add new task'}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Quick tools */}
+          {pendingGoals.length > 0 && (
+            <div className="quick-tools compact">
+              <button className="tool-btn" onClick={markAllPendingDone}>
+                ✅ {copy.tasksView?.markAllDone || 'Mark All Done'}
+              </button>
+              <button className="tool-btn" onClick={duplicatePendingToTomorrow}>
+                📋 {copy.tasksView?.copyTomorrow || 'Copy to Tomorrow'}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Completed Tasks */}
         {completedGoals.length > 0 && (
-          <div className="completed-tasks-section compact" style={{ position: 'relative', transition: 'all 0.4s cubic-bezier(0.22, 1, 0.36, 1)' }}>
-            <div className="section-head completed-tasks-head cursor-pointer" onClick={() => setCompletedTasksCollapsed(!completedTasksCollapsed)} style={{ userSelect: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div className="section-title-sm" style={{ color: 'rgba(110, 231, 183, 0.95)' }}>{copy.tasksView.completedTasks} ({completedGoals.length})</div>
-              <div className="collapse-icon" style={{ fontSize: '14px', color: 'rgba(22, 163, 74, 0.7)', transition: 'transform 0.3s cubic-bezier(0.25, 1, 0.5, 1)', transform: completedTasksCollapsed ? 'rotate(0deg)' : 'rotate(180deg)' }}>▼</div>
+          <div className="tasks-completed-section">
+            <div
+              className="tasks-completed-head"
+              onClick={() => setCompletedCollapsed(!completedCollapsed)}
+            >
+              <div className="section-title-sm tasks-completed-title">
+                ✅ {copy.tasksView?.completedTasks || 'Completed'} ({completedGoals.length})
+              </div>
+              <div className={`tasks-collapse-icon${completedCollapsed ? '' : ' open'}`}>▼</div>
             </div>
 
-            {!completedTasksCollapsed && (
-              <div className="goal-list tasks-list flex-stack-sm" key={`completed-${activeDate}`} style={{ opacity: '0.8', animation: 'viewFadeIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) both' }}>
-                {completedGoals.map((goal, idx) => renderTaskItem(goal, idx + pendingGoals.length, true))}
-                <div className="quick-tools compact" style={{ paddingTop: '10px', borderTop: '1px solid rgba(34, 197, 94, 0.15)' }}>
-                  <button className="tool-btn" onClick={reopenAllCompleted}>{copy.tasksView.reopenAll} ({completedGoals.length})</button>
+            {!completedCollapsed && (
+              <div className="goal-list tasks-list tasks-completed-list">
+                {completedGoals.map((goal, idx) =>
+                  renderTaskItem(goal, idx + pendingGoals.length, true)
+                )}
+                <div className="quick-tools compact">
+                  <button className="tool-btn" onClick={reopenAllCompleted}>
+                    🔄 {copy.tasksView?.reopenAll || 'Reopen All'}
+                  </button>
                 </div>
               </div>
             )}
           </div>
         )}
       </div>
-      <style dangerouslySetInnerHTML={{__html: `
-        .ai-briefing-grid-v6 {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 12px;
-          margin-top: 10px;
-        }
-        .ai-briefing-card {
-          background: var(--chip);
-          border: 1px solid var(--card-border);
-          border-radius: 16px;
-          padding: 12px;
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-        }
-        .ai-briefing-label {
-          font-size: 0.65rem;
-          font-weight: 800;
-          color: var(--muted);
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-        }
-        .ai-briefing-text {
-          color: var(--text);
-          font-weight: 700;
-          line-height: 1.3;
-        }
-        
-        @keyframes modalSlideUp {
-          from { transform: translateY(20px); opacity: 0; }
-          to { transform: translateY(-20px); opacity: 1; }
-        }
-
-        .filter-btn {
-          white-space: nowrap;
-          padding: 8px 16px;
-          border-radius: 10px;
-          font-size: 0.8rem;
-          font-weight: 800;
-          background: var(--chip);
-          color: var(--muted);
-          border: 1px solid var(--card-border);
-          transition: all 0.2s;
-        }
-        .filter-btn.active {
-          background: var(--accent, #3b82f6);
-          color: #fff;
-          border-color: transparent;
-        }
-        
-        .search-input-v6:focus {
-          border-color: var(--accent) !important;
-          background: var(--chip) !important;
-        }
-      `}} />
     </div>
   );
 }

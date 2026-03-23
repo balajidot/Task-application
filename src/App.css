@@ -1500,3 +1500,762 @@ input:focus, textarea:focus { scroll-margin-top: 100px; }
   .onboarding-title  { font-size: 1.5rem; }
   .task-form-time-grid { grid-template-columns: 1fr; }
 }
+
+/* ============================================
+   TASK FORM — REDESIGNED (Bug #2 Fix)
+   ============================================ */
+.task-form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.task-form-close {
+  background: var(--chip);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--muted); font-size: 14px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+.task-form-close:hover { background: rgba(239,68,68,0.1); color: #ef4444; }
+
+.task-form-time-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.task-form-time-item {
+  display: flex; flex-direction: column; gap: 4px;
+}
+.task-form-time-label {
+  font-size: 11px; font-weight: 700;
+  color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;
+}
+
+/* Priority & Session chips */
+.task-form-chips {
+  display: flex; gap: 8px; flex-wrap: wrap;
+}
+.task-priority-chip, .task-session-chip {
+  border: 1.5px solid var(--card-border);
+  border-radius: 20px;
+  padding: 8px 14px;
+  font-size: 13px; font-weight: 700;
+  cursor: pointer;
+  background: var(--chip);
+  color: var(--text);
+  transition: all 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.task-priority-chip:active, .task-session-chip:active { transform: scale(0.95); }
+
+/* Priority chip colors */
+.priority-chip-high.active  { background: rgba(239,68,68,0.15); border-color: #ef4444; color: #ef4444; }
+.priority-chip-medium.active { background: rgba(245,158,11,0.15); border-color: #f59e0b; color: #d97706; }
+.priority-chip-low.active   { background: rgba(16,185,129,0.15); border-color: #10b981; color: #059669; }
+.task-session-chip.active   { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+
+/* Form actions */
+.task-form-actions {
+  display: flex; gap: 10px; margin-top: 20px;
+}
+.task-form-submit { flex: 2; }
+.task-form-cancel { flex: 1; }
+
+/* ============================================
+   PREMIUM BUTTON — Fix overlap (Bugs #5, #6)
+   ============================================ */
+.floating-premium-btn {
+  bottom: 90px !important;
+}
+
+/* On pages with bottom nav, push premium btn higher */
+.view-container .floating-premium-btn {
+  bottom: 100px;
+}
+
+/* ============================================
+   AI CHAT — Full Redesign (Bug #8 Fix)
+   ============================================ */
+.chat-view-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 80px);
+  background: var(--bg);
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1px solid var(--card-border);
+}
+
+/* Header */
+.chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: var(--card);
+  border-bottom: 1px solid var(--card-border);
+  flex-shrink: 0;
+}
+.chat-header-info {
+  display: flex; align-items: center; gap: 12px;
+}
+.chat-avatar {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: linear-gradient(135deg, #10b981, #3b82f6);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem;
+}
+.chat-title  { font-weight: 900; font-size: 1rem; color: var(--text); }
+.chat-status { font-size: 0.72rem; color: #10b981; font-weight: 700; }
+
+/* Messages */
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+.chat-scroll-anchor { height: 1px; flex-shrink: 0; }
+
+/* Bubbles */
+.chat-bubble {
+  max-width: 85%;
+  padding: 12px 16px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+.chat-bubble-user {
+  align-self: flex-end;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 18px 18px 0 18px;
+}
+.chat-bubble-ai {
+  align-self: flex-start;
+  background: var(--chip);
+  color: var(--text);
+  border-radius: 18px 18px 18px 0;
+  border: 1px solid var(--card-border);
+}
+.chat-typing {
+  display: flex; gap: 4px;
+  align-items: center;
+  padding: 14px 16px;
+}
+.chat-action-btn-wrap { margin-top: 10px; }
+.chat-action-btn {
+  font-size: 0.82rem !important;
+  padding: 8px 14px !important;
+  background: rgba(255,255,255,0.2) !important;
+  width: 100%;
+}
+
+/* Bottom bar */
+.chat-bottom {
+  background: var(--card);
+  border-top: 1px solid var(--card-border);
+  flex-shrink: 0;
+  /* ✅ BUG #8 FIX: Use safe area + capacitor keyboard resize:body */
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+}
+
+/* Quick actions */
+.chat-quick-actions {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--card-border);
+}
+.chat-quick-btn {
+  white-space: nowrap !important;
+  flex-shrink: 0;
+  border-radius: 999px !important;
+  padding: 8px 14px !important;
+  font-size: 12px !important;
+  min-height: 36px !important;
+}
+
+/* Input row */
+.chat-input-row {
+  display: flex;
+  gap: 10px;
+  padding: 12px 16px;
+  align-items: center;
+}
+.chat-input {
+  flex: 1;
+  border-radius: 999px !important;
+  padding: 12px 20px !important;
+  font-size: 15px !important;
+  min-height: 48px !important;
+}
+.chat-send-btn {
+  width: 48px !important;
+  height: 48px !important;
+  border-radius: 50% !important;
+  padding: 0 !important;
+  flex-shrink: 0;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 1.1rem;
+}
+.chat-send-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ============================================
+   TASKS VIEW — Bug #3 Fix
+   ============================================ */
+.task-item-wrap {
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  border-radius: 20px;
+  padding: 2px 0;
+  transition: transform 0.3s ease;
+}
+.task-item-live { transform: scale(1.015); }
+
+.tasks-briefing-card { margin-bottom: 0; }
+
+.tasks-week-cal { margin-bottom: 16px; }
+.week-cal-header {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 10px; flex-wrap: wrap;
+}
+.week-cal-header .cal-month { flex: 1; text-align: center; }
+
+.tasks-date-label {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 12px;
+}
+
+.tasks-filters {
+  display: flex; gap: 8px; overflow-x: auto;
+  padding-bottom: 4px; margin-bottom: 12px;
+}
+.filter-divider {
+  width: 1px; background: var(--card-border);
+  margin: 4px 2px; flex-shrink: 0;
+}
+
+.tasks-search-wrap {
+  position: relative; margin-bottom: 16px;
+}
+.tasks-search-icon {
+  position: absolute; left: 14px; top: 50%;
+  transform: translateY(-50%); opacity: 0.4; pointer-events: none;
+}
+.tasks-search-input { padding-left: 40px !important; }
+.tasks-search-clear {
+  position: absolute; right: 12px; top: 50%;
+  transform: translateY(-50%);
+  background: var(--chip); border: none;
+  border-radius: 50%; width: 22px; height: 22px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--muted); font-size: 12px;
+}
+
+.tasks-bulk-actions { margin-bottom: 12px; }
+
+/* Ghost add card */
+.task-ghost-add {
+  padding: 16px;
+  border-radius: 18px;
+  border: 2px dashed var(--card-border);
+  background: transparent;
+  display: flex; align-items: center; justify-content: center;
+  gap: 12px; cursor: pointer; margin-top: 8px;
+  transition: all 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.task-ghost-add:active { opacity: 0.7; transform: scale(0.98); }
+.task-ghost-icon { font-size: 20px; color: var(--muted); }
+.task-ghost-label { font-size: 0.9rem; font-weight: 800; color: var(--muted); }
+
+/* Completed section */
+.tasks-completed-section {
+  margin-top: 16px;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid var(--card-border);
+  background: var(--chip);
+}
+.tasks-completed-head {
+  display: flex; justify-content: space-between; align-items: center;
+  cursor: pointer; user-select: none;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(34,197,94,0.14);
+  margin-bottom: 10px;
+}
+.tasks-completed-title { color: rgba(110,231,183,0.95) !important; }
+.tasks-completed-list  { opacity: 0.8; }
+.tasks-collapse-icon {
+  font-size: 12px; color: rgba(22,163,74,0.7);
+  transition: transform 0.3s ease;
+  transform: rotate(0deg);
+}
+.tasks-collapse-icon.open { transform: rotate(180deg); }
+
+/* ============================================
+   PLANNER VIEW — Bug #4 Fix
+   ============================================ */
+.planner-view { gap: 16px; display: flex; flex-direction: column; }
+
+
+.planner-view-toggle {
+  display: flex; gap: 10px; margin-top: 14px;
+}
+.planner-toggle-btn {
+  flex: 1; padding: 12px 16px;
+  border-radius: 14px;
+  border: 1.5px solid var(--card-border);
+  background: var(--chip); color: var(--text);
+  font-size: 14px; font-weight: 700; cursor: pointer;
+  transition: all 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.planner-toggle-btn.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.planner-stats-row {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+}
+.planner-stat-chip {
+  background: var(--card); border: 1px solid var(--card-border);
+  border-radius: 16px; padding: 14px 10px; text-align: center;
+}
+.planner-stat-num  { font-size: 24px; font-weight: 900; color: var(--text); line-height: 1; }
+.planner-stat-label { font-size: 10px; color: var(--muted); font-weight: 700; margin-top: 4px; text-transform: uppercase; }
+
+/* ✅ Bug #4 Fix: Calendar full width */
+.planner-calendar-card {
+  overflow-x: hidden !important;
+  padding: 12px !important;
+}
+.planner-calendar-card .calendar-grid,
+.planner-calendar-card .weekly-planner,
+.planner-calendar-card .monthly-planner {
+  width: 100% !important;
+  overflow-x: hidden !important;
+}
+.planner-calendar-card .calendar-weekdays,
+.planner-calendar-card .calendar-week {
+  grid-template-columns: repeat(7, 1fr) !important;
+  gap: 4px !important;
+}
+
+
+.planner-quick-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;
+}
+.planner-quick-btn {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--card); border: 1px solid var(--card-border);
+  border-radius: 16px; padding: 14px 12px;
+  cursor: pointer; transition: all 0.2s ease; text-align: left;
+  -webkit-tap-highlight-color: transparent;
+}
+.planner-quick-btn:active { transform: scale(0.97); }
+.planner-quick-icon {
+  width: 40px; height: 40px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+}
+.planner-quick-label { font-size: 13px; font-weight: 700; color: var(--text); }
+.planner-quick-sub   { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+/* ============================================
+   SETTINGS VIEW — Bug #5 Fix
+   ============================================ */
+.settings-view { display: flex; flex-direction: column; gap: 16px; }
+.settings-section-card { padding: 16px 14px !important; }
+.settings-section-title {
+  font-size: 11px; font-weight: 900; letter-spacing: 0.08em;
+  color: var(--muted); text-transform: uppercase;
+  margin-bottom: 14px; padding-left: 4px; opacity: 0.8;
+}
+.settings-section-body { display: flex; flex-direction: column; gap: 10px; }
+
+.settings-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 13px 14px;
+  background: var(--chip);
+  border-radius: 14px;
+  border: 1px solid var(--card-border);
+  transition: background 0.15s ease;
+}
+.settings-row-clickable { cursor: pointer; }
+.settings-row-clickable:active { background: var(--card-border); }
+.settings-row-danger { border-color: rgba(239,68,68,0.25); }
+.settings-row-left {
+  display: flex; align-items: center; gap: 12px; min-width: 0;
+}
+.settings-row-icon { font-size: 1.2rem; flex-shrink: 0; opacity: 0.9; }
+.settings-row-title { font-weight: 800; font-size: 0.9rem; color: var(--text); }
+.settings-row-title-danger { color: #ef4444; }
+.settings-row-subtitle { font-size: 0.75rem; color: var(--muted); margin-top: 2px; font-weight: 600; }
+.settings-row-right { flex-shrink: 0; margin-left: 12px; }
+.settings-chevron { color: var(--muted); font-size: 1.1rem; font-weight: 300; }
+
+.settings-chip-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.settings-chip {
+  padding: 9px 16px; border-radius: 20px;
+  border: 1.5px solid var(--card-border);
+  background: var(--chip); color: var(--text);
+  font-size: 13px; font-weight: 700; cursor: pointer;
+  transition: all 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.settings-chip.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.settings-theme-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.settings-theme-btn {
+  padding: 16px 10px; border-radius: 14px;
+  border: 1.5px solid var(--card-border);
+  background: var(--chip); color: var(--text);
+  font-weight: 800; font-size: 0.9rem; cursor: pointer;
+  transition: all 0.2s ease;
+}
+.settings-theme-btn.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.settings-sub-label {
+  font-size: 11px; font-weight: 800; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.5px;
+  margin-bottom: 8px; margin-top: 4px;
+}
+
+.settings-slider-row { display: flex; flex-direction: column; gap: 8px; }
+.settings-slider-header {
+  display: flex; justify-content: space-between; align-items: center;
+}
+.settings-slider-val { font-weight: 900; font-size: 0.9rem; }
+.settings-slider-preview {
+  color: var(--text); font-weight: 600; padding: 8px 0;
+  border-top: 1px dashed var(--card-border); margin-top: 4px;
+}
+
+.settings-privacy-list { display: flex; flex-direction: column; gap: 0; }
+.settings-privacy-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 8px 0; border-bottom: 1px solid var(--card-border);
+}
+.settings-privacy-item:last-child { border-bottom: none; }
+.settings-privacy-text { font-size: 12px; color: var(--text); font-weight: 500; line-height: 1.5; }
+
+.settings-applied-msg {
+  background: rgba(16,185,129,0.12);
+  border: 1px solid rgba(16,185,129,0.3);
+  border-radius: 12px; padding: 10px 16px;
+  color: #10b981; font-weight: 700; font-size: 13px;
+  text-align: center;
+}
+
+/* ============================================
+   ANALYTICS VIEW — Bug #6 Fix
+   ============================================ */
+.analytics-view { display: flex; flex-direction: column; gap: 16px; }
+
+.analytics-summary-row {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+}
+.analytics-stat-card {
+  background: var(--card); border: 1px solid var(--card-border);
+  border-radius: 16px; padding: 14px 8px; text-align: center;
+}
+.analytics-stat-num  { font-size: 22px; font-weight: 900; line-height: 1; }
+.analytics-stat-label { font-size: 9px; color: var(--muted); font-weight: 700; margin-top: 4px; text-transform: uppercase; }
+
+
+.analytics-bar-chart {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  align-items: end;
+  height: 120px;
+  padding: 0 4px;
+  margin-top: 16px;
+}
+.analytics-bar-col {
+  display: flex; flex-direction: column;
+  align-items: center; height: 100%; justify-content: flex-end; gap: 8px;
+}
+.analytics-bar-fill {
+  width: 100%; max-width: 32px;
+  border-radius: 8px 8px 4px 4px;
+  background: linear-gradient(180deg, #10b981, #3b82f6);
+  box-shadow: 0 4px 12px rgba(16,185,129,0.2);
+  transition: height 0.5s ease;
+  min-height: 8px;
+}
+.analytics-bar-label {
+  font-size: 0.65rem; color: var(--muted);
+  font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;
+}
+
+.analytics-story-card {
+  display: flex; flex-direction: column; align-items: center;
+  text-align: center; padding: 24px 20px !important;
+  background: linear-gradient(135deg, rgba(99,102,241,0.08), rgba(16,185,129,0.06)) !important;
+  border-color: rgba(99,102,241,0.2) !important;
+}
+.analytics-story-icon { font-size: 2rem; margin-bottom: 10px; }
+.analytics-story-text {
+  font-size: 1rem; line-height: 1.6; font-style: italic;
+  color: var(--text); font-weight: 600;
+}
+
+.analytics-deep-text {
+  font-size: 0.9rem; line-height: 1.6;
+  color: var(--text); font-weight: 500;
+  white-space: pre-wrap;
+}
+.analytics-deep-placeholder {
+  font-size: 0.85rem; color: var(--muted); font-weight: 500;
+  text-align: center; padding: 16px 0;
+}
+
+/* Mobile adjustments */
+@media (max-width: 480px) {
+  .analytics-summary-row { grid-template-columns: repeat(2, 1fr); }
+  .analytics-stat-num    { font-size: 18px; }
+  .planner-stats-row     { gap: 6px; }
+  .planner-stat-num      { font-size: 20px; }
+}
+
+/* ============================================
+   PLANNER — Calendar Fix (Sat visible)
+   ============================================ */
+
+/* ✅ FIX: Monthly grid — strict 7 equal columns, no overflow */
+.planner-month-grid {
+  width: 100%;
+  overflow: hidden;
+}
+.planner-month-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  margin-bottom: 4px;
+}
+.planner-month-weekday {
+  text-align: center;
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--muted);
+  text-transform: uppercase;
+  padding: 4px 0;
+}
+.planner-month-week {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  margin-bottom: 2px;
+}
+.planner-month-day {
+  aspect-ratio: 1;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: var(--chip);
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+  padding: 2px;
+  min-height: 36px;
+  -webkit-tap-highlight-color: transparent;
+}
+.planner-month-day:active { transform: scale(0.95); }
+.planner-month-day.empty {
+  background: transparent;
+  border: none;
+  cursor: default;
+  pointer-events: none;
+}
+.planner-month-day.today {
+  background: rgba(37,99,235,0.12);
+  border-color: rgba(37,99,235,0.3);
+}
+.planner-month-day.has-tasks {
+  border-color: var(--card-border);
+}
+.planner-month-day.has-tasks:active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.planner-month-daynum {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1;
+}
+.planner-month-daynum.today {
+  color: #2563eb;
+}
+.planner-month-dots {
+  display: flex; gap: 3px; margin-top: 3px;
+}
+.planner-month-more {
+  font-size: 8px;
+  color: var(--accent);
+  font-weight: 800;
+  margin-top: 1px;
+}
+
+/* Month header */
+.planner-month-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  padding: 0 4px;
+}
+
+/* Weekly grid fix */
+.planner-week-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  width: 100%;
+  overflow: hidden;
+}
+.planner-week-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 4px;
+  border-radius: 12px;
+  background: var(--chip);
+  border: 1px solid var(--card-border);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-height: 70px;
+  -webkit-tap-highlight-color: transparent;
+}
+.planner-week-day.today {
+  background: rgba(37,99,235,0.1);
+  border-color: rgba(37,99,235,0.3);
+}
+.planner-week-day:active { transform: scale(0.95); }
+.planner-week-dayname { font-size: 9px; font-weight: 800; color: var(--muted); text-transform: uppercase; }
+.planner-week-daynum { font-size: 14px; font-weight: 900; color: var(--text); }
+.planner-week-daynum.today { color: #2563eb; }
+.planner-week-dots { display: flex; gap: 3px; }
+.planner-week-count { font-size: 9px; font-weight: 800; color: var(--accent); }
+
+/* ─── Date Task Bottom Sheet ── */
+.date-sheet {
+  padding: 0 16px 24px !important;
+  max-height: 70vh;
+}
+.date-sheet-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0 16px;
+  border-bottom: 1px solid var(--card-border);
+  margin-bottom: 16px;
+}
+.date-sheet-title {
+  font-size: 1rem;
+  font-weight: 900;
+  color: var(--text);
+  letter-spacing: -0.3px;
+}
+.date-sheet-stats {
+  display: flex; gap: 10px;
+}
+.date-sheet-stat {
+  font-size: 12px;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+.date-sheet-stat.done    { background: rgba(16,185,129,0.12); color: #10b981; }
+.date-sheet-stat.pending { background: rgba(245,158,11,0.12);  color: #d97706; }
+
+.date-sheet-tasks {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 40vh;
+  overflow-y: auto;
+  margin-bottom: 16px;
+  -webkit-overflow-scrolling: touch;
+}
+.date-sheet-empty {
+  text-align: center;
+  padding: 24px 0;
+}
+.date-sheet-task {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--chip);
+  border-radius: 14px;
+  border: 1px solid var(--card-border);
+  transition: opacity 0.2s ease;
+}
+.date-sheet-task.done { opacity: 0.6; }
+.date-sheet-task-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+.date-sheet-task-dot.priority-high   { background: #ef4444; }
+.date-sheet-task-dot.priority-medium { background: #f59e0b; }
+.date-sheet-task-dot.priority-low    { background: #10b981; }
+.date-sheet-task-content { flex: 1; min-width: 0; }
+.date-sheet-task-text {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.4;
+}
+.date-sheet-task-time {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+  margin-top: 3px;
+}
+.date-sheet-done-badge {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.date-sheet-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}

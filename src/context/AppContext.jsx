@@ -522,10 +522,12 @@ export const AppProvider = ({ children }) => {
   }, []);
 
   // ✅ FIX 3: Settings save — SPLIT into 2 focused effects
-  // Effect A: Save display preferences only
+  // Effect A: Save display preferences + userName together
+  // ✅ BUG #1 FIX: userName included — prevents welcome screen on every launch
   useEffect(() => {
     if (!loaded) return;
     writePrefs({
+      userName,  // ← Critical: must be included!
       themeMode, autoThemeMode, appLanguage, taskFontSize, taskFontFamily,
       uiScale, overdueEnabled, fontWeight, soundTheme, hapticEnabled,
       liveHighlightEnabled, bgTheme
@@ -539,7 +541,7 @@ export const AppProvider = ({ children }) => {
 
     document.body.className = `theme-${themeMode}${bgTheme !== 'none' ? ` bg-anim-${bgTheme}` : ''}`;
   }, [
-    loaded, themeMode, autoThemeMode, appLanguage,
+    loaded, userName, themeMode, autoThemeMode, appLanguage,
     taskFontSize, taskFontFamily, uiScale, overdueEnabled,
     fontWeight, soundTheme, hapticEnabled, liveHighlightEnabled, bgTheme
   ]);
@@ -831,12 +833,19 @@ export const AppProvider = ({ children }) => {
   }, [userName, goals, appLanguage, save]);
 
   // ─── USER ACTIONS ───
-  const handleSaveName = useCallback(() => {
+  const handleSaveName = useCallback(async () => {
     if (tempName.trim()) {
-      setUserName(tempName.trim());
+      const name = tempName.trim();
+      setUserName(name);
       setShowNameSetup(false);
-      writePrefs({ userName: tempName.trim() });
       triggerHaptic('success');
+      // ✅ BUG #1 FIX: Merge with existing prefs — don't overwrite!
+      try {
+        const existing = await readPrefs() || {};
+        writePrefs({ ...existing, userName: name });
+      } catch {
+        writePrefs({ userName: name });
+      }
     }
   }, [tempName]);
 
