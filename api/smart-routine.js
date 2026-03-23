@@ -15,6 +15,8 @@ export default async function handler(req, res) {
   const rateLimit = enforceRateLimit(getClientKey(req));
   if (!rateLimit.allowed) return res.status(429).json({ error: 'Too many requests.' });
 
+  const { userName, goals, flexibleBlocks, fixedRoutine } = req.body || {};
+
   const groqKey   = process.env.GROQ_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY;
 

@@ -15,6 +15,9 @@ export default async function handler(req, res) {
   const rateLimit = enforceRateLimit(getClientKey(req));
   if (!rateLimit.allowed) return res.status(429).json({ error: 'Too many requests.' });
 
+  const { userName = 'User', weeklyData = [], language = 'en' } = req.body || {};
+  const weekStr = weeklyData.map(d => `${d.day}: ${d.done}/${d.total} tasks (${d.pct}%)`).join(', ');
+
   const groqKey   = process.env.GROQ_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY;
 

@@ -20,6 +20,18 @@ export default async function handler(req, res) {
   const groqKey   = process.env.GROQ_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY;
 
+  const { appData = {}, language = 'en', userName = 'User', coachTone = 'motivational' } = req.body || {};
+  const outputLanguage = language === 'ta' ? 'Tamil' : 'English';
+
+  const hour = new Date().getHours();
+  const timeOfDay = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
+
+  const toneMap = {
+    strict: 'You are a strict, no-nonsense productivity coach. Be direct and push hard.',
+    friendly: 'You are a warm, encouraging productivity coach. Be supportive and gentle.',
+    motivational: 'You are a high-energy, inspiring productivity coach. Be passionate and energizing.'
+  };
+
   const prompt = `${toneMap[coachTone] || toneMap.motivational} 
 Speak directly to ${userName} in a motivating, personal tone.
 Time of day: ${timeOfDay}

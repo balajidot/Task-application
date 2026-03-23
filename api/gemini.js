@@ -41,6 +41,7 @@ export default async function handler(req, res) {
   const groqKey   = process.env.GROQ_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY;
 
+  const { userName = 'Friend', date, context = '', language = 'en' } = req.body || {};
   const outputLanguage = language === 'ta' ? 'Tamil' : 'English';
 
   const prompt = `You are a daily planner. Generate exactly 6 time-blocked tasks for ${userName} on ${date}.
