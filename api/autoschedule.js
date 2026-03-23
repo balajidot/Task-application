@@ -54,9 +54,9 @@ STRICT RULES:
 OUTPUT:`;
 
   const models = [
-    { v: 'v1beta', n: 'gemini-2.0-flash' },
-    { v: 'v1',     n: 'gemini-1.5-flash' },
-    { v: 'v1beta', n: 'gemini-1.5-flash' }
+    { v: 'v1',     n: 'gemini-3.1-flash' },
+    { v: 'v1',     n: 'gemini-1.5-flash-latest' },
+    { v: 'v1',     n: 'gemini-1.0-pro' }
   ];
 
   for (const model of models) {

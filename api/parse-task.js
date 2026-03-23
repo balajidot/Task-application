@@ -24,13 +24,12 @@ export default async function handler(req, res) {
   const prompt = `Extract task details from: "${text}". Return ONLY JSON inside <TASK_JSON> tags. Format: {"text": "...", "startTime": "HH:MM", "priority": "High/Medium/Low", "date": "YYYY-MM-DD"}`;
 
   const models = [
-    { v: 'v1beta', n: 'gemini-2.0-flash' },
-    { v: 'v1',     n: 'gemini-1.5-flash' },
-    { v: 'v1beta', n: 'gemini-1.5-flash' },
-    { v: 'v1beta', n: 'gemini-1.5-flash-8b' }
+    { v: 'v1',     n: 'gemini-3.1-flash' },
+    { v: 'v1',     n: 'gemini-1.5-flash-latest' },
+    { v: 'v1',     n: 'gemini-1.0-pro' },
+    { v: 'v1beta', n: 'gemini-1.5-flash' }
   ];
 
-  const errors = [];
   for (const model of models) {
     try {
       const apiUrl = `https://generativelanguage.googleapis.com/${model.v}/models/${model.n}:generateContent?key=${apiKey}`;
@@ -44,24 +43,15 @@ export default async function handler(req, res) {
         signal: AbortSignal.timeout(9000),
       });
 
-      if (!response.ok) {
-        const errorBody = await response.text();
-        const msg = `[${model.n} ${model.v}] ${response.status}: ${errorBody}`;
-        console.error(msg);
-        errors.push(msg);
-        continue;
-      }
+      if (!response.ok) continue;
 
       const data = await response.json();
       const resultText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
       const jsonMatch = resultText.match(/<TASK_JSON>([\s\S]*?)<\/TASK_JSON>/);
       const parsedTask = jsonMatch ? JSON.parse(jsonMatch[1].trim()) : null;
       if (parsedTask) return res.status(200).json({ parsedTask });
-    } catch (e) {
-      errors.push(`[${model.n}] Exception: ${e.message}`);
-      continue;
-    }
+    } catch (e) { continue; }
   }
 
-  return res.status(500).json({ error: 'AI Error', details: errors });
+  return res.status(500).json({ error: 'AI currently busy. Please try again in a moment.' });
 }

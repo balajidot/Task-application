@@ -23,9 +23,9 @@ export default async function handler(req, res) {
   const prompt = `Fill these time slots: ${flexibleBlocks}. User goals: ${goals}. Return ONLY JSON array inside <ROUTINE_JSON> tags. Format: [{"time_slot": "...", "task_title": "...", "why_it_matters": "..."}]`;
 
   const models = [
-    { v: 'v1beta', n: 'gemini-2.0-flash' },
-    { v: 'v1',     n: 'gemini-1.5-flash' },
-    { v: 'v1beta', n: 'gemini-1.5-flash' }
+    { v: 'v1',     n: 'gemini-3.1-flash' },
+    { v: 'v1',     n: 'gemini-1.5-flash-latest' },
+    { v: 'v1',     n: 'gemini-1.0-pro' }
   ];
 
   for (const model of models) {
