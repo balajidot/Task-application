@@ -1,6 +1,22 @@
 // AI Coach — Groq (Primary) + Gemini (Fallback)
 import { enforceRateLimit, getClientKey } from './_rateLimit.js';
 
+// ✅ Detect language from message
+function detectLanguage(message, defaultLang) {
+  const msg = (message || '').toLowerCase();
+  // Tamil request detection
+  if (
+    msg.includes('tamil') || msg.includes('தமிழ்') ||
+    msg.includes('tamil la') || msg.includes('tamil-la') ||
+    msg.includes('tamila') || msg.includes('pesu') ||
+    msg.includes('sollu') || msg.includes('சொல்லு') ||
+    /[\u0B80-\u0BFF]/.test(message) // Tamil unicode chars
+  ) return 'ta';
+  // English request
+  if (msg.includes('english') || msg.includes('speak english')) return 'en';
+  return defaultLang;
+}
+
 function getLocalFallback(message, appData, language) {
   const msg  = (message || '').toLowerCase();
   const lang = language === 'ta';
@@ -9,12 +25,12 @@ function getLocalFallback(message, appData, language) {
   const total   = goals.length;
   const pending = total - done;
 
-  if (msg.includes('analysis') || msg.includes('analyze') || msg.includes('performance') || msg.includes('progress') || msg.includes('பகுப்பாய்வு')) {
+  if (msg.includes('analysis') || msg.includes('analyze') || msg.includes('performance') || msg.includes('progress') || msg.includes('பகுப்பாய்வு') || msg.includes('munnetram') || msg.includes('munneram')) {
     return lang
       ? `📊 உங்கள் முன்னேற்றம்:\n\n✅ முடிந்தது: ${done}/${total} பணிகள்\n⏳ நிலுவை: ${pending} பணிகள்\n🔥 பழக்கங்கள்: ${habits.length}\n\nதொடர்ந்து உழைப்பீர்கள்! 💪`
       : `📊 Your progress:\n\n✅ Done: ${done}/${total} tasks\n⏳ Pending: ${pending} tasks\n🔥 Active habits: ${habits.length}\n\nKeep pushing! 💪`;
   }
-  if (msg.includes('today') || msg.includes('plan') || msg.includes('schedule') || msg.includes('இன்று') || msg.includes('திட்டம்')) {
+  if (msg.includes('today') || msg.includes('plan') || msg.includes('schedule') || msg.includes('இன்று') || msg.includes('திட்டம்') || msg.includes('inru') || msg.includes('thittam')) {
     const today     = new Date().toISOString().split('T')[0];
     const todayList = goals.filter(g => g.date === today && !g.done).slice(0, 3);
     const taskStr   = todayList.length > 0
@@ -24,19 +40,21 @@ function getLocalFallback(message, appData, language) {
       ? `📅 இன்றைய பணிகள்:\n\n${taskStr}\n\nகவனம் செலுத்துங்கள்! 🎯`
       : `📅 Today's tasks:\n\n${taskStr}\n\nStay focused! 🎯`;
   }
-  if (msg.includes('habit') || msg.includes('streak') || msg.includes('பழக்கம்')) {
+  if (msg.includes('habit') || msg.includes('streak') || msg.includes('பழக்கம்') || msg.includes('pazham')) {
     return lang
       ? `🔥 உங்களிடம் ${habits.length} பழக்கங்கள் உள்ளன. தினமும் தொடர்ந்து செய்யுங்கள்!`
       : `🔥 You have ${habits.length} active habits. Consistency is the key!`;
   }
-  if (msg.includes('focus') || msg.includes('productiv') || msg.includes('கவனம்')) {
+  if (msg.includes('focus') || msg.includes('productiv') || msg.includes('கவனம்') || msg.includes('kavanam')) {
     return lang
-      ? `🧠 கவனம் tips:\n\n1. Pomodoro: 25 min work + 5 min break\n2. Phone notifications off\n3. ஒரு நேரத்தில் ஒரு பணி\n4. குறிக்கோள் தெளிவாக வை`
+      ? `🧠 கவனம் tips:\n\n1. Pomodoro: 25 min வேலை + 5 min ஓய்வு\n2. Phone notifications off பண்ணுங்கள்\n3. ஒரு நேரத்தில் ஒரு பணி\n4. குறிக்கோள் தெளிவாக வை`
       : `🧠 Focus tips:\n\n1. Pomodoro: 25 min work + 5 min break\n2. Turn off notifications\n3. One task at a time\n4. Keep your goal visible`;
   }
-  return lang
-    ? `👋 வணக்கம்! இதை try பண்ணுங்கள்:\n• "இன்றைய திட்டம்"\n• "என் முன்னேற்றம்"\n• "கவனம் tips"`
-    : `👋 Hello! Try asking:\n• "Today's plan"\n• "Analyze my progress"\n• "Focus tips"\n• "How are my habits?"`;
+  // Tamil greeting
+  if (lang) {
+    return `வணக்கம்! 👋 நான் உங்கள் AI Coach.\n\nஇவற்றை கேளுங்கள்:\n• "இன்றைய திட்டம்"\n• "என் முன்னேற்றம் என்ன?"\n• "கவனம் tips"\n• "பழக்கங்கள் எப்படி?"`;
+  }
+  return `👋 Hello! Try asking:\n• "Today's plan"\n• "Analyze my progress"\n• "Focus tips"\n• "How are my habits?"`;
 }
 
 export default async function handler(req, res) {
@@ -52,47 +70,66 @@ export default async function handler(req, res) {
   if (!rateLimit.allowed) return res.status(429).json({ error: 'Too many requests.' });
 
   const { message, appData = {}, language = 'en' } = req.body || {};
+
+  // ✅ Auto-detect language from message
+  const detectedLang = detectLanguage(message, language);
+  const outputLang   = detectedLang === 'ta' ? 'Tamil' : 'English';
+
   const groqKey   = process.env.GROQ_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY;
   const { goals = [], habits = [] } = appData;
-  const outputLang = language === 'ta' ? 'Tamil' : 'English';
 
-  const prompt = `You are a friendly AI Productivity Coach.
-User message: "${message}"
-Stats: ${goals.length} tasks (${goals.filter(g=>g.done).length} done), ${habits.length} habits.
-Respond in ${outputLang}. Be helpful, concise (under 120 words), use emojis.
-For adding tasks: <ACTIONS_JSON>[{"type":"ADD_TASKS","tasks":[{"text":"...","startTime":"HH:MM","endTime":"HH:MM","priority":"High/Medium/Low","session":"Morning","date":"YYYY-MM-DD"}]}]</ACTIONS_JSON>`;
+  const systemPrompt = detectedLang === 'ta'
+    ? `நீங்கள் ஒரு தமிழ் AI Productivity Coach. எல்லா responses-உம் தமிழிலேயே பதில் சொல்லவும். Romanized Tamil-ஐயும் புரிந்துகொள்ளவும். பயனர் stats: ${goals.length} tasks (${goals.filter(g=>g.done).length} done), ${habits.length} habits. 80 words-க்கு உள்ளே பதில் சொல்லவும். Emojis use பண்ணவும்.`
+    : `You are a helpful AI Productivity Coach. Always respond in English. User stats: ${goals.length} tasks (${goals.filter(g=>g.done).length} done), ${habits.length} habits. Keep responses under 80 words. Use emojis.`;
+
+  const userPrompt = detectedLang === 'ta'
+    ? `பயனர் சொல்கிறார்: "${message}"\n\nதமிழில் பதில் சொல்லவும்.\n\nTask சேர்க்க: <ACTIONS_JSON>[{"type":"ADD_TASKS","tasks":[{"text":"...","startTime":"HH:MM","endTime":"HH:MM","priority":"High/Medium/Low","session":"Morning","date":"YYYY-MM-DD"}]}]</ACTIONS_JSON>`
+    : `User says: "${message}"\n\nRespond in English.\n\nTo add tasks: <ACTIONS_JSON>[{"type":"ADD_TASKS","tasks":[{"text":"...","startTime":"HH:MM","endTime":"HH:MM","priority":"High/Medium/Low","session":"Morning","date":"YYYY-MM-DD"}]}]</ACTIONS_JSON>`;
 
   // ─── Groq Primary ────────────────────────────────────────────────────────
   if (groqKey) {
     try {
       const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${groqKey}` },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${groqKey}`,
+        },
         body: JSON.stringify({
           model: 'llama-3.1-8b-instant',
-          messages: [{ role: 'user', content: prompt }],
-          max_tokens: 300, temperature: 0.7,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user',   content: userPrompt   },
+          ],
+          max_tokens: 300,
+          temperature: 0.7,
         }),
         signal: AbortSignal.timeout(8000),
       });
+
       const data = await r.json();
       if (r.ok) {
         const aiText = data?.choices?.[0]?.message?.content || '';
-        let actions = [];
+        let actions  = [];
         const m = aiText.match(/<ACTIONS_JSON>([\s\S]*?)<\/ACTIONS_JSON>/);
         if (m) { try { actions = JSON.parse(m[1].trim()); } catch {} }
-        return res.status(200).json({ response: aiText.replace(/<ACTIONS_JSON>[\s\S]*?<\/ACTIONS_JSON>/, '').trim(), actions });
+        return res.status(200).json({
+          response: aiText.replace(/<ACTIONS_JSON>[\s\S]*?<\/ACTIONS_JSON>/, '').trim(),
+          actions,
+          lang: detectedLang,
+        });
       }
     } catch {}
   }
 
   // ─── Gemini Fallback ──────────────────────────────────────────────────────
   if (geminiKey) {
+    const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
     for (const model of [
-      { v: 'v1beta', n: 'gemini-2.0-flash' },
+      { v: 'v1beta', n: 'gemini-2.0-flash'      },
       { v: 'v1beta', n: 'gemini-2.0-flash-lite' },
-      { v: 'v1',     n: 'gemini-1.5-flash' },
+      { v: 'v1',     n: 'gemini-1.5-flash'      },
     ]) {
       try {
         const r = await fetch(
@@ -100,17 +137,24 @@ For adding tasks: <ACTIONS_JSON>[{"type":"ADD_TASKS","tasks":[{"text":"...","sta
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.7, maxOutputTokens: 400 } }),
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: fullPrompt }] }],
+              generationConfig: { temperature: 0.7, maxOutputTokens: 400 },
+            }),
             signal: AbortSignal.timeout(7000),
           }
         );
         const data = await r.json();
         if (r.ok) {
           const aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-          let actions = [];
+          let actions  = [];
           const m = aiText.match(/<ACTIONS_JSON>([\s\S]*?)<\/ACTIONS_JSON>/);
           if (m) { try { actions = JSON.parse(m[1].trim()); } catch {} }
-          return res.status(200).json({ response: aiText.replace(/<ACTIONS_JSON>[\s\S]*?<\/ACTIONS_JSON>/, '').trim(), actions });
+          return res.status(200).json({
+            response: aiText.replace(/<ACTIONS_JSON>[\s\S]*?<\/ACTIONS_JSON>/, '').trim(),
+            actions,
+            lang: detectedLang,
+          });
         }
         if ([403, 404, 429].includes(r.status)) continue;
         break;
@@ -119,5 +163,9 @@ For adding tasks: <ACTIONS_JSON>[{"type":"ADD_TASKS","tasks":[{"text":"...","sta
   }
 
   // ─── Local Fallback ───────────────────────────────────────────────────────
-  return res.status(200).json({ response: getLocalFallback(message, appData, language), actions: [] });
+  return res.status(200).json({
+    response: getLocalFallback(message, appData, detectedLang),
+    actions: [],
+    lang: detectedLang,
+  });
 }
