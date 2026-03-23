@@ -1,7 +1,62 @@
-// Gemini AI — Conversational Analysis Chat
-// File location: api/chat.js
-
+// Gemini AI — Conversational AI Coach
 import { enforceRateLimit, getClientKey } from './_rateLimit.js';
+
+// ✅ Local smart fallback responses
+function getLocalFallback(message, appData, language) {
+  const msg  = (message || '').toLowerCase();
+  const lang = language === 'ta';
+  const { goals = [], habits = [] } = appData || {};
+  const done    = goals.filter(g => g.done).length;
+  const total   = goals.length;
+  const pending = total - done;
+
+  // Analysis
+  if (msg.includes('analysis') || msg.includes('analyze') || msg.includes('performance') || msg.includes('பகுப்பாய்வு')) {
+    return lang
+      ? `📊 உங்கள் இன்றைய முன்னேற்றம்:\n\n✅ முடிந்தது: ${done}/${total} பணிகள்\n⏳ நிலுவை: ${pending} பணிகள்\n🔥 பழக்கங்கள்: ${habits.length} தினசரி பழக்கங்கள்\n\nதொடர்ந்து உழைப்பீர்கள்! 💪`
+      : `📊 Here's your productivity snapshot:\n\n✅ Completed: ${done}/${total} tasks\n⏳ Pending: ${pending} tasks\n🔥 Active habits: ${habits.length}\n\nKeep pushing forward! 💪`;
+  }
+
+  // Today's plan
+  if (msg.includes('today') || msg.includes('plan') || msg.includes('schedule') || msg.includes('இன்று') || msg.includes('திட்டம்')) {
+    const todayTasks = goals.filter(g => {
+      const today = new Date().toISOString().split('T')[0];
+      return g.date === today && !g.done;
+    }).slice(0, 3);
+    const taskList = todayTasks.length > 0
+      ? todayTasks.map((t, i) => `${i + 1}. ${t.text}${t.startTime ? ` (${t.startTime})` : ''}`).join('\n')
+      : (lang ? 'இன்று பணிகள் இல்லை' : 'No tasks for today');
+    return lang
+      ? `📅 இன்றைய பணிகள்:\n\n${taskList}\n\nகவனம் செலுத்துங்கள்! 🎯`
+      : `📅 Your tasks for today:\n\n${taskList}\n\nStay focused! 🎯`;
+  }
+
+  // Habits
+  if (msg.includes('habit') || msg.includes('streak') || msg.includes('பழக்கம்')) {
+    return lang
+      ? `🔥 உங்களிடம் ${habits.length} பழக்கங்கள் உள்ளன. தினமும் தொடர்ந்து செய்யுங்கள்!`
+      : `🔥 You have ${habits.length} active habits. Consistency is key — keep your streak alive!`;
+  }
+
+  // Focus / productivity tips
+  if (msg.includes('focus') || msg.includes('productiv') || msg.includes('கவனம்')) {
+    return lang
+      ? `🧠 கவனம் அதிகரிக்க:\n\n1. Pomodoro முறை use பண்ணுங்கள் (25 min work + 5 min break)\n2. Phone notifications off பண்ணுங்கள்\n3. ஒரு நேரத்தில் ஒரு பணி மட்டும்\n4. குறிக்கோள் தெளிவாக வை`
+      : `🧠 Tips to boost your focus:\n\n1. Use the Pomodoro technique (25 min work + 5 min break)\n2. Turn off notifications\n3. One task at a time\n4. Keep your goal visible`;
+  }
+
+  // Motivation
+  if (msg.includes('motivat') || msg.includes('help') || msg.includes('hello') || msg.includes('hi') || msg.includes('வணக்கம்')) {
+    return lang
+      ? `வணக்கம்! 👋 நான் உங்கள் AI Coach.\n\nநான் உங்களுக்கு:\n📊 செயல்திறன் பகுப்பாய்வு\n📅 இன்றைய திட்டம்\n🔥 பழக்க கண்காணிப்பு\n💡 உற்பத்தித்திறன் குறிப்புகள்\n\nவழங்கலாம். என்ன help வேண்டும்?`
+      : `Hello! 👋 I'm your AI Coach.\n\nI can help you with:\n📊 Performance analysis\n📅 Daily planning\n🔥 Habit tracking\n💡 Productivity tips\n\nWhat would you like help with today?`;
+  }
+
+  // Default
+  return lang
+    ? `🤖 புரியவில்லை. இதை try பண்ணுங்கள்:\n• "இன்றைய திட்டம்"\n• "என் முன்னேற்றம் என்ன?"\n• "கவனம் tips"`
+    : `🤖 Try asking me:\n• "Today's plan"\n• "Analyze my progress"\n• "Give me focus tips"\n• "How are my habits?"`;
+}
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Credentials', true);
@@ -9,14 +64,8 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const rateLimit = enforceRateLimit(getClientKey(req));
   if (!rateLimit.allowed) {
@@ -24,33 +73,33 @@ export default async function handler(req, res) {
   }
 
   const apiKey = process.env.GEMINI_API_KEY;
+  const { message, appData = {}, language = 'en' } = req.body || {};
+
+  // ✅ No API key → use smart local fallback immediately
   if (!apiKey) {
-    return res.status(500).json({ error: 'GEMINI_API_KEY is not set.' });
+    return res.status(200).json({
+      response: getLocalFallback(message, appData, language),
+      actions: []
+    });
   }
 
-  const { message, appData = {}, language = 'en' } = req.body || {};
   const outputLanguage = language === 'ta' ? 'Tamil' : 'English';
+  const { goals = [], habits = [] } = appData;
 
-  const prompt = `You are an AI Personal Assistant. 
-Respond to: "${message}". 
-Data: ${JSON.stringify(appData)}. 
-Respond in ${outputLanguage}. Use emojis. 
+  const prompt = `You are an AI Personal Productivity Coach.
+User message: "${message}"
+User data: ${goals.length} tasks (${goals.filter(g => g.done).length} done), ${habits.length} habits.
+Respond helpfully in ${outputLanguage}. Use emojis. Keep response under 150 words.
 
-If the user wants to change settings or views, use <ACTIONS_JSON>[{"type": "SET_LANGUAGE", "value": "ta/en"}, {"type": "SET_THEME", "value": "dark/light"}, {"type": "SET_VIEW", "value": "view_id"}]</ACTIONS_JSON>.
-If the user wants to add tasks, use <ACTIONS_JSON>[{"type": "ADD_TASKS", "tasks": [{"text": "...", "startTime": "HH:MM", "endTime": "HH:MM", "priority": "High/Medium/Low", "session": "Morning/Afternoon/Evening", "date": "YYYY-MM-DD"}]}]</ACTIONS_JSON>.
-If the user wants to REPLACE or REWRITE today's schedule entirely, use <ACTIONS_JSON>[{"type": "REPLACE_TASKS", "tasks": [...]}]</ACTIONS_JSON>.
+If user wants to change settings, use: <ACTIONS_JSON>[{"type": "SET_LANGUAGE", "value": "ta/en"}, {"type": "SET_VIEW", "value": "view_id"}]</ACTIONS_JSON>
+If user wants to add tasks, use: <ACTIONS_JSON>[{"type": "ADD_TASKS", "tasks": [{"text": "...", "startTime": "HH:MM", "endTime": "HH:MM", "priority": "High/Medium/Low", "session": "Morning/Afternoon/Evening", "date": "YYYY-MM-DD"}]}]</ACTIONS_JSON>`;
 
-Be extremely precise with JSON.`;
-
-  // Standardized Models with specific focus on stability (Aliases are usually best)
-  // ✅ FIXED: Valid model names as of 2025-2026
+  // ✅ Stable models only — no preview models
   const models = [
-    { version: 'v1beta', name: 'gemini-2.5-flash-preview-05-20' },
     { version: 'v1beta', name: 'gemini-2.0-flash' },
     { version: 'v1beta', name: 'gemini-2.0-flash-lite' },
+    { version: 'v1',     name: 'gemini-1.5-flash' },
   ];
-
-  let lastError = null;
 
   for (const model of models) {
     try {
@@ -61,47 +110,39 @@ Be extremely precise with JSON.`;
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.8, maxOutputTokens: 1024 },
+            generationConfig: { temperature: 0.7, maxOutputTokens: 512 },
           }),
-          signal: AbortSignal.timeout(9000),
+          signal: AbortSignal.timeout(8000),
         }
       );
 
       const data = await response.json();
 
       if (response.ok) {
-        const aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        const aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
         let actions = [];
-        const actionsMatch = aiText.match(/<ACTIONS_JSON>([\s\S]*?)<\/ACTIONS_JSON>/);
-        if (actionsMatch) {
-          try {
-            const parsed = JSON.parse(actionsMatch[1].trim());
-            actions = Array.isArray(parsed) ? parsed : [parsed];
-          } catch (e) {}
+        const match = aiText.match(/<ACTIONS_JSON>([\s\S]*?)<\/ACTIONS_JSON>/);
+        if (match) {
+          try { actions = JSON.parse(match[1].trim()); } catch {}
         }
-        const cleanText = aiText.replace(/<ACTIONS_JSON>[\s\S]*?<\/ACTIONS_JSON>/, '').trim();
-        return res.status(200).json({ response: cleanText, actions });
-      } else {
-        lastError = data.error?.message || `Status ${response.status}`;
-        
-        // If Model Not Found (404) OR Quota Exceeded (429/403) or Limit 0, try next model
-        const errLower = lastError.toLowerCase();
-        if (response.status === 404 || response.status === 429 || response.status === 403 || errLower.includes('quota') || errLower.includes('found')) {
-          // model failed, trying next
-          continue;
-        }
-        
-        return res.status(500).json({ error: 'Gemini API failed', message: lastError });
+        const clean = aiText.replace(/<ACTIONS_JSON>[\s\S]*?<\/ACTIONS_JSON>/, '').trim();
+        return res.status(200).json({ response: clean, actions });
       }
-    } catch (e) {
-      lastError = e.message;
+
+      // Rate limit or quota — try next model
+      if ([403, 404, 429].includes(response.status)) continue;
+
+      // Other error — use fallback
+      break;
+
+    } catch {
       continue;
     }
   }
 
-  // If all failed, return a helpful error instead of raw technical one
-  return res.status(500).json({ 
-    error: 'AI Services Busy', 
-    message: 'Google Gemini API list is busy or reaching free tier limits. Please wait 1 minute and try again.' 
+  // ✅ All models failed → smart local fallback (200, not 500!)
+  return res.status(200).json({
+    response: getLocalFallback(message, appData, language),
+    actions: []
   });
 }
