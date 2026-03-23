@@ -24,15 +24,15 @@ export default async function handler(req, res) {
   const prompt = `Re-sequence these tasks for optimal flow. Return ONLY a valid JSON array inside <OPTIMIZED_JSON> tags. TASKS: ${JSON.stringify(tasks)}. Language: ${outputLanguage}`;
 
   const models = [
-    { version: 'v1beta', name: 'gemini-2.5-flash-preview-05-20' },
-    { version: 'v1beta', name: 'gemini-2.0-flash' },
-    { version: 'v1beta', name: 'gemini-2.0-flash-lite' }
+    { v: 'v1beta', n: 'gemini-2.0-flash' },
+    { v: 'v1',     n: 'gemini-1.5-flash' },
+    { v: 'v1beta', n: 'gemini-1.5-flash' }
   ];
 
   for (const model of models) {
     try {
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/${model.version}/models/${model.name}:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/${model.v}/models/${model.n}:generateContent?key=${apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -44,18 +44,14 @@ export default async function handler(req, res) {
         }
       );
 
+      if (!response.ok) continue;
+
       const data = await response.json();
-      if (response.ok) {
-        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-        const jsonMatch = text.match(/<OPTIMIZED_JSON>([\s\S]*?)<\/OPTIMIZED_JSON>/);
-        const optimizedTasks = jsonMatch ? JSON.parse(jsonMatch[1].trim()) : null;
-        if (optimizedTasks) return res.status(200).json({ optimizedTasks });
-      }
-      if (response.status === 404 || response.status === 429 || response.status === 403) continue;
-      break;
-    } catch (e) {
-      continue;
-    }
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      const jsonMatch = text.match(/<OPTIMIZED_JSON>([\s\S]*?)<\/OPTIMIZED_JSON>/);
+      const optimizedTasks = jsonMatch ? JSON.parse(jsonMatch[1].trim()) : null;
+      if (optimizedTasks) return res.status(200).json({ optimizedTasks });
+    } catch (e) { continue; }
   }
 
   return res.status(500).json({ error: 'Optimization currently unavailable.' });

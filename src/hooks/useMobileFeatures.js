@@ -21,7 +21,7 @@ export async function triggerHaptic(style = "light") {
     const { Haptics, ImpactStyle } = await import("@capacitor/haptics");
     // ✅ FIX 5: Always use Light — never Medium or Heavy. Feels premium not annoying.
     await Haptics.impact({ style: ImpactStyle.Light });
-  } catch {}
+  } catch (err) { console.warn("Haptics impact failed:", err); }
 }
 
 export async function triggerSelectionHaptic() {
@@ -29,7 +29,7 @@ export async function triggerSelectionHaptic() {
   try {
     const { Haptics } = await import("@capacitor/haptics");
     await Haptics.selectionChanged();
-  } catch {}
+  } catch (err) { console.warn("Haptics selection failed:", err); }
 }
 
 // ============================================
@@ -64,7 +64,7 @@ async function setStatusBarColor(themeMode) {
 
     await StatusBar.setStyle({ style: isDark ? Style.Dark : Style.Light });
     await StatusBar.setBackgroundColor({ color });
-  } catch {}
+  } catch (err) { console.warn("StatusBar style failed:", err); }
 }
 
 // ============================================
@@ -108,7 +108,7 @@ function setupKeyboardAvoid() {
         showListener.remove();
         hideListener.remove();
       };
-    } catch {}
+    } catch (err) { console.warn("Keyboard listener setup failed:", err); }
   })();
   return () => cleanup();
 }
@@ -158,7 +158,7 @@ function setupBackButton(activeView, setActiveView, setShowForm, setShowMoreMenu
         });
       });
       cleanup = () => listener.remove();
-    } catch {}
+    } catch (err) { console.warn("BackButton listener setup failed:", err); }
   })();
   return () => cleanup();
 }

@@ -126,7 +126,7 @@ export default function SettingsView() {
           {[
             { label: 'Manual', value: 'off' },
             { label: 'System', value: 'system' },
-            { label: 'Time',   value: 'time'   },
+            { label: 'Time', value: 'time' },
           ].map(opt => (
             <button
               key={opt.value}
@@ -197,6 +197,11 @@ export default function SettingsView() {
           right={
             <Toggle value={overdueEnabled} onChange={v => setOverdueEnabled?.(v)} color="#f59e0b" />
           }
+        />
+        <SettingRow
+          icon="🔔" title="Test Notification" subtitle="Send a test alert now"
+          onClick={() => { triggerHaptic?.('medium'); app.testNotification(); }}
+          right={<span className="settings-chevron">›</span>}
         />
       </Section>
 

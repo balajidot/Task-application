@@ -6,6 +6,7 @@ import {
   initializeNotifications,
   scheduleTaskNotifications,
   updateLiveActivityNotification,
+  showAppNotification,
 } from "../notifications.fixed";
 import {
   REPEAT_OPTIONS, SESSION_OPTIONS, PRIORITY_OPTIONS, FONT_OPTIONS,
@@ -37,17 +38,17 @@ export const useApp = () => {
 
 // ✅ FIX 5: Storage keys — single source of truth
 const STORAGE_KEYS = {
-  XP:              'taskPlanner_xp',
-  LEVEL:           'taskPlanner_level',
-  PREMIUM:         'taskPlanner_premium',
-  HABITS:          'taskPlanner_habits',
-  CAREER:          'taskPlanner_career',
-  JOURNAL:         'taskPlanner_journal',
+  XP: 'taskPlanner_xp',
+  LEVEL: 'taskPlanner_level',
+  PREMIUM: 'taskPlanner_premium',
+  HABITS: 'taskPlanner_habits',
+  CAREER: 'taskPlanner_career',
+  JOURNAL: 'taskPlanner_journal',
   CHALLENGE_START: 'taskPlanner_challengeStart',
-  TRIAL_START:     'taskPlanner_trialStart',
-  MILESTONES:      'taskPlanner_milestonesAwarded',
-  USER_GOAL:       'taskPlanner_userGoal',
-  COACH_TONE:      'taskPlanner_coachTone',
+  TRIAL_START: 'taskPlanner_trialStart',
+  MILESTONES: 'taskPlanner_milestonesAwarded',
+  USER_GOAL: 'taskPlanner_userGoal',
+  COACH_TONE: 'taskPlanner_coachTone',
 };
 
 // ✅ FIX 5: Safe localStorage helpers — Capacitor-compatible
@@ -60,7 +61,7 @@ const safeGetItem = (key, fallback = null) => {
   }
 };
 const safeSetItem = (key, value) => {
-  try { localStorage.setItem(key, value); } catch {}
+  try { localStorage.setItem(key, value); } catch { }
 };
 const safeGetJSON = (key, fallback) => {
   try {
@@ -71,7 +72,7 @@ const safeGetJSON = (key, fallback) => {
   }
 };
 const safeSetJSON = (key, value) => {
-  try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch { }
 };
 
 export const AppProvider = ({ children }) => {
@@ -84,95 +85,95 @@ export const AppProvider = ({ children }) => {
   }, []);
 
   // ─── User & Auth ───
-  const [userName,          setUserName]          = useState("");
-  const [showNameSetup,     setShowNameSetup]     = useState(false);
-  const [onboardStep,       setOnboardStep]       = useState(1);
-  const [onboardGoal,       setOnboardGoal]       = useState('');
-  const [onboardFocus,      setOnboardFocus]      = useState('');
-  const [trialDaysLeft,     setTrialDaysLeft]     = useState(null);
-  const [showLoader,        setShowLoader]        = useState(true);
-  const [isPremium,         setIsPremium]         = useState(false);
-  const [showRatingPrompt,  setShowRatingPrompt]  = useState(false);
-  const [isOffline,         setIsOffline]         = useState(!navigator.onLine);
-  const [userXP,            setUserXP]            = useState(0);
-  const [coachTone,         setCoachTone]         = useState('motivational');
-  const [userLevel,         setUserLevel]         = useState(1);
-  const [tempName,          setTempName]          = useState("");
-  const [nowMinuteTick,     setNowMinuteTick]     = useState(Date.now());
+  const [userName, setUserName] = useState("");
+  const [showNameSetup, setShowNameSetup] = useState(false);
+  const [onboardStep, setOnboardStep] = useState(1);
+  const [onboardGoal, setOnboardGoal] = useState('');
+  const [onboardFocus, setOnboardFocus] = useState('');
+  const [trialDaysLeft, setTrialDaysLeft] = useState(null);
+  const [showLoader, setShowLoader] = useState(true);
+  const [isPremium, setIsPremium] = useState(false);
+  const [showRatingPrompt, setShowRatingPrompt] = useState(false);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [userXP, setUserXP] = useState(0);
+  const [coachTone, setCoachTone] = useState('motivational');
+  const [userLevel, setUserLevel] = useState(1);
+  const [tempName, setTempName] = useState("");
+  const [nowMinuteTick, setNowMinuteTick] = useState(Date.now());
 
   // ─── Tasks ───
-  const [goals,             setGoals]             = useState([]);
-  const [loaded,            setLoaded]            = useState(false);
-  const [showForm,          setShowForm]          = useState(false);
-  const [aiLoading,         setAiLoading]         = useState(false);
-  const [editingGoal,       setEditingGoal]       = useState(null);
-  const [activeDate,        setActiveDate]        = useState(todayKey());
-  const [weekBase,          setWeekBase]          = useState(new Date());
-  const [activeView,        setActiveView]        = useState("insights");
-  const [notifPerm,         setNotifPerm]         = useState("default");
-  const [habits,            setHabits]            = useState([]);
-  const [career,            setCareer]            = useState({});
-  const [journalEntries,    setJournalEntries]    = useState([]);
-  const [challengeStart,    setChallengeStart]    = useState(null);
-  const [priorityFilter,    setPriorityFilter]    = useState("All");
-  const [timeFilter,        setTimeFilter]        = useState("All Times");
-  const [searchTerm,        setSearchTerm]        = useState("");
+  const [goals, setGoals] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [editingGoal, setEditingGoal] = useState(null);
+  const [activeDate, setActiveDate] = useState(todayKey());
+  const [weekBase, setWeekBase] = useState(new Date());
+  const [activeView, setActiveView] = useState("insights");
+  const [notifPerm, setNotifPerm] = useState("default");
+  const [habits, setHabits] = useState([]);
+  const [career, setCareer] = useState({});
+  const [journalEntries, setJournalEntries] = useState([]);
+  const [challengeStart, setChallengeStart] = useState(null);
+  const [priorityFilter, setPriorityFilter] = useState("All");
+  const [timeFilter, setTimeFilter] = useState("All Times");
+  const [searchTerm, setSearchTerm] = useState("");
 
   // ─── Theme & Display ───
-  const [themeMode,              setThemeMode]              = useState("dark");
-  const [autoThemeMode,          setAutoThemeMode]          = useState("off");
-  const [appLanguage,            setAppLanguage]            = useState("en");
-  const [taskFontSize,           setTaskFontSize]           = useState(18);
-  const [taskFontFamily,         setTaskFontFamily]         = useState(FONT_OPTIONS[0].value);
-  const [uiScale,                setUiScale]                = useState(96);
-  const [overdueEnabled,         setOverdueEnabled]         = useState(true);
-  const [fontWeight,             setFontWeight]             = useState(500);
-  const [soundTheme,             setSoundTheme]             = useState('default');
-  const [hapticEnabled,          setHapticEnabled]          = useState(true);
-  const [liveHighlightEnabled,   setLiveHighlightEnabled]   = useState(true);
-  const [bgTheme,                setBgTheme]                = useState('none');
+  const [themeMode, setThemeMode] = useState("dark");
+  const [autoThemeMode, setAutoThemeMode] = useState("off");
+  const [appLanguage, setAppLanguage] = useState("en");
+  const [taskFontSize, setTaskFontSize] = useState(18);
+  const [taskFontFamily, setTaskFontFamily] = useState(FONT_OPTIONS[0].value);
+  const [uiScale, setUiScale] = useState(96);
+  const [overdueEnabled, setOverdueEnabled] = useState(true);
+  const [fontWeight, setFontWeight] = useState(500);
+  const [soundTheme, setSoundTheme] = useState('default');
+  const [hapticEnabled, setHapticEnabled] = useState(true);
+  const [liveHighlightEnabled, setLiveHighlightEnabled] = useState(true);
+  const [bgTheme, setBgTheme] = useState('none');
 
   // ─── UI State ───
-  const [reminderPopup,        setReminderPopup]        = useState(null);
-  const [liveTaskPopup,        setLiveTaskPopup]        = useState(null);
-  const [nextTaskAlert,        setNextTaskAlert]        = useState(null);
-  const [form,                 setForm]                 = useState({
+  const [reminderPopup, setReminderPopup] = useState(null);
+  const [liveTaskPopup, setLiveTaskPopup] = useState(null);
+  const [nextTaskAlert, setNextTaskAlert] = useState(null);
+  const [form, setForm] = useState({
     text: "", date: todayKey(), reminder: "",
     startTime: "", endTime: "", repeat: "None",
     session: "Morning", priority: "Medium"
   });
-  const [completedPulseId,     setCompletedPulseId]     = useState(null);
-  const [celebratingGoalId,    setCelebratingGoalId]    = useState(null);
-  const [selectedGoalIds,      setSelectedGoalIds]      = useState([]);
-  const [plannerView,          setPlannerView]          = useState("monthly");
-  const [showPomodoro,         setShowPomodoro]         = useState(false);
-  const [showImportExport,     setShowImportExport]     = useState(false);
-  const [focusMode,            setFocusMode]            = useState(false);
-  const [upcomingTaskAlert,    setUpcomingTaskAlert]    = useState(null);
-  const [showCelebration,      setShowCelebration]      = useState(false);
-  const [nextUpcomingTask,     setNextUpcomingTask]     = useState(null);
-  const [showShortcuts,        setShowShortcuts]        = useState(false);
-  const [showWeeklyWizard,     setShowWeeklyWizard]     = useState(false);
-  const [tabSwitching,         setTabSwitching]         = useState(false);
-  const [showMoreMenu,         setShowMoreMenu]         = useState(false);
-  const [aiContext,            setAiContext]            = useState("");
-  const [aiPersonalCoach,      setAiPersonalCoach]     = useState("");
-  const [isBriefingLoading,    setIsBriefingLoading]   = useState(false);
-  const [smartNotice,          setSmartNotice]         = useState(null);
+  const [completedPulseId, setCompletedPulseId] = useState(null);
+  const [celebratingGoalId, setCelebratingGoalId] = useState(null);
+  const [selectedGoalIds, setSelectedGoalIds] = useState([]);
+  const [plannerView, setPlannerView] = useState("monthly");
+  const [showPomodoro, setShowPomodoro] = useState(false);
+  const [showImportExport, setShowImportExport] = useState(false);
+  const [focusMode, setFocusMode] = useState(false);
+  const [upcomingTaskAlert, setUpcomingTaskAlert] = useState(null);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [nextUpcomingTask, setNextUpcomingTask] = useState(null);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showWeeklyWizard, setShowWeeklyWizard] = useState(false);
+  const [tabSwitching, setTabSwitching] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [aiContext, setAiContext] = useState("");
+  const [aiPersonalCoach, setAiPersonalCoach] = useState("");
+  const [isBriefingLoading, setIsBriefingLoading] = useState(false);
+  const [smartNotice, setSmartNotice] = useState(null);
 
   // ✅ FIX 1: Custom confirm dialog — replaces window.confirm/window.alert
   const [confirmDialog, setConfirmDialog] = useState(null);
 
   // ─── Refs ───
-  const pulseTimerRef               = useRef(null);
-  const celebrateTimerRef           = useRef(null);
-  const liveNotifLastUpdateRef      = useRef(0);
-  const searchRef                   = useRef(null);
-  const liveTaskRef                 = useRef(undefined);
-  const nextAlertShownRef           = useRef({});
-  const globalCelebrationTimerRef   = useRef(null);
-  const pendingWriteRef             = useRef({ timer: null, last: "" });
-  const isFirstRunRef               = useRef(true);
+  const pulseTimerRef = useRef(null);
+  const celebrateTimerRef = useRef(null);
+  const liveNotifLastUpdateRef = useRef(0);
+  const searchRef = useRef(null);
+  const liveTaskRef = useRef(undefined);
+  const nextAlertShownRef = useRef({});
+  const globalCelebrationTimerRef = useRef(null);
+  const pendingWriteRef = useRef({ timer: null, last: "" });
+  const isFirstRunRef = useRef(true);
 
   // ✅ FIX 6: Timer cleanup on unmount
   useEffect(() => {
@@ -204,15 +205,15 @@ export const AppProvider = ({ children }) => {
       );
   }, [goals, activeDate, priorityFilter, searchTerm, timeFilter]);
 
-  const pendingGoals   = useMemo(() => visibleGoals.filter(g => !isDoneOn(g, activeDate)),  [visibleGoals, activeDate]);
-  const completedGoals = useMemo(() => visibleGoals.filter(g =>  isDoneOn(g, activeDate)),  [visibleGoals, activeDate]);
-  const selectedSet    = useMemo(() => new Set(selectedGoalIds),                             [selectedGoalIds]);
+  const pendingGoals = useMemo(() => visibleGoals.filter(g => !isDoneOn(g, activeDate)), [visibleGoals, activeDate]);
+  const completedGoals = useMemo(() => visibleGoals.filter(g => isDoneOn(g, activeDate)), [visibleGoals, activeDate]);
+  const selectedSet = useMemo(() => new Set(selectedGoalIds), [selectedGoalIds]);
 
   const streakDays = useMemo(() => completionStreak(goals), [goals]);
-  const weekly     = useMemo(() => weeklyStats(goals),       [goals]);
-  const done  = completedGoals.length;
+  const weekly = useMemo(() => weeklyStats(goals), [goals]);
+  const done = completedGoals.length;
   const total = visibleGoals.length;
-  const pct   = total ? Math.round((done / total) * 100) : 0;
+  const pct = total ? Math.round((done / total) * 100) : 0;
   const dueSoon = pendingGoals.filter(g => timeToMinutes(g.reminder) < Number.MAX_SAFE_INTEGER).length;
 
   const nowMinutes = useMemo(() => {
@@ -220,7 +221,7 @@ export const AppProvider = ({ children }) => {
     return now.getHours() * 60 + now.getMinutes();
   }, [nowMinuteTick]);
 
-  const copy  = useMemo(() => APP_COPY[appLanguage] || APP_COPY.en, [appLanguage]);
+  const copy = useMemo(() => APP_COPY[appLanguage] || APP_COPY.en, [appLanguage]);
   const quote = useMemo(() => QUOTES[Math.floor((Date.now() / 86400000) % QUOTES.length)], []);
 
   const liveCurrentGoal = useMemo(() => (
@@ -242,8 +243,8 @@ export const AppProvider = ({ children }) => {
 
   const aiBriefing = useMemo(() => {
     const highPriority = pendingGoals.filter(g => g.priority === "High").slice(0, 2);
-    const untimed      = pendingGoals.filter(g => !g.startTime).slice(0, 2);
-    const overdue      = pendingGoals.filter(g => g.endTime && timeToMinutes(g.endTime) < nowMinutes);
+    const untimed = pendingGoals.filter(g => !g.startTime).slice(0, 2);
+    const overdue = pendingGoals.filter(g => g.endTime && timeToMinutes(g.endTime) < nowMinutes);
     return {
       headline: liveCurrentGoal
         ? `${copy.ai.stayLocked} "${liveCurrentGoal.text}" ${copy.ai.until} ${liveCurrentGoal.endTime || liveCurrentGoal.startTime || "the next block"}.`
@@ -265,21 +266,21 @@ export const AppProvider = ({ children }) => {
     return activeDate === todayKey()
       ? copy.common.todayFocus
       : new Date(`${activeDate}T00:00:00`).toLocaleDateString(
-          appLanguage === "ta" ? "ta-IN" : "en-IN",
-          { weekday: "long", month: "long", day: "numeric" }
-        );
+        appLanguage === "ta" ? "ta-IN" : "en-IN",
+        { weekday: "long", month: "long", day: "numeric" }
+      );
   }, [activeDate, copy.common.todayFocus, appLanguage]);
 
   const aiWeeklyAnalysis = useMemo(() => {
-    const isTamil      = appLanguage === "ta";
-    const bestDayName  = weekly.bestDay?.name || "N/A";
-    const weakestDay   = weekly.days.reduce((low, d) => (!low || d.pct < low.pct ? d : low), null)?.name || "N/A";
+    const isTamil = appLanguage === "ta";
+    const bestDayName = weekly.bestDay?.name || "N/A";
+    const weakestDay = weekly.days.reduce((low, d) => (!low || d.pct < low.pct ? d : low), null)?.name || "N/A";
     const totalPending = goals.filter(g => !isDoneOn(g, todayKey()) && goalVisibleOn(g, todayKey())).length;
-    const trend        = weekly.days.map(d => d.pct < 0 ? 0 : d.pct);
-    const trendDelta   = trend.length > 1 ? trend[trend.length - 1] - trend[0] : 0;
+    const trend = weekly.days.map(d => d.pct < 0 ? 0 : d.pct);
+    const trendDelta = trend.length > 1 ? trend[trend.length - 1] - trend[0] : 0;
     const predictedPct = Math.max(20, Math.min(100, Math.round(weekly.weekPct + trendDelta * 0.35)));
-    const overloaded   = weekly.days.filter(d => d.total >= 6);
-    const burnoutRisk  = overloaded.length >= 3 || (weekly.weekPct < 45 && weekly.weekTotal >= 12)
+    const overloaded = weekly.days.filter(d => d.total >= 6);
+    const burnoutRisk = overloaded.length >= 3 || (weekly.weekPct < 45 && weekly.weekTotal >= 12)
       ? "high" : overloaded.length >= 1 ? "medium" : "low";
     const overdueTasks = goals.filter(g =>
       goalVisibleOn(g, todayKey()) && !isDoneOn(g, todayKey()) &&
@@ -291,22 +292,22 @@ export const AppProvider = ({ children }) => {
           ? `இந்த வாரம் ${weekly.weekTotal} task-களில் ${weekly.weekDone} முடித்துள்ளீர்கள். சுமார் ${weekly.weekPct}%.`
           : `You finished ${weekly.weekDone} of ${weekly.weekTotal} tasks this week, around ${weekly.weekPct}%.`
         : "Low tracked data.",
-      momentum:     streakDays >= 3 ? "Great streak!" : "Building momentum...",
-      pattern:      `Best: ${bestDayName}. Pending today: ${totalPending}.`,
+      momentum: streakDays >= 3 ? "Great streak!" : "Building momentum...",
+      pattern: `Best: ${bestDayName}. Pending today: ${totalPending}.`,
       predictedPct, burnoutRisk,
       overdueCount: overdueTasks.length,
-      chartPoints:  trend,
-      weeklyStory:  isTamil ? "உங்கள் வாரம் ஒரு தொடர் முயற்சி." : "Your week was a journey of consistent effort.",
-      trend:        trendDelta > 5 ? 'up' : trendDelta < -5 ? 'down' : 'stable',
-      advice:       isTamil ? "அடுத்த வாரம் இன்னும் சிறப்பாக செய்வோம்." : "Let's aim for even better focus next week.",
-      forecast:     isTamil ? "நல்ல முன்னேற்றம்" : "Positive trajectory",
+      chartPoints: trend,
+      weeklyStory: isTamil ? "உங்கள் வாரம் ஒரு தொடர் முயற்சி." : "Your week was a journey of consistent effort.",
+      trend: trendDelta > 5 ? 'up' : trendDelta < -5 ? 'down' : 'stable',
+      advice: isTamil ? "அடுத்த வாரம் இன்னும் சிறப்பாக செய்வோம்." : "Let's aim for even better focus next week.",
+      forecast: isTamil ? "நல்ல முன்னேற்றம்" : "Positive trajectory",
       nextWeekPlan: [
         {
-          title:  isTamil ? "அதிகாலை வேலைகள்" : "Morning Focus",
+          title: isTamil ? "அதிகாலை வேலைகள்" : "Morning Focus",
           detail: isTamil ? "முக்கியமான வேலைகளை முதலில் முடிக்கவும்." : "Complete core tasks before 10 AM."
         },
         {
-          title:  isTamil ? "இடைவேளை" : "Recovery",
+          title: isTamil ? "இடைவேளை" : "Recovery",
           detail: isTamil ? "Burnout தவிர்க்க ஓய்வு எடுக்கவும்." : "Schedule recovery blocks to avoid burnout."
         }
       ],
@@ -318,11 +319,11 @@ export const AppProvider = ({ children }) => {
   const save = useCallback((updated) => {
     setGoals(updated);
     let serialized = "[]";
-    try { serialized = JSON.stringify(updated); } catch {}
+    try { serialized = JSON.stringify(updated); } catch { }
     pendingWriteRef.current.last = serialized;
     if (pendingWriteRef.current.timer) clearTimeout(pendingWriteRef.current.timer);
     pendingWriteRef.current.timer = setTimeout(() => {
-      writeStorage(pendingWriteRef.current.last).catch(() => {});
+      writeStorage(pendingWriteRef.current.last).catch(() => { });
     }, 150);
   }, []);
 
@@ -335,6 +336,21 @@ export const AppProvider = ({ children }) => {
       type: 'info'
     });
   }, [goals, appLanguage]);
+
+  const testNotification = useCallback(async () => {
+    const success = await showAppNotification(
+      appLanguage === 'ta' ? "சோதனை அறிவிப்பு!" : "Test Notification!",
+      { body: appLanguage === 'ta' ? "உங்கள் நோட்டிபிகேஷன் சரியாக வேலை செய்கிறது." : "Your notification system is working perfectly." }
+    );
+    if (success) {
+      setSmartNotice({
+        id: 'test-notif-ok',
+        text: appLanguage === 'ta' ? "அனுப்பப்பட்டது!" : "Sent!",
+        icon: '✅',
+        type: 'success'
+      });
+    }
+  }, [appLanguage]);
 
   // ✅ FIX 1: Custom confirm — replaces window.confirm
   const showConfirm = useCallback((message, onConfirm) => {
@@ -356,7 +372,7 @@ export const AppProvider = ({ children }) => {
   useEffect(() => {
     if (!loaded) return;
     const checkSmartContext = () => {
-      const now  = new Date();
+      const now = new Date();
       const mins = now.getHours() * 60 + now.getMinutes();
       const overdue = goals.filter(g =>
         goalVisibleOn(g, todayKey()) &&
@@ -366,7 +382,7 @@ export const AppProvider = ({ children }) => {
       );
       if (overdue.length > 0) {
         setSmartNotice({
-          id:   'overdue-' + overdue.length,
+          id: 'overdue-' + overdue.length,
           text: appLanguage === 'ta'
             ? `${overdue.length} வேலைகள் தாமதமாகின்றன. இப்போதே முடிப்போம்!`
             : `${overdue.length} tasks are overdue. Let's finish them!`,
@@ -375,10 +391,10 @@ export const AppProvider = ({ children }) => {
         return;
       }
       const analyzedHabits = analyzeHabits(goals);
-      const currentHabit   = analyzedHabits.find(h => Math.abs(h.avgMins - mins) < 20);
+      const currentHabit = analyzedHabits.find(h => Math.abs(h.avgMins - mins) < 20);
       if (currentHabit) {
         setSmartNotice({
-          id:   'habit-' + currentHabit.text,
+          id: 'habit-' + currentHabit.text,
           text: appLanguage === 'ta'
             ? `வழக்கமான நேரமாகிய இப்போது "${currentHabit.text}" பணியைச் செய்யலாமா?`
             : `Time for your habit: "${currentHabit.text}". Start now?`,
@@ -386,16 +402,16 @@ export const AppProvider = ({ children }) => {
         });
       }
     };
-    const iv    = setInterval(checkSmartContext, 15 * 60 * 1000);
+    const iv = setInterval(checkSmartContext, 15 * 60 * 1000);
     const timer = setTimeout(checkSmartContext, 5000);
     return () => { clearInterval(iv); clearTimeout(timer); };
   }, [loaded, goals, appLanguage]);
 
   // ✅ FIX 4: Challenge milestones — correct dependency array
   const checkChallengeMilestones = useCallback((currentStreak) => {
-    const MILESTONES  = [1, 3, 7, 14, 21, 30];
-    const XP_REWARDS  = { 1: 10, 3: 30, 7: 70, 14: 150, 21: 210, 30: 300 };
-    const awarded     = safeGetJSON(STORAGE_KEYS.MILESTONES, []);
+    const MILESTONES = [1, 3, 7, 14, 21, 30];
+    const XP_REWARDS = { 1: 10, 3: 30, 7: 70, 14: 150, 21: 210, 30: 300 };
+    const awarded = safeGetJSON(STORAGE_KEYS.MILESTONES, []);
     MILESTONES.forEach(m => {
       if (currentStreak >= m && !awarded.includes(m)) {
         awarded.push(m);
@@ -430,13 +446,13 @@ export const AppProvider = ({ children }) => {
       if (!isFirstRunRef.current) setLiveTaskPopup(liveCurrentGoal);
       isFirstRunRef.current = false;
       electronIpc?.send?.("notify-task-shift", {
-        text:      liveCurrentGoal.text,
+        text: liveCurrentGoal.text,
         startTime: liveCurrentGoal.startTime,
-        endTime:   liveCurrentGoal.endTime,
-        session:   liveCurrentGoal.session,
+        endTime: liveCurrentGoal.endTime,
+        session: liveCurrentGoal.session,
       });
     }
-    const now        = Date.now();
+    const now = Date.now();
     const lastUpdate = liveNotifLastUpdateRef.current || 0;
     if (now - lastUpdate >= 300000) {
       liveNotifLastUpdateRef.current = now;
@@ -454,27 +470,31 @@ export const AppProvider = ({ children }) => {
   useEffect(() => {
     const init = async () => {
       try {
+        // ✅ CRITICAL FIX: Initialize notifications on startup
+        const perm = await initializeNotifications();
+        setNotifPerm(perm);
+
         // Load goals
         const rawGoals = await readStorage();
         if (rawGoals) {
           try {
             const parsed = JSON.parse(rawGoals);
             if (Array.isArray(parsed) && parsed.length > 0) setGoals(parsed);
-          } catch {}
+          } catch { }
         }
 
         // Load prefs
         const savedPrefs = await readPrefs();
         if (savedPrefs) {
-          if (savedPrefs.userName)      setUserName(savedPrefs.userName);
-          if (savedPrefs.themeMode)     setThemeMode(savedPrefs.themeMode);
-          if (savedPrefs.appLanguage)   setAppLanguage(savedPrefs.appLanguage);
-          if (savedPrefs.taskFontSize)  setTaskFontSize(savedPrefs.taskFontSize);
-          if (savedPrefs.uiScale)       setUiScale(savedPrefs.uiScale);
-          if (savedPrefs.fontWeight)    setFontWeight(savedPrefs.fontWeight);
-          if (savedPrefs.soundTheme)    setSoundTheme(savedPrefs.soundTheme);
+          if (savedPrefs.userName) setUserName(savedPrefs.userName);
+          if (savedPrefs.themeMode) setThemeMode(savedPrefs.themeMode);
+          if (savedPrefs.appLanguage) setAppLanguage(savedPrefs.appLanguage);
+          if (savedPrefs.taskFontSize) setTaskFontSize(savedPrefs.taskFontSize);
+          if (savedPrefs.uiScale) setUiScale(savedPrefs.uiScale);
+          if (savedPrefs.fontWeight) setFontWeight(savedPrefs.fontWeight);
+          if (savedPrefs.soundTheme) setSoundTheme(savedPrefs.soundTheme);
           if (savedPrefs.hapticEnabled !== undefined) setHapticEnabled(savedPrefs.hapticEnabled);
-          if (savedPrefs.bgTheme)       setBgTheme(savedPrefs.bgTheme);
+          if (savedPrefs.bgTheme) setBgTheme(savedPrefs.bgTheme);
         }
 
         // ✅ FIX 2: All reads via safeGet helpers — no raw localStorage mix
@@ -483,14 +503,14 @@ export const AppProvider = ({ children }) => {
           setIsPremium(true);
         }
 
-        const savedXP    = parseInt(safeGetItem(STORAGE_KEYS.XP, '0'));
+        const savedXP = parseInt(safeGetItem(STORAGE_KEYS.XP, '0'));
         const savedLevel = parseInt(safeGetItem(STORAGE_KEYS.LEVEL, '1'));
         setUserXP(isNaN(savedXP) ? 0 : savedXP);
         setUserLevel(isNaN(savedLevel) ? 1 : savedLevel);
 
-        const savedHabits  = safeGetJSON(STORAGE_KEYS.HABITS,          []);
-        const savedCareer  = safeGetJSON(STORAGE_KEYS.CAREER,          {});
-        const savedJournal = safeGetJSON(STORAGE_KEYS.JOURNAL,         []);
+        const savedHabits = safeGetJSON(STORAGE_KEYS.HABITS, []);
+        const savedCareer = safeGetJSON(STORAGE_KEYS.CAREER, {});
+        const savedJournal = safeGetJSON(STORAGE_KEYS.JOURNAL, []);
         const savedChallenge = safeGetItem(STORAGE_KEYS.CHALLENGE_START, null);
         setHabits(savedHabits);
         setCareer(savedCareer);
@@ -502,7 +522,7 @@ export const AppProvider = ({ children }) => {
           const daysPassed = Math.floor((Date.now() - parseInt(trialStart)) / 86400000);
           setTrialDaysLeft(Math.max(0, 30 - daysPassed));
         }
-      } catch {}
+      } catch { }
       finally {
         setShowLoader(false);
         setLoaded(true);
@@ -511,12 +531,12 @@ export const AppProvider = ({ children }) => {
 
     init();
 
-    const goOnline  = () => setIsOffline(false);
+    const goOnline = () => setIsOffline(false);
     const goOffline = () => setIsOffline(true);
-    window.addEventListener('online',  goOnline);
+    window.addEventListener('online', goOnline);
     window.addEventListener('offline', goOffline);
     return () => {
-      window.removeEventListener('online',  goOnline);
+      window.removeEventListener('online', goOnline);
       window.removeEventListener('offline', goOffline);
     };
   }, []);
@@ -534,10 +554,10 @@ export const AppProvider = ({ children }) => {
     });
 
     const root = document.documentElement;
-    root.style.setProperty('--task-font-size',      `${taskFontSize}px`);
-    root.style.setProperty('--task-font-family',    taskFontFamily);
-    root.style.setProperty('--global-font-weight',  fontWeight);
-    root.style.setProperty('--ui-scale',            uiScale / 100);
+    root.style.setProperty('--task-font-size', `${taskFontSize}px`);
+    root.style.setProperty('--task-font-family', taskFontFamily);
+    root.style.setProperty('--global-font-weight', fontWeight);
+    root.style.setProperty('--ui-scale', uiScale / 100);
 
     document.body.className = `theme-${themeMode}${bgTheme !== 'none' ? ` bg-anim-${bgTheme}` : ''}`;
   }, [
@@ -549,8 +569,8 @@ export const AppProvider = ({ children }) => {
   // Effect B: Save habits/career/journal data
   useEffect(() => {
     if (!loaded) return;
-    safeSetJSON(STORAGE_KEYS.HABITS,  habits);
-    safeSetJSON(STORAGE_KEYS.CAREER,  career);
+    safeSetJSON(STORAGE_KEYS.HABITS, habits);
+    safeSetJSON(STORAGE_KEYS.CAREER, career);
     safeSetJSON(STORAGE_KEYS.JOURNAL, journalEntries);
     if (challengeStart) safeSetItem(STORAGE_KEYS.CHALLENGE_START, challengeStart);
   }, [loaded, habits, career, journalEntries, challengeStart]);
@@ -564,11 +584,11 @@ export const AppProvider = ({ children }) => {
   // ─── XP / LEVEL ───
   const addXP = useCallback((priority = 'medium') => {
     const XP_VALUES = { high: 30, medium: 20, low: 10 };
-    const xpGain    = XP_VALUES[priority?.toLowerCase()] || 15;
+    const xpGain = XP_VALUES[priority?.toLowerCase()] || 15;
     setUserXP(prev => {
-      const newXP    = prev + xpGain;
+      const newXP = prev + xpGain;
       const newLevel = Math.floor(newXP / 100) + 1;
-      safeSetItem(STORAGE_KEYS.XP,    newXP);
+      safeSetItem(STORAGE_KEYS.XP, newXP);
       safeSetItem(STORAGE_KEYS.LEVEL, newLevel);
       setUserLevel(newLevel);
       return newXP;
@@ -603,6 +623,8 @@ export const AppProvider = ({ children }) => {
       clearTimeout(celebrateTimerRef.current);
       celebrateTimerRef.current = setTimeout(() => setCelebratingGoalId(null), 600);
     }
+    // Refresh notifications after state change
+    setTimeout(() => scheduleTaskNotifications(goals), 500);
   }, [activeDate, goals, save, addXP]);
 
   const submitForm = useCallback(() => {
@@ -613,6 +635,8 @@ export const AppProvider = ({ children }) => {
     } else {
       save([...goals, { ...g, id: Date.now() }]);
     }
+    // Proactively refresh after saving
+    setTimeout(() => scheduleTaskNotifications([...goals, g]), 500);
     setShowForm(false);
     setEditingGoal(null);
     setForm({
@@ -624,8 +648,10 @@ export const AppProvider = ({ children }) => {
   }, [form, editingGoal, goals, activeDate, save]);
 
   const removeGoal = useCallback((id) => {
-    save(goals.filter(g => g.id !== id));
+    const updated = goals.filter(g => g.id !== id);
+    save(updated);
     triggerHaptic('medium');
+    setTimeout(() => scheduleTaskNotifications(updated), 500);
   }, [goals, save]);
 
   const handleImportTasks = useCallback((imported) => {
@@ -636,7 +662,7 @@ export const AppProvider = ({ children }) => {
 
   const selectAllVisibleGoals = useCallback(() =>
     setSelectedGoalIds(visibleGoals.map(g => g.id)),
-  [visibleGoals]);
+    [visibleGoals]);
 
   const clearSelectedGoals = useCallback(() => setSelectedGoalIds([]), []);
 
@@ -664,12 +690,12 @@ export const AppProvider = ({ children }) => {
   const duplicatePendingToTomorrow = useCallback(() => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomKey    = toKey(tomorrow);
+    const tomKey = toKey(tomorrow);
     const duplicates = pendingGoals.map(g => ({
       ...normalizeGoal(g),
-      id:     Date.now() + Math.random(),
-      date:   tomKey,
-      done:   false,
+      id: Date.now() + Math.random(),
+      date: tomKey,
+      done: false,
       doneOn: {}
     }));
     save([...goals, ...duplicates]);
@@ -703,7 +729,7 @@ export const AppProvider = ({ children }) => {
   const dotsFor = useCallback((dateKey) => {
     const visible = goals.filter(g => goalVisibleOn(g, dateKey));
     return {
-      done:    visible.filter(g =>  isDoneOn(g, dateKey)).length,
+      done: visible.filter(g => isDoneOn(g, dateKey)).length,
       pending: visible.filter(g => !isDoneOn(g, dateKey)).length,
     };
   }, [goals]);
@@ -716,26 +742,26 @@ export const AppProvider = ({ children }) => {
     setIsBriefingLoading(true);
     try {
       const response = await fetch(getApiUrl('/api/briefing'), {
-        method:  'POST',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userName,
           language: appLanguage,
           appData: {
-            total:       goals.length,
-            done:        goals.filter(g => isDoneOn(g, todayKey())).length,
-            streak:      streakDays,
-            highPriority:goals.filter(g => g.priority === 'High' && !isDoneOn(g, todayKey())).length,
-            weeklyPct:   weekly?.weekPct || 0,
-            userGoal:    safeGetItem(STORAGE_KEYS.USER_GOAL, ''),
-            coachTone:   safeGetItem(STORAGE_KEYS.COACH_TONE, 'motivational'),
-            level:       parseInt(safeGetItem(STORAGE_KEYS.LEVEL, '1')),
+            total: goals.length,
+            done: goals.filter(g => isDoneOn(g, todayKey())).length,
+            streak: streakDays,
+            highPriority: goals.filter(g => g.priority === 'High' && !isDoneOn(g, todayKey())).length,
+            weeklyPct: weekly?.weekPct || 0,
+            userGoal: safeGetItem(STORAGE_KEYS.USER_GOAL, ''),
+            coachTone: safeGetItem(STORAGE_KEYS.COACH_TONE, 'motivational'),
+            level: parseInt(safeGetItem(STORAGE_KEYS.LEVEL, '1')),
           }
         })
       });
       const data = await response.json();
       if (data.briefing) setAiPersonalCoach(data.briefing);
-    } catch {}
+    } catch { }
     finally { setIsBriefingLoading(false); }
   }, [userName, loaded, isBriefingLoading, appLanguage, goals, streakDays, weekly?.weekPct]);
 
@@ -745,52 +771,24 @@ export const AppProvider = ({ children }) => {
     triggerHaptic('heavy');
     try {
       const response = await fetch(getApiUrl('/api/optimize'), {
-        method:  'POST',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tasks: tasksToOptimize, language: appLanguage })
       });
       const data = await response.json();
       if (data.optimizedTasks) {
-        const map     = new Map(data.optimizedTasks.map(t => [t.id, t]));
+        const map = new Map(data.optimizedTasks.map(t => [t.id, t]));
         const updated = goals.map(g => map.has(g.id) ? { ...g, ...map.get(g.id) } : g);
         save(updated);
         setSmartNotice({
-          id:   'opt-success',
+          id: 'opt-success',
           text: appLanguage === 'ta' ? "✅ அட்டவணை மேம்படுத்தப்பட்டது!" : "✅ Schedule optimized!",
           icon: '✨', type: 'success'
         });
       }
-    } catch {}
+    } catch { }
     finally { setAiLoading(false); }
   }, [goals, appLanguage, save]);
-
-  const handleSmartTaskParse = useCallback(async (rawText) => {
-    if (!rawText.trim()) return;
-    setAiLoading(true);
-    triggerHaptic('light');
-    try {
-      const response = await fetch(getApiUrl('/api/parse-task'), {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: rawText, language: appLanguage })
-      });
-      const data = await response.json();
-      if (data.parsedTask) {
-        const { text, startTime, endTime, priority, date } = data.parsedTask;
-        setForm(p => ({
-          ...p,
-          text:      text      || rawText,
-          startTime: startTime || p.startTime,
-          endTime:   endTime   || p.endTime,
-          priority:  priority  || p.priority,
-          date:      date      || p.date,
-        }));
-      }
-    } catch {
-      setForm(p => ({ ...p, text: rawText }));
-    }
-    finally { setAiLoading(false); }
-  }, [appLanguage]);
 
   const handleDecomposeTask = useCallback(async (id) => {
     const g = goals.find(x => x.id === id);
@@ -798,7 +796,7 @@ export const AppProvider = ({ children }) => {
     setAiLoading(true);
     try {
       const response = await fetch(getApiUrl('/api/decompose'), {
-        method:  'POST',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ task: g.text, language: appLanguage })
       });
@@ -810,7 +808,7 @@ export const AppProvider = ({ children }) => {
             : x
         ));
       }
-    } catch {}
+    } catch { }
     finally { setAiLoading(false); }
   }, [goals, appLanguage, save]);
 
@@ -818,7 +816,7 @@ export const AppProvider = ({ children }) => {
     setAiLoading(true);
     try {
       const response = await fetch(getApiUrl('/api/autoschedule'), {
-        method:  'POST',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userName, goals, language: appLanguage })
       });
@@ -828,7 +826,7 @@ export const AppProvider = ({ children }) => {
           normalizeGoal({ ...t, id: Date.now() + Math.random() })
         )]);
       }
-    } catch {}
+    } catch { }
     finally { setAiLoading(false); }
   }, [userName, goals, appLanguage, save]);
 
@@ -873,19 +871,19 @@ export const AppProvider = ({ children }) => {
   }, []);
 
   // ─── NAVIGATION SHORTCUTS ───
-  const onAddTask     = useCallback(() => {
+  const onAddTask = useCallback(() => {
     setForm({ text: "", date: todayKey(), reminder: "", startTime: "", endTime: "", repeat: "None", session: "Morning", priority: "Medium" });
     setShowForm(true);
   }, []);
-  const onPlanDay         = useCallback(() => setActiveView('planner'),                   []);
-  const onAutoSchedule    = useCallback(() => { setShowForm(true); handleAiAutoSchedule(); }, [handleAiAutoSchedule]);
-  const onStartFocus      = useCallback(() => setFocusMode(true),                          []);
-  const onReplaceGoals    = useCallback((gs) => save(gs),                                  [save]);
+  const onPlanDay = useCallback(() => setActiveView('planner'), []);
+  const onAutoSchedule = useCallback(() => { setShowForm(true); handleAiAutoSchedule(); }, [handleAiAutoSchedule]);
+  const onStartFocus = useCallback(() => setFocusMode(true), []);
+  const onReplaceGoals = useCallback((gs) => save(gs), [save]);
 
   // ✅ FIX 1: No window.alert / window.confirm
   const onCreateNextWeekPlan = useCallback(() => {
     setSmartNotice({
-      id:   'next-week-plan',
+      id: 'next-week-plan',
       text: appLanguage === 'ta' ? "அடுத்த வாரத்திற்கான திட்டம் தயாராகிறது..." : "Creating next week's plan...",
       icon: '📅', type: 'info'
     });
@@ -894,19 +892,19 @@ export const AppProvider = ({ children }) => {
   const onClearCache = useCallback(() => {
     showConfirm(
       appLanguage === 'ta' ? "அனைத்து தரவையும் அழிக்கவா?" : "Clear all data?",
-      () => { try { localStorage.clear(); } catch {} window.location.reload(); }
+      () => { try { localStorage.clear(); } catch { } window.location.reload(); }
     );
   }, [showConfirm, appLanguage]);
 
   const onClearLocalData = useCallback(() => {
     showConfirm(
       appLanguage === 'ta' ? "அனைத்தையும் நீக்கவா?" : "Delete everything?",
-      () => { try { localStorage.clear(); } catch {} window.location.reload(); }
+      () => { try { localStorage.clear(); } catch { } window.location.reload(); }
     );
   }, [showConfirm, appLanguage]);
 
   const onOpenBatterySettings = useCallback(() => electronIpc?.send('open-battery-settings'), [electronIpc]);
-  const onOpenAppSettings     = useCallback(() => electronIpc?.send('open-app-settings'),     [electronIpc]);
+  const onOpenAppSettings = useCallback(() => electronIpc?.send('open-app-settings'), [electronIpc]);
 
   const handleChatAction = useCallback((action) => {
     if (!action) return;
@@ -979,16 +977,16 @@ export const AppProvider = ({ children }) => {
     copy, quote, aiBriefing, aiWeeklyAnalysis, activeDateLabel,
     liveCurrentGoal, nextUpcomingGoal,
     // Actions
-    save, onRefreshNotifications,
+    save, onRefreshNotifications, testNotification,
     handleSaveName, toggleDoneWithCelebration,
-    submitForm, removeGoal, handleImportTasks,
+    removeGoal, handleImportTasks,
     selectAllVisibleGoals, clearSelectedGoals, deleteSelectedGoals,
     markAllPendingDone, duplicatePendingToTomorrow, reopenAllCompleted,
     handleDecomposeTask, toggleSubtask, handleAiAutoSchedule,
-    handleOptimizeSchedule, handleSmartTaskParse, fetchAiBriefing,
+    handleOptimizeSchedule, fetchAiBriefing, getApiUrl,
     handleChatAction, dotsFor, toggleSelectGoal,
     calculateNextUpcomingTask,
-    onAddTask, onPlanDay, onAutoSchedule, onStartFocus,
+    onPlanDay, 
     onOptimizeSchedule: handleOptimizeSchedule,
     onCreateNextWeekPlan, onReplaceGoals,
     onClearCache, onClearLocalData,

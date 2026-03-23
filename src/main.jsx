@@ -4,6 +4,7 @@ import { registerPlugin } from '@capacitor/core'
 import App from './App.jsx'
 import { AppProvider } from './context/AppContext'
 import { TimerProvider } from './context/TimerContext'
+import { TaskFormProvider } from './context/TaskFormContext'
 
 registerPlugin('DeviceSettings')
 
@@ -18,9 +19,11 @@ if (import.meta.env.DEV && 'serviceWorker' in navigator) {
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <AppProvider>
-      <TimerProvider>
-        <App />
-      </TimerProvider>
+      <TaskFormProvider>
+        <TimerProvider>
+          <App />
+        </TimerProvider>
+      </TaskFormProvider>
     </AppProvider>
   </React.StrictMode>,
 )

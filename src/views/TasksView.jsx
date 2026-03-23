@@ -6,10 +6,13 @@ import DailyProductivityScore from '../components/DailyProductivityScore';
 import { PRIORITY_OPTIONS, TIME_FILTER_OPTIONS, DAY_NAMES } from '../utils/constants';
 import { todayKey, toKey } from '../utils/helpers';
 import { useApp } from '../context/AppContext';
+import { useTaskForm } from '../context/TaskFormContext';
 import { LiveClock, LiveCountdown } from '../components/LiveTimeComponents';
 
 export default function TasksView() {
-  const app = useApp();
+  const appBase = useApp();
+  const formState = useTaskForm();
+  const app = { ...appBase, ...formState };
   const {
     activeDate, setActiveDate, activeDateLabel, weekBase, setWeekBase,
     done, total, pct, nextUpcomingGoal, setForm, setEditingGoal, setShowForm,

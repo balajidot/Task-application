@@ -12,8 +12,10 @@ import EnhancedFocusMode       from "./components/EnhancedFocusMode";
 import { LiveTaskPopup }       from "./components/SharedUI";
 
 // Hooks
-import useKeyboardShortcuts                                    from "./hooks/useKeyboardShortcuts";
-import { useMobileFeatures, triggerHaptic, useSwipeTabSwitcher } from "./hooks/useMobileFeatures";
+import { useMobileFeatures, useSwipeTabSwitcher, triggerHaptic } from './hooks/useMobileFeatures';
+import useKeyboardShortcuts from './hooks/useKeyboardShortcuts';
+import { useTaskForm } from './context/TaskFormContext';
+import { useTimer } from './context/TimerContext';
 
 // Notifications — ✅ FIX: correct import path
 import { showAppNotification } from "./notifications.fixed";
@@ -185,11 +187,12 @@ function ConfirmDialog() {
 
 // ─── Task Form Modal ──────────────────────────────────────────────────────────
 function TaskFormModal() {
-  const app = useApp();
+  const appBase = useApp();
+  const formState = useTaskForm();
+  const app = { ...appBase, ...formState };
   if (!app.showForm) return null;
 
   const priorities = ['High', 'Medium', 'Low'];
-  const sessions   = ['Morning', 'Afternoon', 'Evening', 'Night'];
   const repeats    = ['None', 'Daily', 'Weekdays', 'Weekly'];
 
   return (
@@ -211,14 +214,25 @@ function TaskFormModal() {
           <label className="fl">
             {app.appLanguage === 'ta' ? 'பணி விவரம்' : 'Task'}
           </label>
-          <textarea
-            className="fi task-box"
-            placeholder={app.copy.taskForm?.taskPlaceholder || 'What do you need to do?'}
-            value={app.form.text}
-            onChange={e => app.setForm({ ...app.form, text: e.target.value })}
-            autoFocus
-            rows={3}
-          />
+          <div className="task-input-container">
+            <textarea
+              className="fi task-box"
+              placeholder={app.copy.taskForm?.taskPlaceholder || 'What do you need to do? (e.g. Meeting 9am-10am)'}
+              value={app.form.text}
+              onChange={e => app.setForm({ ...app.form, text: e.target.value })}
+              autoFocus
+              rows={3}
+            />
+            <button 
+              className={`task-ai-btn ${app.aiLoading ? 'loading' : ''}`}
+              onClick={() => app.handleSmartTaskParse(app.form.text)}
+              disabled={!app.form.text.trim() || app.aiLoading}
+              title="AI Smart Schedule"
+              type="button"
+            >
+              {app.aiLoading ? '⏳' : '✨'}
+            </button>
+          </div>
         </div>
 
         {/* Time Row */}
@@ -266,25 +280,6 @@ function TaskFormModal() {
                 type="button"
               >
                 {p === 'High' ? '🔴' : p === 'Medium' ? '🟡' : '🟢'} {p}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Session */}
-        <div className="fg">
-          <label className="fl">
-            {app.appLanguage === 'ta' ? 'நேர பகுதி' : 'Session'}
-          </label>
-          <div className="task-form-chips">
-            {sessions.map(s => (
-              <button
-                key={s}
-                className={`task-session-chip ${app.form.session === s ? 'active' : ''}`}
-                onClick={() => app.setForm({ ...app.form, session: s })}
-                type="button"
-              >
-                {s === 'Morning' ? '🌅' : s === 'Afternoon' ? '☀️' : s === 'Evening' ? '🌆' : '🌙'} {s}
               </button>
             ))}
           </div>
@@ -346,7 +341,9 @@ export default function App() {
 
 // ─── App Shell ────────────────────────────────────────────────────────────────
 function AppShell() {
-  const app = useApp();
+  const appBase = useApp();
+  const formState = useTaskForm();
+  const app = { ...appBase, ...formState };
 
   useMobileFeatures({
     themeMode:      app.themeMode,
@@ -666,16 +663,22 @@ function AppShell() {
           </div>
         )}
 
-        {/* ── AI Coach Button ── */}
-        {app.activeView !== 'chat' && (
-          <div
-            className="floating-ai-btn"
-            onClick={() => app.setActiveView('chat')}
-          >
-            🤖
-            {app.aiPersonalCoach && <div className="ai-badge">NEW</div>}
-          </div>
-        )}
+        {/* ── Floating Add Button (Replaces AI Button) ── */}
+        <div
+          className="floating-add-btn"
+          onClick={() => {
+            triggerHaptic('medium');
+            app.setForm({
+              text: "", date: app.activeDate, reminder: "",
+              startTime: "", endTime: "", repeat: "None",
+              session: "Morning", priority: "Medium"
+            });
+            app.setEditingGoal(null);
+            app.setShowForm(true);
+          }}
+        >
+          <span className="add-btn-icon">＋</span>
+        </div>
 
       </div>
     </div>

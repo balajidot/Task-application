@@ -54,15 +54,15 @@ STRICT RULES:
 OUTPUT:`;
 
   const models = [
-    { version: 'v1beta', name: 'gemini-2.5-flash-preview-05-20' },
-    { version: 'v1beta', name: 'gemini-2.0-flash' },
-    { version: 'v1beta', name: 'gemini-2.0-flash-lite' },
+    { v: 'v1beta', n: 'gemini-2.0-flash' },
+    { v: 'v1',     n: 'gemini-1.5-flash' },
+    { v: 'v1beta', n: 'gemini-1.5-flash' }
   ];
 
   for (const model of models) {
     try {
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/${model.version}/models/${model.name}:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/${model.v}/models/${model.n}:generateContent?key=${apiKey}`,
         {
           method:  'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -74,40 +74,35 @@ OUTPUT:`;
         }
       );
 
+      if (!response.ok) continue;
+
       const data = await response.json();
-      if (response.ok) {
-        const text  = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        const lines = text
-          .trim()
-          .split(/\r?\n/)
-          .map(l => l.trim().replace(/\*\*/g,'').replace(/^[\d]+[\.\)]\s*/,'').replace(/^[-•]\s*/,'').trim())
-          .filter(l => /^\d{1,2}:\d{2}\s*[-–]\s*\d{1,2}:\d{2}\s*[-–]/.test(l))
-          .map(l => l.replace(/–/g, '-'))
-          .slice(0, 7);
+      const text  = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const lines = text
+        .trim()
+        .split(/\r?\n/)
+        .map(l => l.trim().replace(/\*\*/g,'').replace(/^[\d]+[\.\)]\s*/,'').replace(/^[-•]\s*/,'').trim())
+        .filter(l => /^\d{1,2}:\d{2}\s*[-–]\s*\d{1,2}:\d{2}\s*[-–]/.test(l))
+        .map(l => l.replace(/–/g, '-'))
+        .slice(0, 7);
 
-        if (lines.length >= 2) {
-          const newTasks = lines.map(line => {
-            // Line format expected: HH:MM - HH:MM - Task name
-            const parts = line.split('-').map(p => p.trim());
-            if (parts.length >= 3) {
-              return {
-                text: parts.slice(2).join(' - '),
-                startTime: parts[0],
-                endTime: parts[1],
-                priority: 'Medium',
-                session: (parseInt(parts[0]) < 12) ? 'Morning' : (parseInt(parts[0]) < 17) ? 'Afternoon' : 'Evening'
-              };
-            }
-            return null;
-          }).filter(Boolean);
-
-          if (newTasks.length > 0) {
-            return res.status(200).json({ newTasks });
+      if (lines.length >= 2) {
+        const newTasks = lines.map(line => {
+          const parts = line.split('-').map(p => p.trim());
+          if (parts.length >= 3) {
+            return {
+              text: parts.slice(2).join(' - '),
+              startTime: parts[0],
+              endTime: parts[1],
+              priority: 'Medium',
+              session: (parseInt(parts[0]) < 12) ? 'Morning' : (parseInt(parts[0]) < 17) ? 'Afternoon' : 'Evening'
+            };
           }
-        }
+          return null;
+        }).filter(Boolean);
+
+        if (newTasks.length > 0) return res.status(200).json({ newTasks });
       }
-      if (response.status === 404 || response.status === 429 || response.status === 403) continue;
-      break;
     } catch (e) { continue; }
   }
 

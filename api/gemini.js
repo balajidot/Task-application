@@ -61,9 +61,9 @@ OUTPUT (6 lines only):`;
 
   // ✅ FIXED: All 3 are valid model names as of 2025-2026
   const models = [
-    { version: 'v1beta', name: 'gemini-2.5-flash-preview-05-20' },
-    { version: 'v1beta', name: 'gemini-2.0-flash' },
-    { version: 'v1beta', name: 'gemini-2.0-flash-lite' },
+    { v: 'v1beta', n: 'gemini-2.0-flash' },
+    { v: 'v1',     n: 'gemini-1.5-flash' },
+    { v: 'v1beta', n: 'gemini-1.5-flash' }
   ];
 
   for (const model of models) {

@@ -2,7 +2,7 @@ import { STORAGE_KEY, PREFS_KEY, UI_STATE_KEY, PRIORITY_OPTIONS } from "./consta
 
 export const ipc = (() => {
   try { return window.require?.("electron")?.ipcRenderer ?? null; }
-  catch { return null; }
+  catch (err) { return null; }
 })();
 
 export const toKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -61,6 +61,15 @@ export const matchesTimeFilter = (goal, filter) => {
   return true;
 };
 
+export const calculateSession = (timeStr) => {
+  const mins = timeToMinutes(timeStr);
+  if (mins === Number.MAX_SAFE_INTEGER) return "Morning";
+  if (mins >= 300 && mins < 720) return "Morning";
+  if (mins >= 720 && mins < 1020) return "Afternoon";
+  if (mins >= 1020 && mins < 1260) return "Evening";
+  return "Night";
+};
+
 export const getWeekDays = (base) => {
   const start = new Date(base);
   start.setDate(start.getDate() - start.getDay());
@@ -71,19 +80,24 @@ export const getWeekDays = (base) => {
   });
 };
 
-export const normalizeGoal = (g) => ({
-  id: g.id ?? Date.now(),
-  text: g.text ?? "",
-  date: g.date ?? todayKey(),
-  reminder: g.reminder ?? "",
-  startTime: g.startTime ?? "",
-  endTime: g.endTime ?? "",
-  repeat: g.repeat ?? "None",
-  session: g.session ?? "Morning",
-  priority: PRIORITY_OPTIONS.includes(g.priority) ? g.priority : "Medium",
-  done: !!g.done,
-  doneOn: g.doneOn ?? {},
-});
+export const normalizeGoal = (g) => {
+  const startTime = g.startTime ?? "";
+  const session = calculateSession(startTime);
+  
+  return {
+    id: g.id ?? Date.now(),
+    text: g.text ?? "",
+    date: g.date ?? todayKey(),
+    reminder: g.reminder ?? "",
+    startTime,
+    endTime: g.endTime ?? "",
+    repeat: g.repeat ?? "None",
+    session,
+    priority: PRIORITY_OPTIONS.includes(g.priority) ? g.priority : "Medium",
+    done: !!g.done,
+    doneOn: g.doneOn ?? {},
+  };
+};
 
 export const goalVisibleOn = (goal, key) => {
   if (goal.repeat === "Daily") return key >= goal.date;
@@ -137,7 +151,8 @@ export const readPrefs = async () => {
     const raw = await readPersist(PREFS_KEY);
     if (!raw) return null;
     return JSON.parse(raw);
-  } catch {
+  } catch (err) {
+    console.warn("readPrefs failed to parse:", err);
     return null;
   }
 };
@@ -145,7 +160,9 @@ export const readPrefs = async () => {
 export const writePrefs = async (prefs) => {
   try {
     await writePersist(PREFS_KEY, JSON.stringify(prefs));
-  } catch {}
+  } catch (err) {
+    console.error("writePrefs failed:", err);
+  }
 };
 
 export const readUiState = async () => {
@@ -153,7 +170,8 @@ export const readUiState = async () => {
     const raw = await readPersist(UI_STATE_KEY);
     if (!raw) return null;
     return JSON.parse(raw);
-  } catch {
+  } catch (err) {
+    console.warn("readUiState failed to parse:", err);
     return null;
   }
 };

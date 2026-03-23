@@ -29,14 +29,15 @@ Respond ONLY with a JSON array of strings in ${outputLanguage}.
 Example: ["Subtask 1", "Subtask 2"]`;
 
   const models = [
-    { version: 'v1beta', name: 'gemini-2.5-flash-preview-05-20' },
-    { version: 'v1beta', name: 'gemini-2.0-flash' }
+    { v: 'v1beta', n: 'gemini-2.0-flash' },
+    { v: 'v1',     n: 'gemini-1.5-flash' },
+    { v: 'v1beta', n: 'gemini-1.5-flash' }
   ];
 
   for (const model of models) {
     try {
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/${model.version}/models/${model.name}:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/${model.v}/models/${model.n}:generateContent?key=${apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -48,23 +49,20 @@ Example: ["Subtask 1", "Subtask 2"]`;
         }
       );
 
+      if (!response.ok) continue;
+
       const data = await response.json();
-      if (response.ok) {
-        let text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        // Basic JSON extraction from markdown if AI wraps it
-        text = text.replace(/```json/g, '').replace(/```/g, '').trim();
-        try {
-          const subtasks = JSON.parse(text);
-          if (Array.isArray(subtasks)) {
-            return res.status(200).json({ subtasks });
-          }
-        } catch (e) {
-          // If JSON parse fails, try to extract lines
-          const lines = text.split('\n').map(l => l.trim().replace(/^[-*]\s*/, '')).filter(l => l.length > 2);
-          if (lines.length > 0) return res.status(200).json({ subtasks: lines.slice(0, 6) });
-        }
+      let text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      // Basic JSON extraction from markdown if AI wraps it
+      text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+      try {
+        const subtasks = JSON.parse(text);
+        if (Array.isArray(subtasks)) return res.status(200).json({ subtasks });
+      } catch (e) {
+        // If JSON parse fails, try to extract lines
+        const lines = text.split('\n').map(l => l.trim().replace(/^[-*]\s*/, '')).filter(l => l.length > 2);
+        if (lines.length > 0) return res.status(200).json({ subtasks: lines.slice(0, 6) });
       }
-      continue;
     } catch (e) { continue; }
   }
 

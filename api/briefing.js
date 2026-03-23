@@ -47,9 +47,9 @@ Be specific, personal, and motivating. No generic advice. Address ${userName} by
 No markdown, no bullet points. Just 2-3 powerful sentences.`;
 
   const models = [
-    { version: 'v1beta', name: 'gemini-2.5-flash-preview-05-20' },
     { version: 'v1beta', name: 'gemini-2.0-flash' },
-    { version: 'v1beta', name: 'gemini-2.0-flash-lite' },
+    { version: 'v1beta', name: 'gemini-1.5-flash' },
+    { version: 'v1beta', name: 'gemini-1.5-flash-8b' }
   ];
 
   for (const model of models) {

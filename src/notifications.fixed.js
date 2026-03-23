@@ -14,18 +14,14 @@ const electronIpc = (() => {
 })();
 
 function toStableNotificationId(taskId) {
-  const numericId = Number(taskId);
-  if (Number.isInteger(numericId) && numericId !== 0) {
-    return Math.abs(numericId) % MAX_NOTIFICATION_ID || 1;
-  }
-
   const raw = String(taskId ?? '');
   let hash = 0;
-  for (let index = 0; index < raw.length; index += 1) {
-    hash = ((hash << 5) - hash + raw.charCodeAt(index)) | 0;
+  for (let i = 0; i < raw.length; i++) {
+    hash = ((hash << 5) - hash) + raw.charCodeAt(i);
+    hash |= 0; // Convert to 32bit integer
   }
-
-  return Math.abs(hash) % MAX_NOTIFICATION_ID || 1;
+  // Use taskId salt to differentiate reminder vs start vs live
+  return Math.abs(hash) % MAX_NOTIFICATION_ID || (Math.floor(Math.random() * 1000) + 1);
 }
 
 async function ensureCapacitorNotificationAccess(LocalNotifications, options = {}) {
@@ -87,35 +83,27 @@ function buildNotificationEntries(task, dateKey, exactAlarmEnabled = true) {
   const reminderTime = parseTaskTime(task.reminder, dateKey);
   const startTime = parseTaskTime(task.startTime, dateKey);
 
-  if (reminderTime && reminderTime > new Date()) {
+  if (reminderTime && (reminderTime.getTime() > Date.now())) {
     entries.push({
       title: 'Task Reminder',
-      body: task.endTime
-        ? `${task.text} | ${task.startTime || task.reminder} - ${task.endTime}`
-        : `${task.text} | ${task.startTime || task.reminder}`,
-      id: toStableNotificationId(`${task.id}-${dateKey}-reminder`),
+      body: task.text,
+      id: toStableNotificationId(`${task.id}-${dateKey}-rem`),
       schedule: {
         at: reminderTime,
         allowWhileIdle: true,
         exact: exactAlarmEnabled,
       },
       channelId: TASK_CHANNEL_ID,
+      smallIcon: 'res://icon', // For Android
       sound: 'default',
-      autoCancel: true,
-      extra: {
-        taskId: task.id,
-        taskDate: dateKey,
-        notificationType: 'reminder',
-      },
+      extra: { taskId: task.id, type: 'reminder' },
     });
   }
 
-  if (startTime && startTime > new Date() && (!reminderTime || startTime.getTime() !== reminderTime.getTime())) {
+  if (startTime && (startTime.getTime() > Date.now()) && (!reminderTime || Math.abs(startTime.getTime() - reminderTime.getTime()) > 30000)) {
     entries.push({
-      title: 'Task Starting Now',
-      body: task.endTime
-        ? `${task.text} | ${task.startTime} - ${task.endTime}`
-        : `${task.text} | ${task.startTime}`,
+      title: 'Task Starting',
+      body: task.text,
       id: toStableNotificationId(`${task.id}-${dateKey}-start`),
       schedule: {
         at: startTime,
@@ -123,13 +111,9 @@ function buildNotificationEntries(task, dateKey, exactAlarmEnabled = true) {
         exact: exactAlarmEnabled,
       },
       channelId: TASK_CHANNEL_ID,
+      smallIcon: 'res://icon',
       sound: 'default',
-      autoCancel: true,
-      extra: {
-        taskId: task.id,
-        taskDate: dateKey,
-        notificationType: 'start',
-      },
+      extra: { taskId: task.id, type: 'start' },
     });
   }
 
@@ -178,16 +162,16 @@ export async function requestNotificationPermission() {
 
 export async function initializeNotifications() {
   if (electronIpc) return 'granted';
-  
+
   // For PWA/Web, we follow the standard request flow
   if (!isCapacitor()) return await requestNotificationPermission();
 
   try {
     const { LocalNotifications } = await import('@capacitor/local-notifications');
-    
+
     // 1. Ensure the channel exists first (Android requirement)
     await ensureNotificationChannel(LocalNotifications);
-    
+
     // 2. Proactively prompt for permission if it hasn't been decided yet
     const access = await ensureCapacitorNotificationAccess(LocalNotifications, { prompt: true });
 
@@ -364,27 +348,27 @@ function parseTaskTime(timeStr, dateKey = getTodayKey()) {
   if (!timeStr) return null;
 
   try {
-    let hours;
-    let minutes;
-    const str = String(timeStr).trim().toUpperCase();
+    const cleanStr = String(timeStr).trim().toUpperCase();
+    // Support: HH:MM AM/PM, HHMMAM/PM, HH:MM, HH.MM, etc.
+    const timeMatch = cleanStr.match(/^(\d{1,2})[:.]?(\d{2})?\s*([AP]M)?$/);
+    
+    if (!timeMatch) return null;
 
-    if (str.includes('AM') || str.includes('PM')) {
-      const [time, period] = str.split(' ');
-      [hours, minutes] = time.split(':').map(Number);
-      if (period === 'PM' && hours !== 12) hours += 12;
-      if (period === 'AM' && hours === 12) hours = 0;
-    } else {
-      [hours, minutes] = str.split(':').map(Number);
-    }
+    let [_, hours, minutes, period] = timeMatch;
+    hours = parseInt(hours, 10);
+    minutes = parseInt(minutes || '0', 10);
 
-    if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+    if (period === 'PM' && hours < 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
 
-    const base = /^\d{4}-\d{2}-\d{2}$/.test(dateKey)
-      ? new Date(`${dateKey}T00:00:00`)
-      : new Date();
-    base.setHours(hours, minutes, 0, 0);
-    return base;
-  } catch {
+    if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
+
+    const [y, m, d] = dateKey.split('-').map(Number);
+    const date = new Date(y, m - 1, d, hours, minutes, 0, 0);
+    
+    return isNaN(date.getTime()) ? null : date;
+  } catch (err) {
+    console.warn('parseTaskTime error:', err);
     return null;
   }
 }

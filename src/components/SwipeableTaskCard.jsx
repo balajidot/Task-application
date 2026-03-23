@@ -321,7 +321,7 @@ const SwipeableTaskCard = ({
               borderLeft: '2px solid var(--card-border)'
             }}>
               {goal.subtasks.map((st, sidx) => (
-                <div 
+                <div
                   key={sidx}
                   onClick={(e) => { e.stopPropagation(); onToggleSubtask?.(sidx); }}
                   style={{
